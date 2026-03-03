@@ -1,0 +1,46 @@
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: abstract_pocketbase
+    restart: unless-stopped
+    ports:
+      - "8093:8090"
+    volumes:
+      - ./pocketbase/pb_data:/pb_data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8090/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: ghcr.io/bangsmackpow/abstract-etl-backend:latest
+    container_name: abstract_backend
+    restart: unless-stopped
+    ports:
+      - "3003:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      POCKETBASE_URL: http://abstract_pocketbase:8090
+      POCKETBASE_ADMIN_EMAIL: ${POCKETBASE_ADMIN_EMAIL}
+      POCKETBASE_ADMIN_PASSWORD: ${POCKETBASE_ADMIN_PASSWORD}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      APP_URL: ${APP_URL:-http://192.168.254.5:5173}
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/bangsmackpow/abstract-etl-frontend:latest
+    container_name: abstract_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
