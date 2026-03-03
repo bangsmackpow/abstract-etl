@@ -8,6 +8,14 @@ const { createError } = require('../middleware/errorHandler');
 // All job routes require auth
 router.use(requireAuth);
 
+// GET /api/jobs/admin/users — admin: list all users for filter dropdown
+router.get('/admin/users', requireAdmin, async (req, res) => {
+  const users = await pb.collection('users').getFullList({
+    fields: 'id,name,email,role'
+  });
+  res.json(users);
+});
+
 // GET /api/jobs — list jobs (own jobs; admin sees all)
 router.get('/', async (req, res) => {
   const { search, status, page = 1, perPage = 25 } = req.query;
@@ -105,14 +113,6 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', requireAdmin, async (req, res) => {
   await pb.collection('jobs').delete(req.params.id);
   res.json({ success: true });
-});
-
-// GET /api/jobs/admin/users — admin: list all users for filter dropdown
-router.get('/admin/users', requireAdmin, async (req, res) => {
-  const users = await pb.collection('users').getFullList({
-    fields: 'id,name,email,role'
-  });
-  res.json(users);
 });
 
 module.exports = router;
