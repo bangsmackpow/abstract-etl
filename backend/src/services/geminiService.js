@@ -135,7 +135,7 @@ async function getPageCount(pdfPath) {
  * Send images to Gemini and get extracted fields JSON
  */
 async function extractFromImages(base64Images) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   // Build image parts for Gemini
   const imageParts = base64Images.map(b64 => ({
