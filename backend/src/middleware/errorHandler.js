@@ -3,7 +3,7 @@
  * Catches both thrown errors and async rejections (express-async-errors).
  */
 function errorHandler(err, req, res, next) {
-  console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
+  console.error(`[ERROR] ${req.method} ${req.path}:`, err.message, err.status, JSON.stringify(err.data || {}));
   if (process.env.NODE_ENV === 'development') console.error(err.stack);
 
   const status  = err.status || err.statusCode || 500;
