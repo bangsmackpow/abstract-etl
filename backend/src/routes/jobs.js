@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
 
 // GET /api/jobs/:id — get single job
 router.get('/:id', async (req, res) => {
-  const record = await pb.collection('jobs').getOne(req.params.id, { expand: 'created_by' });
+  const record = await pb.collection('jobs').getOne(req.params.id);
 
   // Non-admins can only see their own jobs
   if (req.user.role !== 'admin' && record.created_by !== req.user.id) {
