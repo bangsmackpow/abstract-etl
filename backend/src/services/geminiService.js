@@ -97,22 +97,31 @@ ${FIELD_SCHEMA}`;
  */
 async function pdfToImages(pdfPath, outputDir) {
   const options = {
-    density: 200,          // DPI — high enough for scanned docs
+    density: 150,
     saveFilename: 'page',
     savePath: outputDir,
     format: 'jpeg',
-    width: 1700,
-    height: 2200
+    width: 1200,
+    height: 1600
   };
 
   const convert   = fromPath(pdfPath, options);
   const pageCount = await getPageCount(pdfPath);
+  console.log(`[Gemini] Page count: ${pageCount}, outputDir: ${outputDir}`);
 
   const images = [];
   for (let i = 1; i <= pageCount; i++) {
-    const result = await convert(i, { responseType: 'base64' });
-    images.push(result.base64);
+    try {
+      const result = await convert(i, { responseType: 'base64' });
+      const size = result.base64?.length || 0;
+      console.log(`[Gemini] Page ${i}: base64 size=${size}`);
+      if (size > 0) images.push(result.base64);
+    } catch (err) {
+      console.error(`[Gemini] Page ${i} conversion failed:`, err.message);
+    }
   }
+  
+  console.log(`[Gemini] Successfully converted ${images.length}/${pageCount} pages`);
   return images;
 }
 
