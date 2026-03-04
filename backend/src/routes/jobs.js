@@ -18,13 +18,26 @@ router.get('/admin/users', requireAdmin, async (req, res) => {
 
 // GET /api/jobs — list jobs (own jobs; admin sees all)
 router.get('/', async (req, res) => {
-  try {
-    const records = await pb.collection('jobs').getList(1, 25);
-    res.json(records);
-  } catch (err) {
-    console.error('[Jobs list error DETAIL]', JSON.stringify(err));
-    throw err;
+  const { search, status, page = 1, perPage = 25 } = req.query;
+
+  const filters = [];
+  if (req.user.role !== 'admin') {
+    filters.push(`created_by = "${req.user.id}"`);
+  } else if (req.query.userId) {
+    filters.push(`created_by = "${req.query.userId}"`);
   }
+  if (status) filters.push(`status = "${status}"`);
+  if (search) {
+    filters.push(`(property_address ~ "${search}" || borrower_names ~ "${search}" || county ~ "${search}")`);
+  }
+
+  const filter  = filters.join(' && ');
+  const records = await pb.collection('jobs').getList(Number(page), Number(perPage), {
+    filter: filter || undefined,
+    sort:   '-created',
+  });
+
+  res.json(records);
 });
 
 // GET /api/jobs/:id — get single job
