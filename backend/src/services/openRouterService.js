@@ -13,7 +13,7 @@ function getClient() {
 }
 
 // Fixed OpenRouter Model ID: https://openrouter.ai/google/gemini-flash-1.5-8b
-const DEFAULT_MODEL = 'google/gemini-flash-1.5-8b';
+const DEFAULT_MODEL = 'google/gemini-flash-1.5';
 
 async function testConnection() {
   const rawKey = (process.env.OPENROUTER_API_KEY || '').trim();

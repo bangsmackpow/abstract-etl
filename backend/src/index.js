@@ -57,14 +57,19 @@ const { hashPassword } = require('./services/authService');
 const { eq } = require('drizzle-orm');
 
 async function seedAdmin() {
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
-  const adminPass  = process.env.ADMIN_PASSWORD || 'admin123';
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPass  = process.env.ADMIN_PASSWORD;
   
+  if (!adminEmail || !adminPass) {
+    console.warn('⚠️ ADMIN_EMAIL or ADMIN_PASSWORD not set. Skipping admin seed/sync.');
+    return;
+  }
+
   const [existingAdmin] = await db.select().from(users).where(eq(users.email, adminEmail)).limit(1);
-  const hashedPassword = await hashPassword(adminPass);
 
   if (!existingAdmin) {
     console.log('🌱 Seeding initial admin user...');
+    const hashedPassword = await hashPassword(adminPass);
     await db.insert(users).values({
       name: 'System Admin',
       email: adminEmail,
@@ -73,9 +78,18 @@ async function seedAdmin() {
     });
     console.log(`✅ Admin user created: ${adminEmail}`);
   } else {
-    // Force update password to match environment variable
-    await db.update(users).set({ password: hashedPassword }).where(eq(users.id, existingAdmin.id));
-    console.log(`✅ Admin password synced for: ${adminEmail}`);
+    // Check if we need to update the password (e.g. if env changed)
+    const { comparePassword } = require('./services/authService');
+    const isSame = await comparePassword(adminPass, existingAdmin.password);
+    
+    if (!isSame) {
+      console.log('👤 Admin password changed in env. Updating...');
+      const hashedPassword = await hashPassword(adminPass);
+      await db.update(users).set({ password: hashedPassword }).where(eq(users.id, existingAdmin.id));
+      console.log('✅ Admin password updated.');
+    } else {
+      console.log('✅ Admin user verified.');
+    }
   }
 }
 
