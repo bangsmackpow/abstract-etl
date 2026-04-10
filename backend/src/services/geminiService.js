@@ -93,8 +93,8 @@ ${FIELD_SCHEMA}`;
  * Send images to Gemini and get extracted fields JSON
  */
 async function extractFromImages(base64Images) {
-  // Use gemini-1.5-flash (fixed the 2.5 typo)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  // Use gemini-1.5-flash-latest (sometimes resolved 404s with stable names)
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
   // Build image parts for Gemini
   const imageParts = base64Images.map(b64 => ({
