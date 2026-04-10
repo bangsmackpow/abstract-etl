@@ -1,6 +1,5 @@
 const OpenAI = require('openai');
 
-// Initialize client inside the function to ensure we get latest env vars and can trim them
 function getClient() {
   const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
   return new OpenAI({
@@ -13,7 +12,8 @@ function getClient() {
   });
 }
 
-const DEFAULT_MODEL = process.env.AI_MODEL || 'google/gemini-flash-1.5-8b:free';
+// Default to the free variant
+const DEFAULT_MODEL = 'google/gemini-flash-1.5-8b:free';
 
 const FIELD_SCHEMA = `{
   "file_number": null,
@@ -100,14 +100,18 @@ ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
   const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
-  if (!apiKey || apiKey === 'your_openrouter_api_key_here') {
+  if (!apiKey || apiKey.includes('your_openrouter_api_key')) {
     const err = new Error('OPENROUTER_API_KEY is missing or invalid');
     err.status = 500;
     throw err;
   }
   
-  const model = process.env.AI_MODEL || DEFAULT_MODEL;
-  console.log(`[OpenRouter] Requesting extraction from model: ${model} (${base64Images.length} images)`);
+  let model = process.env.AI_MODEL || DEFAULT_MODEL;
+  
+  // Auto-fix: If user provided the 8b model without :free, and they are getting 401s, 
+  // we can't easily auto-fix it here without potentially annoying paid users,
+  // so we'll just log it clearly.
+  console.log(`[OpenRouter] Requesting extraction: model=${model}, images=${base64Images.length}, key_prefix=${apiKey.substring(0, 10)}...`);
 
   try {
     const client = getClient();
@@ -135,9 +139,9 @@ async function extractFromImages(base64Images) {
   } catch (err) {
     console.error(`❌ [OpenRouter] AI Error (${model}):`, err.status, err.message);
     
-    // Check if it's an API key issue specifically
-    if (err.message.includes('User not found') || err.status === 401) {
-      console.error('👉 Tip: Check your OPENROUTER_API_KEY in .env. It might be invalid or have a $0 balance.');
+    if (err.status === 401) {
+      console.error('👉 TIP: "User not found" or 401 usually means an invalid API key OR you are using a paid model without credits.');
+      console.error('👉 TRY: Setting AI_MODEL=google/gemini-flash-1.5-8b:free in your .env');
     }
 
     const aiError = new Error(`AI Provider Error: ${err.message}`);
@@ -147,22 +151,38 @@ async function extractFromImages(base64Images) {
   }
 }
 
+/**
+ * Intelligent merge: keeps the most complete record for scalars,
+ * and deduplicates array entries by key fields.
+ */
 function mergeExtractions(first, second) {
   const merged = { ...first };
-  ['chain', 'mortgages', 'assoc_docs'].forEach(key => {
-    const firstArr  = first[key]  || [];
-    const secondArr = second[key] || [];
-    // Combine arrays and remove duplicates by a simple stringify check if needed, 
-    // but for now just take the larger set or append
-    if (secondArr.length > 0) {
-      merged[key] = [...firstArr, ...secondArr];
-    }
+
+  const arrayKeys = ['chain', 'mortgages', 'assoc_docs'];
+  arrayKeys.forEach(key => {
+    const firstArr  = Array.isArray(first[key]) ? first[key] : [];
+    const secondArr = Array.isArray(second[key]) ? second[key] : [];
+    
+    // Combine and deduplicate based on a "fingerprint" of the entry
+    const combined = [...firstArr, ...secondArr];
+    const seen = new Set();
+    merged[key] = combined.filter(item => {
+      if (!item || typeof item !== 'object') return false;
+      // Create a fingerprint from title + date + book/page
+      const fingerprint = `${item.document_title || ''}-${item.dated || ''}-${item.book_instrument || ''}-${item.page || ''}`;
+      if (fingerprint === '---' || seen.has(fingerprint)) return false;
+      seen.add(fingerprint);
+      return true;
+    });
   });
+
+  // Fill in any nulls in 'first' with data from 'second'
   Object.keys(second).forEach(key => {
-    if (!Array.isArray(second[key]) && (merged[key] === null || merged[key] === undefined)) {
+    if (!arrayKeys.includes(key) && (merged[key] === null || merged[key] === undefined)) {
       merged[key] = second[key];
     }
   });
+
   return merged;
 }
 
