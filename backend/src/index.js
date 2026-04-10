@@ -90,7 +90,7 @@ async function start() {
       console.log(`    Database: SQLite (WAL mode enabled)`);
       
       const provider = process.env.AI_PROVIDER || 'openrouter';
-      const model    = provider === 'openrouter' ? (process.env.AI_MODEL || 'google/gemini-flash-1.5-8b') : 'gemini-1.5-flash';
+      const model    = provider === 'openrouter' ? (process.env.AI_MODEL || 'google/gemini-flash-1.5-8b') : 'models/gemini-1.5-flash';
       console.log(`    AI Provider: ${provider} (${model})`);
     });
   } catch (err) {
