@@ -36,12 +36,6 @@ async function testConnection() {
     console.log(`✅ [OpenRouter] Startup Test Success: "${response.choices[0].message.content.trim()}"`);
   } catch (err) {
     console.error(`❌ [OpenRouter] Startup Test Failed: ${err.status} ${err.message}`);
-    if (err.status === 401) {
-      console.error('   👉 ACTION REQUIRED: Your API key is being rejected.');
-      console.error('   👉 1. Ensure your key starts with sk-or-v1-');
-      console.error('   👉 2. Check your OpenRouter dashboard balance (some "free" models require $1 credit).');
-      console.error('   👉 3. Ensure AI_MODEL is set to google/gemini-flash-1.5-8b:free (with the :free suffix).');
-    }
   }
 }
 
@@ -111,20 +105,57 @@ const FIELD_SCHEMA = `{
       "grantee_assignee": null,
       "open_closed": null
     }
-  ]
+  ],
+  "judgments_liens": [
+    {
+      "index": 1,
+      "document_title": null,
+      "book_instrument": null,
+      "page": null,
+      "dated": null,
+      "recorded": null,
+      "case_number": null,
+      "amount": null,
+      "plaintiff": null,
+      "defendant": null
+    }
+  ],
+  "miscellaneous": [
+    {
+      "index": 1,
+      "document_title": null,
+      "book_instrument": null,
+      "page": null,
+      "dated": null,
+      "recorded": null,
+      "consideration": null,
+      "grantor_assignor": null,
+      "grantee_assignee": null
+    }
+  ],
+  "legal_description": null,
+  "additional_information": null,
+  "names_searched": []
 }`;
 
-const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract data and return ONLY valid JSON.
+const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience.
+Your task is to extract all relevant data and return ONLY valid JSON matching this exact schema.
+Rules:
+- Return ONLY the JSON object — no markdown, no explanation, no backticks
+- For any field you cannot find or confirm, use null (not empty string)
+- For dates: use MM/DD/YYYY format
+- For dollar amounts: omit the $ sign and commas (e.g. "210000.00")
+- For arrays like grantors/grantees: include all names found
+- For chain of title: list entries in reverse chronological order (most recent first)
+- Notes field on chain entries: capture any asterisk (*) notations exactly as written
+- legal_description: capture the full legal description text if found
+
+Schema to populate:
 ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
   let model = process.env.AI_MODEL || DEFAULT_MODEL;
-  
-  // Hard enforcement of the free suffix if the user forgot it
-  if (model === 'google/gemini-flash-1.5-8b') {
-    console.warn(`⚠️ [OpenRouter] Automatically appending :free to model ID to avoid 401 errors.`);
-    model = 'google/gemini-flash-1.5-8b:free';
-  }
+  if (model === 'google/gemini-flash-1.5-8b') model = 'google/gemini-flash-1.5-8b:free';
 
   console.log(`[OpenRouter] Extracting: model=${model}, images=${base64Images.length}`);
 
@@ -162,12 +193,20 @@ async function extractFromImages(base64Images) {
 
 function mergeExtractions(first, second) {
   const merged = { ...first };
-  const arrayKeys = ['chain', 'mortgages', 'assoc_docs'];
+  const arrayKeys = ['chain', 'mortgages', 'assoc_docs', 'judgments_liens', 'miscellaneous', 'names_searched'];
+  
   arrayKeys.forEach(key => {
     const firstArr  = Array.isArray(first[key]) ? first[key] : [];
     const secondArr = Array.isArray(second[key]) ? second[key] : [];
+    
+    if (key === 'names_searched') {
+      merged[key] = [...new Set([...firstArr, ...secondArr])];
+      return;
+    }
+
     const combined = [...firstArr, ...secondArr];
     const seen = new Set();
+    
     merged[key] = combined.filter(item => {
       if (!item || typeof item !== 'object') return false;
       const fingerprint = `${item.document_title || ''}-${item.dated || ''}-${item.book_instrument || ''}-${item.page || ''}`;
@@ -176,11 +215,13 @@ function mergeExtractions(first, second) {
       return true;
     });
   });
+
   Object.keys(second).forEach(key => {
-    if (!arrayKeys.includes(key) && (merged[key] === null || merged[key] === undefined)) {
+    if (!arrayKeys.includes(key) && (merged[key] === null || merged[key] === undefined || merged[key] === '')) {
       merged[key] = second[key];
     }
   });
+
   return merged;
 }
 
