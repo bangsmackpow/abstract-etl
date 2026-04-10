@@ -14,18 +14,17 @@ function getClient() {
 
 const DEFAULT_MODEL = 'google/gemini-flash-1.5-8b:free';
 
-/**
- * Startup test to verify API key and connectivity.
- */
 async function testConnection() {
-  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
-  if (!apiKey || apiKey.includes('your_openrouter')) {
-    console.error('⚠️ [OpenRouter] No valid API key found in environment.');
+  const rawKey = (process.env.OPENROUTER_API_KEY || '').trim();
+  const cleanKey = rawKey.replace(/^["']|["']$/g, '');
+  
+  if (!cleanKey || cleanKey.length < 10) {
+    console.error('❌ [OpenRouter] No API key detected or key too short.');
     return;
   }
 
   const model = process.env.AI_MODEL || DEFAULT_MODEL;
-  console.log(`[OpenRouter] Running startup test with model: ${model}...`);
+  console.log(`[OpenRouter] Startup Test: model=${model}, key_start=${cleanKey.substring(0, 10)}...`);
   
   try {
     const client = getClient();
@@ -34,16 +33,18 @@ async function testConnection() {
       messages: [{ role: 'user', content: 'Say "Ready"' }],
       max_tokens: 10
     });
-    console.log(`✅ [OpenRouter] Test result: "${response.choices[0].message.content.trim()}"`);
+    console.log(`✅ [OpenRouter] Startup Test Success: "${response.choices[0].message.content.trim()}"`);
   } catch (err) {
     console.error(`❌ [OpenRouter] Startup Test Failed: ${err.status} ${err.message}`);
     if (err.status === 401) {
-      console.error('   👉 This 401 means the API key is being rejected. Check for quotes or spaces in your secret.');
+      console.error('   👉 ACTION REQUIRED: Your API key is being rejected.');
+      console.error('   👉 1. Ensure your key starts with sk-or-v1-');
+      console.error('   👉 2. Check your OpenRouter dashboard balance (some "free" models require $1 credit).');
+      console.error('   👉 3. Ensure AI_MODEL is set to google/gemini-flash-1.5-8b:free (with the :free suffix).');
     }
   }
 }
 
-// Run test on load
 testConnection();
 
 const FIELD_SCHEMA = `{
@@ -113,15 +114,19 @@ const FIELD_SCHEMA = `{
   ]
 }`;
 
-const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract all relevant data and return ONLY valid JSON matching this schema.
-Return ONLY JSON — no markdown. Use MM/DD/YYYY dates.
+const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract data and return ONLY valid JSON.
 ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
-  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim().replace(/^["']|["']$/g, '');
-  const model = process.env.AI_MODEL || DEFAULT_MODEL;
+  let model = process.env.AI_MODEL || DEFAULT_MODEL;
   
-  console.log(`[OpenRouter] Requesting extraction: model=${model}, images=${base64Images.length}`);
+  // Hard enforcement of the free suffix if the user forgot it
+  if (model === 'google/gemini-flash-1.5-8b') {
+    console.warn(`⚠️ [OpenRouter] Automatically appending :free to model ID to avoid 401 errors.`);
+    model = 'google/gemini-flash-1.5-8b:free';
+  }
+
+  console.log(`[OpenRouter] Extracting: model=${model}, images=${base64Images.length}`);
 
   try {
     const client = getClient();
@@ -132,7 +137,7 @@ async function extractFromImages(base64Images) {
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'Extract all data from these images and return the JSON schema.' },
+            { type: 'text', text: 'Extract JSON from these images.' },
             ...base64Images.map(b64 => ({
               type: 'image_url',
               image_url: { url: `data:image/jpeg;base64,${b64}` }
@@ -148,7 +153,6 @@ async function extractFromImages(base64Images) {
     return JSON.parse(cleaned);
   } catch (err) {
     console.error(`❌ [OpenRouter] AI Error (${model}):`, err.status, err.message);
-    
     const aiError = new Error(`AI Provider Error: ${err.message}`);
     aiError.status = 502; 
     aiError.data = err.response?.data;
