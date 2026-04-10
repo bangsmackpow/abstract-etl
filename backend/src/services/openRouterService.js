@@ -1,7 +1,7 @@
 const OpenAI = require('openai');
 
 function getClient() {
-  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
+  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim().replace(/^["']|["']$/g, '');
   return new OpenAI({
     apiKey: apiKey,
     baseURL: 'https://openrouter.ai/api/v1',
@@ -12,8 +12,39 @@ function getClient() {
   });
 }
 
-// Default to the free variant
 const DEFAULT_MODEL = 'google/gemini-flash-1.5-8b:free';
+
+/**
+ * Startup test to verify API key and connectivity.
+ */
+async function testConnection() {
+  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
+  if (!apiKey || apiKey.includes('your_openrouter')) {
+    console.error('⚠️ [OpenRouter] No valid API key found in environment.');
+    return;
+  }
+
+  const model = process.env.AI_MODEL || DEFAULT_MODEL;
+  console.log(`[OpenRouter] Running startup test with model: ${model}...`);
+  
+  try {
+    const client = getClient();
+    const response = await client.chat.completions.create({
+      model: model,
+      messages: [{ role: 'user', content: 'Say "Ready"' }],
+      max_tokens: 10
+    });
+    console.log(`✅ [OpenRouter] Test result: "${response.choices[0].message.content.trim()}"`);
+  } catch (err) {
+    console.error(`❌ [OpenRouter] Startup Test Failed: ${err.status} ${err.message}`);
+    if (err.status === 401) {
+      console.error('   👉 This 401 means the API key is being rejected. Check for quotes or spaces in your secret.');
+    }
+  }
+}
+
+// Run test on load
+testConnection();
 
 const FIELD_SCHEMA = `{
   "file_number": null,
@@ -82,36 +113,15 @@ const FIELD_SCHEMA = `{
   ]
 }`;
 
-const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience reading property records.
-You will be given images of scanned property abstract documents.
-
-Your task is to extract all relevant data and return ONLY valid JSON matching this exact schema.
-Rules:
-- Return ONLY the JSON object — no markdown, no explanation, no backticks
-- For any field you cannot find or confirm, use null (not empty string)
-- For dates: use MM/DD/YYYY format
-- For dollar amounts: omit the $ sign and commas (e.g. "210000.00")
-- For arrays like grantors/grantees: include all names found
-- For chain of title: list entries in reverse chronological order (most recent first)
-- Notes field: capture any asterisk (*) notations exactly as written
-
-Schema to populate:
+const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract all relevant data and return ONLY valid JSON matching this schema.
+Return ONLY JSON — no markdown. Use MM/DD/YYYY dates.
 ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
-  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
-  if (!apiKey || apiKey.includes('your_openrouter_api_key')) {
-    const err = new Error('OPENROUTER_API_KEY is missing or invalid');
-    err.status = 500;
-    throw err;
-  }
+  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim().replace(/^["']|["']$/g, '');
+  const model = process.env.AI_MODEL || DEFAULT_MODEL;
   
-  let model = process.env.AI_MODEL || DEFAULT_MODEL;
-  
-  // Auto-fix: If user provided the 8b model without :free, and they are getting 401s, 
-  // we can't easily auto-fix it here without potentially annoying paid users,
-  // so we'll just log it clearly.
-  console.log(`[OpenRouter] Requesting extraction: model=${model}, images=${base64Images.length}, key_prefix=${apiKey.substring(0, 10)}...`);
+  console.log(`[OpenRouter] Requesting extraction: model=${model}, images=${base64Images.length}`);
 
   try {
     const client = getClient();
@@ -122,7 +132,7 @@ async function extractFromImages(base64Images) {
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'Extract all data from these document images and return the populated JSON schema.' },
+            { type: 'text', text: 'Extract all data from these images and return the JSON schema.' },
             ...base64Images.map(b64 => ({
               type: 'image_url',
               image_url: { url: `data:image/jpeg;base64,${b64}` }
@@ -139,11 +149,6 @@ async function extractFromImages(base64Images) {
   } catch (err) {
     console.error(`❌ [OpenRouter] AI Error (${model}):`, err.status, err.message);
     
-    if (err.status === 401) {
-      console.error('👉 TIP: "User not found" or 401 usually means an invalid API key OR you are using a paid model without credits.');
-      console.error('👉 TRY: Setting AI_MODEL=google/gemini-flash-1.5-8b:free in your .env');
-    }
-
     const aiError = new Error(`AI Provider Error: ${err.message}`);
     aiError.status = 502; 
     aiError.data = err.response?.data;
@@ -151,38 +156,27 @@ async function extractFromImages(base64Images) {
   }
 }
 
-/**
- * Intelligent merge: keeps the most complete record for scalars,
- * and deduplicates array entries by key fields.
- */
 function mergeExtractions(first, second) {
   const merged = { ...first };
-
   const arrayKeys = ['chain', 'mortgages', 'assoc_docs'];
   arrayKeys.forEach(key => {
     const firstArr  = Array.isArray(first[key]) ? first[key] : [];
     const secondArr = Array.isArray(second[key]) ? second[key] : [];
-    
-    // Combine and deduplicate based on a "fingerprint" of the entry
     const combined = [...firstArr, ...secondArr];
     const seen = new Set();
     merged[key] = combined.filter(item => {
       if (!item || typeof item !== 'object') return false;
-      // Create a fingerprint from title + date + book/page
       const fingerprint = `${item.document_title || ''}-${item.dated || ''}-${item.book_instrument || ''}-${item.page || ''}`;
       if (fingerprint === '---' || seen.has(fingerprint)) return false;
       seen.add(fingerprint);
       return true;
     });
   });
-
-  // Fill in any nulls in 'first' with data from 'second'
   Object.keys(second).forEach(key => {
     if (!arrayKeys.includes(key) && (merged[key] === null || merged[key] === undefined)) {
       merged[key] = second[key];
     }
   });
-
   return merged;
 }
 

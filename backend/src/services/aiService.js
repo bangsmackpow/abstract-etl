@@ -67,7 +67,7 @@ async function extractFromPDF(pdfPath, tempDir) {
   const activeProvider = provider === 'openrouter' ? openRouterProvider : geminiProvider;
 
   // More conservative batching for OpenRouter/Gemini limits
-  const BATCH_SIZE = 10;
+  const BATCH_SIZE = 5;
   let finalResult = null;
 
   for (let i = 0; i < base64Images.length; i += BATCH_SIZE) {
