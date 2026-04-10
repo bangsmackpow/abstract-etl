@@ -9,6 +9,10 @@ async function authenticateAdmin() {
       process.env.POCKETBASE_ADMIN_PASSWORD
     );
     console.log('✅  PocketBase admin authenticated');
+    
+    // Check schema on startup
+    const { ensureSchema } = require('./schemaService');
+    await ensureSchema();
   } catch (err) {
     console.error('❌  PocketBase admin auth failed:', err.message);
   }
