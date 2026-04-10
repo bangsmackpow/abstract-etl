@@ -12,7 +12,7 @@ function getClient() {
   });
 }
 
-const DEFAULT_MODEL = 'google/gemini-flash-1.5-8b:free';
+const DEFAULT_MODEL = 'google/gemini-flash-1.5-8b';
 
 async function testConnection() {
   const rawKey = (process.env.OPENROUTER_API_KEY || '').trim();
@@ -155,7 +155,7 @@ ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
   let model = process.env.AI_MODEL || DEFAULT_MODEL;
-  if (model === 'google/gemini-flash-1.5-8b') model = 'google/gemini-flash-1.5-8b:free';
+  if (model === 'google/gemini-flash-1.5-8b') model = 'google/gemini-flash-1.5-8b';
 
   console.log(`[OpenRouter] Extracting: model=${model}, images=${base64Images.length}`);
 

@@ -59,7 +59,7 @@ async function start() {
     console.log(`    PocketBase: ${process.env.POCKETBASE_URL}`);
     
     const provider = process.env.AI_PROVIDER || 'openrouter';
-    const model    = provider === 'openrouter' ? (process.env.AI_MODEL || 'google/gemini-flash-1.5-8b:free') : 'gemini-1.5-flash-latest';
+    const model    = provider === 'openrouter' ? (process.env.AI_MODEL || 'google/gemini-flash-1.5-8b') : 'gemini-1.5-flash';
     console.log(`    AI Provider: ${provider} (${model})`);
     console.log(`    AI Keys: ${provider === 'gemini' ? (process.env.GEMINI_API_KEY ? '✓ set' : '✗ MISSING') : (process.env.OPENROUTER_API_KEY ? '✓ set' : '✗ MISSING')}`);
   });
