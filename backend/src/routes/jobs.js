@@ -28,7 +28,9 @@ router.get('/', async (req, res) => {
   }
   if (status) filters.push(`status = "${status}"`);
   if (search) {
-    filters.push(`(property_address ~ "${search}" || borrower_names ~ "${search}" || county ~ "${search}")`);
+    // Escape double quotes for PocketBase filter
+    const escaped = search.replace(/"/g, '\\"');
+    filters.push(`(property_address ~ "${escaped}" || borrower_names ~ "${escaped}" || county ~ "${escaped}")`);
   }
 
   const filter  = filters.join(' && ');
