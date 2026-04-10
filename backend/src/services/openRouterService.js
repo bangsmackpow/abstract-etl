@@ -106,34 +106,33 @@ async function extractFromImages(base64Images) {
     throw new Error('OPENROUTER_API_KEY is not set');
   }
 
-  const response = await client.chat.completions.create({
-    model: DEFAULT_MODEL,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: 'Extract all data from these document images and return the populated JSON schema.' },
-          ...base64Images.map(b64 => ({
-            type: 'image_url',
-            image_url: { url: `data:image/jpeg;base64,${b64}` }
-          }))
-        ]
-      }
-    ],
-    response_format: { type: 'json_object' }
-  });
+  try {
+    const response = await client.chat.completions.create({
+      model: DEFAULT_MODEL,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Extract all data from these document images and return the populated JSON schema.' },
+            ...base64Images.map(b64 => ({
+              type: 'image_url',
+              image_url: { url: `data:image/jpeg;base64,${b64}` }
+            }))
+          ]
+        }
+      ],
+      response_format: { type: 'json_object' }
+    });
 
-  const responseText = response.choices[0].message.content.trim();
-
-  // Basic cleanup in case some models still include markdown fences despite response_format
-  const cleaned = responseText
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```\s*$/i, '')
-    .trim();
-
-  return JSON.parse(cleaned);
+    const responseText = response.choices[0].message.content.trim();
+    const cleaned = responseText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    return JSON.parse(cleaned);
+  } catch (err) {
+    console.error('❌ [OpenRouter] AI Error:', err.status, err.message);
+    if (err.response) console.error('   Response Data:', JSON.stringify(err.response.data));
+    throw err;
+  }
 }
 
 /**

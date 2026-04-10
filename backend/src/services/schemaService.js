@@ -1,17 +1,21 @@
 const pb = require('./pocketbaseClient');
 
-/**
- * Ensures the required PocketBase collections and fields exist.
- */
 async function ensureSchema() {
-  console.log('[Schema] Checking PocketBase schema...');
+  console.log('🔍 [Schema] Starting schema verification...');
   
+  if (!pb.authStore.isValid) {
+    console.error('❌ [Schema] Admin is NOT authenticated. Cannot check schema.');
+    return;
+  }
+
   try {
-    // 1. Ensure 'role' field exists on 'users'
+    // 1. Check/Add 'role' to users
     const userCollections = await pb.collections.getOne('users');
+    console.log(`✅ [Schema] Found "users" collection (ID: ${userCollections.id})`);
+    
     const hasRole = userCollections.schema.find(f => f.name === 'role');
     if (!hasRole) {
-      console.log('[Schema] Adding "role" field to users collection...');
+      console.log('[Schema] "role" field missing on users. Adding it...');
       await pb.collections.update('users', {
         schema: [
           ...userCollections.schema,
@@ -23,15 +27,16 @@ async function ensureSchema() {
           }
         ]
       });
+      console.log('✅ [Schema] "role" field added to users.');
     }
 
-    // 2. Ensure 'jobs' collection exists
+    // 2. Check/Create 'jobs'
     try {
       await pb.collections.getOne('jobs');
-      console.log('[Schema] "jobs" collection already exists.');
+      console.log('✅ [Schema] "jobs" collection exists.');
     } catch (err) {
       if (err.status === 404) {
-        console.log('[Schema] Creating "jobs" collection...');
+        console.log('[Schema] "jobs" collection missing. Creating it...');
         await pb.collections.create({
           name: 'jobs',
           type: 'base',
@@ -54,15 +59,16 @@ async function ensureSchema() {
           updateRule: '@request.auth.id != ""',
           deleteRule: '@request.auth.role = "admin"'
         });
-        console.log('[Schema] "jobs" collection created successfully.');
+        console.log('✅ [Schema] "jobs" collection created.');
       } else {
         throw err;
       }
     }
 
-    console.log('✅  PocketBase schema is valid');
+    console.log('🏁 [Schema] Schema verification complete.');
   } catch (err) {
-    console.error('❌  Schema check failed:', err.status, err.message, JSON.stringify(err.data));
+    console.error('❌ [Schema] Error during verification:', err.status, err.message);
+    if (err.data) console.error('   Data:', JSON.stringify(err.data));
   }
 }
 
