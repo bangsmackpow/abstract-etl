@@ -33,14 +33,16 @@ router.get('/', async (req, res) => {
     filters.push(`(property_address ~ "${escaped}" || borrower_names ~ "${escaped}" || county ~ "${escaped}")`);
   }
 
-  const filter  = filters.join(' && ');
-  console.log(`[Jobs] Fetching jobs for user=${req.user.id} role=${req.user.role} filter="${filter}"`);
+  const filter  = filters.length > 0 ? filters.join(' && ') : null;
+  console.log(`[Jobs] Fetching jobs for user=${req.user.id} role=${req.user.role} filter="${filter || 'none'}"`);
   
   try {
-    const records = await pb.collection('jobs').getList(Number(page), Number(perPage), {
-      filter: filter || undefined,
+    const options = {
       sort:   '-created',
-    });
+    };
+    if (filter) options.filter = filter;
+
+    const records = await pb.collection('jobs').getList(Number(page), Number(perPage), options);
     res.json(records);
   } catch (err) {
     console.error('[Jobs] PB Error:', err.status, err.message, JSON.stringify(err.data));

@@ -9,9 +9,9 @@ const client = new OpenAI({
   }
 });
 
+// Use :free suffix to avoid 404s on free tier
 const DEFAULT_MODEL = process.env.AI_MODEL || 'google/gemini-flash-1.5-8b:free';
 
-// Schema sent in the prompt
 const FIELD_SCHEMA = `{
   "file_number": null,
   "property_address": null,
@@ -98,12 +98,13 @@ Rules:
 Schema to populate:
 ${FIELD_SCHEMA}`;
 
-/**
- * Send images to OpenRouter and get extracted fields JSON
- */
 async function extractFromImages(base64Images) {
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error('OPENROUTER_API_KEY is missing');
+  if (!apiKey) {
+    const err = new Error('OPENROUTER_API_KEY is missing');
+    err.status = 500;
+    throw err;
+  }
   
   console.log(`[OpenRouter] Requesting extraction from model: ${DEFAULT_MODEL}`);
 
@@ -130,15 +131,17 @@ async function extractFromImages(base64Images) {
     const cleaned = responseText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {
-    console.error('❌ [OpenRouter] Error:', err.status, err.message);
+    console.error('❌ [OpenRouter] AI Error:', err.status, err.message);
     if (err.response?.data) console.error('   AI Response Data:', JSON.stringify(err.response.data));
-    throw err;
+    
+    // Convert AI 401s to 502s so they don't trigger app logouts
+    const aiError = new Error(`AI Provider Error: ${err.message}`);
+    aiError.status = 502; 
+    aiError.data = err.response?.data;
+    throw aiError;
   }
 }
 
-/**
- * Merge logic (identical to others)
- */
 function mergeExtractions(first, second) {
   const merged = { ...first };
   ['chain', 'mortgages', 'assoc_docs'].forEach(key => {
