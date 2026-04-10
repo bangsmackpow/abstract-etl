@@ -34,12 +34,18 @@ router.get('/', async (req, res) => {
   }
 
   const filter  = filters.join(' && ');
-  const records = await pb.collection('jobs').getList(Number(page), Number(perPage), {
-    filter: filter || undefined,
-    sort:   '-created',
-  });
-
-  res.json(records);
+  console.log(`[Jobs] Fetching jobs for user=${req.user.id} role=${req.user.role} filter="${filter}"`);
+  
+  try {
+    const records = await pb.collection('jobs').getList(Number(page), Number(perPage), {
+      filter: filter || undefined,
+      sort:   '-created',
+    });
+    res.json(records);
+  } catch (err) {
+    console.error('[Jobs] PB Error:', err.status, err.message, JSON.stringify(err.data));
+    throw err;
+  }
 });
 
 // GET /api/jobs/:id — get single job
