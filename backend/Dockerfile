@@ -1,6 +1,6 @@
 FROM node:20-alpine
 
-RUN apk add --no-cache poppler-utils ghostscript
+RUN apk add --no-cache poppler-utils ghostscript graphicsmagick
 
 WORKDIR /app
 

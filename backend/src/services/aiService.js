@@ -32,6 +32,11 @@ async function pdfToImages(pdfPath, outputDir) {
     }
   }
   
+  console.log(`[AI] Converted ${images.length}/${pageCount} pages`);
+  if (images.length === 0 && pageCount > 0) {
+    throw new Error('Failed to convert any PDF pages to images. Check graphicsmagick/ghostscript.');
+  }
+  
   return images;
 }
 
