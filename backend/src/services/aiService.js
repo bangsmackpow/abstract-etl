@@ -62,25 +62,28 @@ async function extractFromPDF(pdfPath, tempDir) {
   console.log(`[AI] Starting extraction using provider: ${provider}`);
 
   const base64Images = await pdfToImages(pdfPath, tempDir);
-  console.log(`[AI] Converted ${base64Images.length} pages to images`);
+  console.log(`[AI] Total pages for AI: ${base64Images.length}`);
 
-  let extractedFields;
   const activeProvider = provider === 'openrouter' ? openRouterProvider : geminiProvider;
 
-  // Batching logic (shared across providers)
-  if (base64Images.length <= 14) {
-    extractedFields = await activeProvider.extractFromImages(base64Images);
-  } else {
-    const firstBatch  = base64Images.slice(0, 14);
-    const firstResult = await activeProvider.extractFromImages(firstBatch);
+  // More conservative batching for OpenRouter/Gemini limits
+  const BATCH_SIZE = 10;
+  let finalResult = null;
 
-    const secondBatch  = base64Images.slice(14);
-    const secondResult = await activeProvider.extractFromImages(secondBatch);
-
-    extractedFields = activeProvider.mergeExtractions(firstResult, secondResult);
+  for (let i = 0; i < base64Images.length; i += BATCH_SIZE) {
+    const batch = base64Images.slice(i, i + BATCH_SIZE);
+    console.log(`[AI] Processing batch ${Math.floor(i/BATCH_SIZE) + 1} (${batch.length} images)...`);
+    
+    const batchResult = await activeProvider.extractFromImages(batch);
+    
+    if (!finalResult) {
+      finalResult = batchResult;
+    } else {
+      finalResult = activeProvider.mergeExtractions(finalResult, batchResult);
+    }
   }
 
-  return extractedFields;
+  return finalResult;
 }
 
 module.exports = { extractFromPDF };

@@ -1,15 +1,18 @@
 const OpenAI = require('openai');
 
-const client = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY,
-  baseURL: 'https://openrouter.ai/api/v1',
-  defaultHeaders: {
-    'HTTP-Referer': 'https://github.com/builtnetworks/abstract-etl',
-    'X-Title': 'Abstract ETL Tool'
-  }
-});
+// Initialize client inside the function to ensure we get latest env vars and can trim them
+function getClient() {
+  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
+  return new OpenAI({
+    apiKey: apiKey,
+    baseURL: 'https://openrouter.ai/api/v1',
+    defaultHeaders: {
+      'HTTP-Referer': 'https://github.com/builtnetworks/abstract-etl',
+      'X-Title': 'Abstract ETL Tool'
+    }
+  });
+}
 
-// Use :free suffix to avoid 404s on free tier
 const DEFAULT_MODEL = process.env.AI_MODEL || 'google/gemini-flash-1.5-8b:free';
 
 const FIELD_SCHEMA = `{
@@ -80,7 +83,7 @@ const FIELD_SCHEMA = `{
 }`;
 
 const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience reading property records.
-You will be given images of scanned property abstract documents (deeds, tax records, title searches, plat maps, mortgage documents).
+You will be given images of scanned property abstract documents.
 
 Your task is to extract all relevant data and return ONLY valid JSON matching this exact schema.
 Rules:
@@ -90,27 +93,26 @@ Rules:
 - For dollar amounts: omit the $ sign and commas (e.g. "210000.00")
 - For arrays like grantors/grantees: include all names found
 - For chain of title: list entries in reverse chronological order (most recent first)
-- For "in_out_sale": true means it IS an arm's-length sale, false means it is NOT
-- For "open_closed" on assoc_docs: use "open" or "closed"
-- Include ALL chain of title entries, ALL mortgages, and ALL associated documents you find
-- Notes field on chain entries: capture any asterisk (*) notations exactly as written
+- Notes field: capture any asterisk (*) notations exactly as written
 
 Schema to populate:
 ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    const err = new Error('OPENROUTER_API_KEY is missing');
+  const apiKey = (process.env.OPENROUTER_API_KEY || '').trim();
+  if (!apiKey || apiKey === 'your_openrouter_api_key_here') {
+    const err = new Error('OPENROUTER_API_KEY is missing or invalid');
     err.status = 500;
     throw err;
   }
   
-  console.log(`[OpenRouter] Requesting extraction from model: ${DEFAULT_MODEL}`);
+  const model = process.env.AI_MODEL || DEFAULT_MODEL;
+  console.log(`[OpenRouter] Requesting extraction from model: ${model} (${base64Images.length} images)`);
 
   try {
+    const client = getClient();
     const response = await client.chat.completions.create({
-      model: DEFAULT_MODEL,
+      model: model,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         {
@@ -131,10 +133,13 @@ async function extractFromImages(base64Images) {
     const cleaned = responseText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {
-    console.error('❌ [OpenRouter] AI Error:', err.status, err.message);
-    if (err.response?.data) console.error('   AI Response Data:', JSON.stringify(err.response.data));
+    console.error(`❌ [OpenRouter] AI Error (${model}):`, err.status, err.message);
     
-    // Convert AI 401s to 502s so they don't trigger app logouts
+    // Check if it's an API key issue specifically
+    if (err.message.includes('User not found') || err.status === 401) {
+      console.error('👉 Tip: Check your OPENROUTER_API_KEY in .env. It might be invalid or have a $0 balance.');
+    }
+
     const aiError = new Error(`AI Provider Error: ${err.message}`);
     aiError.status = 502; 
     aiError.data = err.response?.data;
@@ -147,10 +152,10 @@ function mergeExtractions(first, second) {
   ['chain', 'mortgages', 'assoc_docs'].forEach(key => {
     const firstArr  = first[key]  || [];
     const secondArr = second[key] || [];
-    if (secondArr.length > firstArr.length) {
-      merged[key] = secondArr;
-    } else {
-      merged[key] = firstArr;
+    // Combine arrays and remove duplicates by a simple stringify check if needed, 
+    // but for now just take the larger set or append
+    if (secondArr.length > 0) {
+      merged[key] = [...firstArr, ...secondArr];
     }
   });
   Object.keys(second).forEach(key => {
