@@ -54,6 +54,7 @@ app.use(errorHandler);
 const { db } = require('./db');
 const { users } = require('./db/schema');
 const { hashPassword } = require('./services/authService');
+const { eq } = require('drizzle-orm');
 
 async function seedAdmin() {
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
