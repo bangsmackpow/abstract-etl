@@ -22,6 +22,12 @@ const ASSOC_TEMPLATE = () => ({
   grantor_assignor: null, grantee_assignee: null, open_closed: null
 });
 
+const LIEN_TEMPLATE = () => ({
+  document_title: null, book_instrument: null, page: null,
+  dated: null, recorded: null, case_number: null,
+  amount: null, plaintiff: null, defendant: null
+});
+
 export default function EditJob() {
   const { id }    = useParams();
   const navigate  = useNavigate();
@@ -38,8 +44,8 @@ export default function EditJob() {
   useEffect(() => {
     getJob(id).then(j => {
       setJob(j);
-      setFields(j.fields_json || {});
-      setAiFlags(j.ai_flags_json || {});
+      setFields(j.fieldsJson || {});
+      setAiFlags(j.aiFlagsJson || {});
       setStatus(j.status || 'draft');
       setNotes(j.notes || '');
     }).catch(() => setError('Failed to load job.'));
@@ -49,37 +55,26 @@ export default function EditJob() {
   const setFlag   = (key, val)   => setAiFlags(f => ({ ...f, [key]: val }));
 
   // Helpers for nested fields
-  const setChainField = (i, key, value) => {
+  const setNestedField = (listKey, i, key, value, template) => {
     setFields(f => {
-      const chain = [...(f.chain || [])];
-      if (!chain[i]) chain[i] = CHAIN_TEMPLATE();
-      chain[i] = { ...chain[i], [key]: value };
-      return { ...f, chain };
-    });
-  };
-  const setMortField = (i, key, value) => {
-    setFields(f => {
-      const mortgages = [...(f.mortgages || [])];
-      if (!mortgages[i]) mortgages[i] = MORT_TEMPLATE();
-      mortgages[i] = { ...mortgages[i], [key]: value };
-      return { ...f, mortgages };
-    });
-  };
-  const setAssocField = (i, key, value) => {
-    setFields(f => {
-      const assoc_docs = [...(f.assoc_docs || [])];
-      if (!assoc_docs[i]) assoc_docs[i] = ASSOC_TEMPLATE();
-      assoc_docs[i] = { ...assoc_docs[i], [key]: value };
-      return { ...f, assoc_docs };
+      const list = [...(f[listKey] || [])];
+      if (!list[i]) list[i] = template();
+      list[i] = { ...list[i], [key]: value };
+      return { ...f, [listKey]: list };
     });
   };
 
   const handleSave = async () => {
     setSaving(true); setError(''); setSaved(false);
     try {
-      await updateJob(id, { fields_json: fields, ai_flags_json: aiFlags, status, notes,
-        property_address: fields.property_address || job.property_address,
-        county: fields.county || job.county });
+      await updateJob(id, { 
+        fields_json: fields, 
+        ai_flags_json: aiFlags, 
+        status, 
+        notes,
+        property_address: fields.property_address || job.propertyAddress,
+        county: fields.county || job.county 
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
@@ -96,9 +91,7 @@ export default function EditJob() {
     finally { setDownloading(false); }
   };
 
-  const addChain  = () => setFields(f => ({ ...f, chain:      [...(f.chain      || []), CHAIN_TEMPLATE()] }));
-  const addMort   = () => setFields(f => ({ ...f, mortgages:  [...(f.mortgages  || []), MORT_TEMPLATE()]  }));
-  const addAssoc  = () => setFields(f => ({ ...f, assoc_docs: [...(f.assoc_docs || []), ASSOC_TEMPLATE()] }));
+  const addListEntry = (key, template) => setFields(f => ({ ...f, [key]: [...(f[key] || []), template()] }));
 
   if (!job && !error) return <div className="card card-body" style={{ marginTop: 20, textAlign: 'center' }}>
     <span className="spinner spinner-dark" /> Loading job...
@@ -107,6 +100,7 @@ export default function EditJob() {
   const chain     = fields.chain      || [];
   const mortgages = fields.mortgages  || [];
   const assocDocs = fields.assoc_docs || [];
+  const liens     = fields.judgments_liens || [];
 
   return (
     <div>
@@ -115,7 +109,7 @@ export default function EditJob() {
         <div className="flex items-center gap-2">
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Dashboard</button>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--blue-dark)' }}>
-            {fields.property_address || job?.property_address || 'Edit Job'}
+            {fields.property_address || job?.propertyAddress || 'Edit Job'}
           </h1>
         </div>
         <div className="flex gap-2 items-center">
@@ -136,7 +130,7 @@ export default function EditJob() {
       </div>
 
       <div className="alert alert-info text-sm mb-4">
-        🤖 <strong>Blue badges</strong> = AI-extracted.&nbsp; ✏️ <strong>Gray badges</strong> = manually entered. Edit any field to mark it as manual.
+        🤖 <strong>AI-extracted</strong> fields are marked. Edit any field to confirm it.
       </div>
 
       {/* ORDER INFORMATION */}
@@ -185,6 +179,15 @@ export default function EditJob() {
         </div>
       </div>
 
+      {/* LEGAL DESCRIPTION */}
+      <div className="section-divider">Legal Description</div>
+      <div className="card mb-4">
+        <div className="card-body">
+          <FieldInput label="Full Legal Text" fieldKey="legal_description" value={fields.legal_description}
+            onChange={setField} onFlagChange={setFlag} aiFlags={aiFlags} textarea />
+        </div>
+      </div>
+
       {/* CHAIN OF TITLE */}
       <div className="section-divider">Chain of Title</div>
       {chain.map((entry, i) => (
@@ -196,22 +199,22 @@ export default function EditJob() {
           <div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: 'span 2' }}>
               <FieldInput label="Document Title" fieldKey={`chain[${i}].document_title`} value={entry.document_title}
-                onChange={(_, v) => setChainField(i, 'document_title', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+                onChange={(_, v) => setNestedField('chain', i, 'document_title', v, CHAIN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             </div>
             <FieldInput label="Book / Instrument" fieldKey={`chain[${i}].book_instrument`} value={entry.book_instrument}
-              onChange={(_, v) => setChainField(i, 'book_instrument', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('chain', i, 'book_instrument', v, CHAIN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Page" fieldKey={`chain[${i}].page`} value={entry.page}
-              onChange={(_, v) => setChainField(i, 'page', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('chain', i, 'page', v, CHAIN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Dated" fieldKey={`chain[${i}].dated`} value={entry.dated}
-              onChange={(_, v) => setChainField(i, 'dated', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('chain', i, 'dated', v, CHAIN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Recorded" fieldKey={`chain[${i}].recorded`} value={entry.recorded}
-              onChange={(_, v) => setChainField(i, 'recorded', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('chain', i, 'recorded', v, CHAIN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Consideration" fieldKey={`chain[${i}].consideration`} value={entry.consideration}
-              onChange={(_, v) => setChainField(i, 'consideration', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('chain', i, 'consideration', v, CHAIN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <div className="form-group">
               <label className="form-label">In/Out Sale?</label>
               <select className="form-select" value={entry.in_out_sale === true ? 'yes' : entry.in_out_sale === false ? 'no' : ''}
-                onChange={e => setChainField(i, 'in_out_sale', e.target.value === 'yes' ? true : e.target.value === 'no' ? false : null)}>
+                onChange={e => setNestedField('chain', i, 'in_out_sale', e.target.value === 'yes' ? true : e.target.value === 'no' ? false : null, CHAIN_TEMPLATE)}>
                 <option value="">Unknown</option>
                 <option value="yes">Yes (Arm's Length Sale)</option>
                 <option value="no">No (Not a Sale)</option>
@@ -220,23 +223,23 @@ export default function EditJob() {
             <div style={{ gridColumn: 'span 2' }}>
               <FieldInput label="Grantor(s) — semicolon separated" fieldKey={`chain[${i}].grantors`}
                 value={Array.isArray(entry.grantors) ? entry.grantors.join('; ') : entry.grantors}
-                onChange={(_, v) => setChainField(i, 'grantors', v.split(';').map(s => s.trim()).filter(Boolean))}
+                onChange={(_, v) => setNestedField('chain', i, 'grantors', v.split(';').map(s => s.trim()).filter(Boolean), CHAIN_TEMPLATE)}
                 onFlagChange={setFlag} aiFlags={aiFlags} />
             </div>
             <div style={{ gridColumn: 'span 2' }}>
               <FieldInput label="Grantee(s) — semicolon separated" fieldKey={`chain[${i}].grantees`}
                 value={Array.isArray(entry.grantees) ? entry.grantees.join('; ') : entry.grantees}
-                onChange={(_, v) => setChainField(i, 'grantees', v.split(';').map(s => s.trim()).filter(Boolean))}
+                onChange={(_, v) => setNestedField('chain', i, 'grantees', v.split(';').map(s => s.trim()).filter(Boolean), CHAIN_TEMPLATE)}
                 onFlagChange={setFlag} aiFlags={aiFlags} />
             </div>
             <div style={{ gridColumn: 'span 2' }}>
               <FieldInput label="Notes (asterisk references)" fieldKey={`chain[${i}].notes`} value={entry.notes}
-                onChange={(_, v) => setChainField(i, 'notes', v)} onFlagChange={setFlag} aiFlags={aiFlags} textarea />
+                onChange={(_, v) => setNestedField('chain', i, 'notes', v, CHAIN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} textarea />
             </div>
           </div>
         </div>
       ))}
-      <button className="btn btn-ghost btn-sm mb-4" onClick={addChain}>+ Add Chain Entry</button>
+      <button className="btn btn-ghost btn-sm mb-4" onClick={() => addListEntry('chain', CHAIN_TEMPLATE)}>+ Add Chain Entry</button>
 
       {/* MORTGAGES */}
       <div className="section-divider">Mortgages / Deeds of Trust</div>
@@ -249,76 +252,72 @@ export default function EditJob() {
           <div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div style={{ gridColumn: 'span 2' }}>
               <FieldInput label="Document Title" fieldKey={`mortgage[${i}].document_title`} value={m.document_title}
-                onChange={(_, v) => setMortField(i, 'document_title', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+                onChange={(_, v) => setNestedField('mortgages', i, 'document_title', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             </div>
             <FieldInput label="Book / Instrument" fieldKey={`mortgage[${i}].book_instrument`} value={m.book_instrument}
-              onChange={(_, v) => setMortField(i, 'book_instrument', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('mortgages', i, 'book_instrument', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Page" fieldKey={`mortgage[${i}].page`} value={m.page}
-              onChange={(_, v) => setMortField(i, 'page', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('mortgages', i, 'page', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Dated" fieldKey={`mortgage[${i}].dated`} value={m.dated}
-              onChange={(_, v) => setMortField(i, 'dated', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('mortgages', i, 'dated', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Recorded" fieldKey={`mortgage[${i}].recorded`} value={m.recorded}
-              onChange={(_, v) => setMortField(i, 'recorded', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('mortgages', i, 'recorded', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Consideration" fieldKey={`mortgage[${i}].consideration`} value={m.consideration}
-              onChange={(_, v) => setMortField(i, 'consideration', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('mortgages', i, 'consideration', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Maturity Date" fieldKey={`mortgage[${i}].maturity_date`} value={m.maturity_date}
-              onChange={(_, v) => setMortField(i, 'maturity_date', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('mortgages', i, 'maturity_date', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <div style={{ gridColumn: 'span 2' }}>
               <FieldInput label="Lender" fieldKey={`mortgage[${i}].lender`} value={m.lender}
-                onChange={(_, v) => setMortField(i, 'lender', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+                onChange={(_, v) => setNestedField('mortgages', i, 'lender', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             </div>
             <FieldInput label="MERS Number" fieldKey={`mortgage[${i}].mers_number`} value={m.mers_number}
-              onChange={(_, v) => setMortField(i, 'mers_number', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('mortgages', i, 'mers_number', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <div />
             <FieldInput label="Borrower" fieldKey={`mortgage[${i}].borrower`} value={m.borrower}
-              onChange={(_, v) => setMortField(i, 'borrower', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('mortgages', i, 'borrower', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
             <FieldInput label="Trustee" fieldKey={`mortgage[${i}].trustee`} value={m.trustee}
-              onChange={(_, v) => setMortField(i, 'trustee', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+              onChange={(_, v) => setNestedField('mortgages', i, 'trustee', v, MORT_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
           </div>
         </div>
       ))}
-      <button className="btn btn-ghost btn-sm mb-4" onClick={addMort}>+ Add Mortgage / DOT</button>
+      <button className="btn btn-ghost btn-sm mb-4" onClick={() => addListEntry('mortgages', MORT_TEMPLATE)}>+ Add Mortgage / DOT</button>
 
-      {/* ASSOCIATED DOCUMENTS */}
-      <div className="section-divider">Associated Documents</div>
-      {assocDocs.map((d, i) => (
+      {/* JUDGMENTS / LIENS */}
+      <div className="section-divider">Judgments / Liens</div>
+      {liens.map((l, i) => (
         <div className="card mb-3" key={i}>
           <div className="card-header" style={{ justifyContent: 'space-between' }}>
-            <span>Associated Document {i + 1}</span>
-            <button className="btn btn-danger btn-sm" onClick={() => setFields(f => ({ ...f, assoc_docs: f.assoc_docs.filter((_, idx) => idx !== i) }))}>Remove</button>
+            <span>Lien {i + 1}</span>
+            <button className="btn btn-danger btn-sm" onClick={() => setFields(f => ({ ...f, judgments_liens: f.judgments_liens.filter((_, idx) => idx !== i) }))}>Remove</button>
           </div>
           <div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div style={{ gridColumn: 'span 2' }}>
-              <FieldInput label="Document Title" fieldKey={`assoc[${i}].document_title`} value={d.document_title}
-                onChange={(_, v) => setAssocField(i, 'document_title', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
-            </div>
-            <FieldInput label="Dated" fieldKey={`assoc[${i}].dated`} value={d.dated}
-              onChange={(_, v) => setAssocField(i, 'dated', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
-            <FieldInput label="Consideration" fieldKey={`assoc[${i}].consideration`} value={d.consideration}
-              onChange={(_, v) => setAssocField(i, 'consideration', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
-            <FieldInput label="Book / Instrument" fieldKey={`assoc[${i}].book_instrument`} value={d.book_instrument}
-              onChange={(_, v) => setAssocField(i, 'book_instrument', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
-            <FieldInput label="Page" fieldKey={`assoc[${i}].page`} value={d.page}
-              onChange={(_, v) => setAssocField(i, 'page', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
-            <FieldInput label="Recorded" fieldKey={`assoc[${i}].recorded`} value={d.recorded}
-              onChange={(_, v) => setAssocField(i, 'recorded', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
-            <div className="form-group">
-              <label className="form-label">Open / Closed</label>
-              <select className="form-select" value={d.open_closed || ''}
-                onChange={e => setAssocField(i, 'open_closed', e.target.value || null)}>
-                <option value="">Unknown</option>
-                <option value="open">Open</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-            <FieldInput label="Grantor / Assignor" fieldKey={`assoc[${i}].grantor_assignor`} value={d.grantor_assignor}
-              onChange={(_, v) => setAssocField(i, 'grantor_assignor', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
-            <FieldInput label="Grantee / Assignee" fieldKey={`assoc[${i}].grantee_assignee`} value={d.grantee_assignee}
-              onChange={(_, v) => setAssocField(i, 'grantee_assignee', v)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Document Title" fieldKey={`lien[${i}].document_title`} value={l.document_title}
+              onChange={(_, v) => setNestedField('judgments_liens', i, 'document_title', v, LIEN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Case #" fieldKey={`lien[${i}].case_number`} value={l.case_number}
+              onChange={(_, v) => setNestedField('judgments_liens', i, 'case_number', v, LIEN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Amount" fieldKey={`lien[${i}].amount`} value={l.amount}
+              onChange={(_, v) => setNestedField('judgments_liens', i, 'amount', v, LIEN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Dated" fieldKey={`lien[${i}].dated`} value={l.dated}
+              onChange={(_, v) => setNestedField('judgments_liens', i, 'dated', v, LIEN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Plaintiff" fieldKey={`lien[${i}].plaintiff`} value={l.plaintiff}
+              onChange={(_, v) => setNestedField('judgments_liens', i, 'plaintiff', v, LIEN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Defendant" fieldKey={`lien[${i}].defendant`} value={l.defendant}
+              onChange={(_, v) => setNestedField('judgments_liens', i, 'defendant', v, LIEN_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
           </div>
         </div>
       ))}
-      <button className="btn btn-ghost btn-sm mb-4" onClick={addAssoc}>+ Add Associated Document</button>
+      <button className="btn btn-ghost btn-sm mb-4" onClick={() => addListEntry('judgments_liens', LIEN_TEMPLATE)}>+ Add Judgment / Lien</button>
+
+      {/* NAMES SEARCHED */}
+      <div className="section-divider">Names Searched</div>
+      <div className="card mb-4">
+        <div className="card-body">
+          <FieldInput label="Search Names (semicolon separated)" fieldKey="names_searched" 
+            value={Array.isArray(fields.names_searched) ? fields.names_searched.join('; ') : fields.names_searched}
+            onChange={(k, v) => setField(k, v.split(';').map(s => s.trim()).filter(Boolean))} 
+            onFlagChange={setFlag} aiFlags={aiFlags} />
+        </div>
+      </div>
 
       {/* NOTES */}
       <div className="section-divider">Abstractor Notes</div>

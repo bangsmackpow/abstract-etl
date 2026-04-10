@@ -1,9 +1,11 @@
-const express  = require('express');
-const router   = express.Router();
-const { requireAuth }    = require('../middleware/requireAuth');
-const { generateDocx }   = require('../services/docxGenerator');
-const pb                 = require('../services/pocketbaseClient');
-const { createError }    = require('../middleware/errorHandler');
+const express = require('express');
+const router = express.Router();
+const { db } = require('../db');
+const { jobs } = require('../db/schema');
+const { eq } = require('drizzle-orm');
+const { requireAuth } = require('../middleware/requireAuth');
+const { generateDocx } = require('../services/docxGenerator');
+const { createError } = require('../middleware/errorHandler');
 
 router.use(requireAuth);
 
@@ -12,17 +14,21 @@ router.use(requireAuth);
  * Generates and downloads a .docx for the given job.
  */
 router.get('/:jobId', async (req, res) => {
-  const job = await pb.collection('jobs').getOne(req.params.jobId);
+  const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
 
-  if (req.user.role !== 'admin' && job.created_by !== req.user.id) {
+  if (!job) {
     throw createError('Not found', 404);
   }
 
-  const fields = job.fields_json || {};
+  if (req.user.role !== 'admin' && job.createdBy !== req.user.id) {
+    throw createError('Not found', 404);
+  }
+
+  const fields = job.fieldsJson || {};
   const buffer = await generateDocx(fields);
 
   // Sanitize address for filename
-  const addr     = (fields.property_address || job.property_address || 'abstract')
+  const addr = (fields.property_address || job.propertyAddress || 'abstract')
     .replace(/[^a-zA-Z0-9 ]/g, '')
     .replace(/\s+/g, '_')
     .toLowerCase()

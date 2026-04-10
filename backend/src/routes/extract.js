@@ -32,12 +32,16 @@ router.post('/', upload.single('pdf'), async (req, res) => {
   const tempDir = path.join(__dirname, '../uploads', uuidv4());
   fs.mkdirSync(tempDir, { recursive: true });
 
+  const startTime = Date.now();
+
   try {
     const extractedFields = await extractFromPDF(pdfPath, tempDir);
+    const processingTimeMs = Date.now() - startTime;
 
     // Build ai_flags_json — mark all returned fields as 'ai'
     const aiFlags = {};
     function flagFields(obj, prefix = '') {
+      if (!obj) return;
       Object.keys(obj).forEach(key => {
         const fullKey = prefix ? `${prefix}.${key}` : key;
         if (Array.isArray(obj[key])) {
@@ -60,7 +64,8 @@ router.post('/', upload.single('pdf'), async (req, res) => {
     res.json({
       fields:   extractedFields,
       aiFlags,
-      filename: req.file.originalname
+      filename: req.file.originalname,
+      processingTimeMs
     });
   } finally {
     // Clean up temp files

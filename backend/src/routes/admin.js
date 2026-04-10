@@ -1,101 +1,128 @@
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { db } = require('../db');
+const { users, jobs } = require('../db/schema');
+const { eq, sql, avg, count } = require('drizzle-orm');
+const { requireAuth, requireAdmin } = require('../middleware/requireAuth');
+const { hashPassword } = require('../services/authService');
+const { createError } = require('../middleware/errorHandler');
 
-const PB_URL = process.env.POCKETBASE_URL || 'http://localhost:8090';
+router.use(requireAuth);
+router.use(requireAdmin);
 
 /**
- * GET /api/admin/jobs
- * List ALL jobs across all users (admin only)
+ * GET /api/admin/metrics
+ * Returns aggregated metrics for the dashboard.
  */
-router.get('/jobs', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const { page = 1, perPage = 50, search = '', status = '', userId = '' } = req.query;
+router.get('/metrics', async (req, res) => {
+  // Total jobs per user
+  const jobsPerUser = await db.select({
+    userId: users.id,
+    userName: users.name,
+    jobCount: count(jobs.id),
+    avgProcessingTime: avg(jobs.processingTimeMs)
+  })
+  .from(users)
+  .leftJoin(jobs, eq(users.id, jobs.createdBy))
+  .groupBy(users.id);
 
-    let filter = '';
-    const filters = [];
+  // Overall stats
+  const [overall] = await db.select({
+    totalJobs: count(jobs.id),
+    avgProcessingTime: avg(jobs.processingTimeMs)
+  }).from(jobs);
 
-    if (search) {
-      const e = search.replace(/"/g, '\\"');
-      filters.push(`(property_address ~ "${e}" || borrower_names ~ "${e}" || county ~ "${e}")`);
-    }
-    if (status) filters.push(`status = "${status}"`);
-    if (userId) filters.push(`created_by = "${userId}"`);
-
-    filter = filters.join(' && ');
-
-    const response = await axios.get(`${PB_URL}/api/collections/jobs/records`, {
-      headers: { Authorization: `Bearer ${req.authToken}` },
-      params: { page, perPage, filter, sort: '-created', expand: 'created_by' },
-    });
-
-    res.json(response.data);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch jobs' });
-  }
+  res.json({
+    perUser: jobsPerUser,
+    overall: overall
+  });
 });
 
 /**
  * GET /api/admin/users
- * List all users (admin only)
+ * List all users.
  */
-router.get('/users', requireAuth, requireAdmin, async (req, res) => {
+router.get('/users', async (req, res) => {
+  const allUsers = await db.select({
+    id: users.id,
+    name: users.name,
+    email: users.email,
+    role: users.role,
+    createdAt: users.createdAt
+  }).from(users);
+  res.json(allUsers);
+});
+
+/**
+ * POST /api/admin/users
+ * Create a new user.
+ */
+router.post('/users', async (req, res) => {
+  const { name, email, password, role } = req.body;
+
+  if (!name || !email || !password) {
+    throw createError('Name, email, and password are required', 400);
+  }
+
+  const hashedPassword = await hashPassword(password);
+
   try {
-    const response = await axios.get(`${PB_URL}/api/collections/users/records`, {
-      headers: { Authorization: `Bearer ${req.authToken}` },
-      params: { perPage: 200, sort: 'name' },
+    const [newUser] = await db.insert(users).values({
+      name,
+      email,
+      password: hashedPassword,
+      role: role || 'abstractor'
+    }).returning({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role
     });
 
-    // Return safe fields only
-    const users = response.data.items.map(u => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      role: u.role,
-      created: u.created,
-    }));
-
-    res.json({ items: users, totalItems: response.data.totalItems });
+    res.status(201).json(newUser);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch users' });
+    if (err.message.includes('UNIQUE constraint failed')) {
+      throw createError('Email already exists', 400);
+    }
+    throw err;
   }
 });
 
 /**
- * GET /api/admin/stats
- * Summary stats for admin dashboard
+ * PATCH /api/admin/users/:id/password
+ * Change a user's password.
  */
-router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const [totalRes, draftRes, reviewRes, completeRes] = await Promise.all([
-      axios.get(`${PB_URL}/api/collections/jobs/records`, {
-        headers: { Authorization: `Bearer ${req.authToken}` },
-        params: { perPage: 1 },
-      }),
-      axios.get(`${PB_URL}/api/collections/jobs/records`, {
-        headers: { Authorization: `Bearer ${req.authToken}` },
-        params: { perPage: 1, filter: 'status = "draft"' },
-      }),
-      axios.get(`${PB_URL}/api/collections/jobs/records`, {
-        headers: { Authorization: `Bearer ${req.authToken}` },
-        params: { perPage: 1, filter: 'status = "needs_review"' },
-      }),
-      axios.get(`${PB_URL}/api/collections/jobs/records`, {
-        headers: { Authorization: `Bearer ${req.authToken}` },
-        params: { perPage: 1, filter: 'status = "complete"' },
-      }),
-    ]);
+router.patch('/users/:id/password', async (req, res) => {
+  const { password } = req.body;
 
-    res.json({
-      total: totalRes.data.totalItems,
-      draft: draftRes.data.totalItems,
-      needs_review: reviewRes.data.totalItems,
-      complete: completeRes.data.totalItems,
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch stats' });
+  if (!password) {
+    throw createError('New password is required', 400);
   }
+
+  const hashedPassword = await hashPassword(password);
+
+  await db.update(users)
+    .set({ 
+      password: hashedPassword,
+      updatedAt: sql`(strftime('%s', 'now'))`
+    })
+    .where(eq(users.id, req.params.id));
+
+  res.json({ success: true, message: 'Password updated successfully' });
+});
+
+/**
+ * DELETE /api/admin/users/:id
+ * Delete a user.
+ */
+router.delete('/users/:id', async (req, res) => {
+  // Prevent deleting self
+  if (req.params.id === req.user.id) {
+    throw createError('Cannot delete your own account', 400);
+  }
+
+  await db.delete(users).where(eq(users.id, req.params.id));
+  res.json({ success: true });
 });
 
 module.exports = router;

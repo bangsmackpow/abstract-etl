@@ -7,7 +7,7 @@ const api = axios.create({
 
 // Attach token from localStorage to every request
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('pb_token');
+  const token = localStorage.getItem('auth_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -17,8 +17,8 @@ api.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('pb_token');
-      localStorage.removeItem('pb_user');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -35,7 +35,13 @@ export const getJob     = (id)     => api.get(`/jobs/${id}`).then(r => r.data);
 export const createJob  = (data)   => api.post('/jobs', data).then(r => r.data);
 export const updateJob  = (id, data) => api.patch(`/jobs/${id}`, data).then(r => r.data);
 export const deleteJob  = (id)     => api.delete(`/jobs/${id}`).then(r => r.data);
-export const getAdminUsers = ()    => api.get('/jobs/admin/users').then(r => r.data);
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export const getAdminMetrics = () => api.get('/admin/metrics').then(r => r.data);
+export const getUsers        = () => api.get('/admin/users').then(r => r.data);
+export const createUser      = (data) => api.post('/admin/users', data).then(r => r.data);
+export const changePassword  = (id, password) => api.patch(`/admin/users/${id}/password`, { password }).then(r => r.data);
+export const deleteUser      = (id) => api.delete(`/admin/users/${id}`).then(r => r.data);
 
 // ── Extract ───────────────────────────────────────────────────────────────────
 export const extractPDF = (file, onUploadProgress) => {

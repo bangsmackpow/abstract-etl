@@ -24,8 +24,8 @@ export default function NewJob() {
     if (!file) return;
     setStage('processing'); setError('');
     try {
-      // 1. Upload PDF + run Gemini extraction
-      const { fields, aiFlags, filename } = await extractPDF(file, (evt) => {
+      // 1. Upload PDF + run AI extraction
+      const { fields, aiFlags, processingTimeMs } = await extractPDF(file, (evt) => {
         setProgress(Math.round((evt.loaded / evt.total) * 40)); // upload = 0-40%
       });
       setProgress(90);
@@ -37,6 +37,7 @@ export default function NewJob() {
         county:           fields.county || '',
         fields_json:      fields,
         ai_flags_json:    aiFlags,
+        processing_time_ms: processingTimeMs
       });
       setProgress(100);
       setStage('done');

@@ -73,11 +73,11 @@ export default function Dashboard() {
             <tbody>
               {jobs.map(job => (
                 <tr key={job.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/jobs/${job.id}`)}>
-                  <td style={{ fontWeight: 500 }}>{job.property_address || '—'}</td>
-                  <td>{job.borrower_names || '—'}</td>
+                  <td style={{ fontWeight: 500 }}>{job.propertyAddress || '—'}</td>
+                  <td>{job.borrowerNames || '—'}</td>
                   <td>{job.county || '—'}</td>
                   <td><span className={`status-badge status-${job.status}`}>{STATUS_LABELS[job.status] || job.status}</span></td>
-                  <td>{new Date(job.created).toLocaleDateString()}</td>
+                  <td>{new Date(job.createdAt).toLocaleDateString()}</td>
                   <td onClick={e => e.stopPropagation()}>
                     <Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">Edit</Link>
                   </td>

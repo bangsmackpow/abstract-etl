@@ -1,18 +1,4 @@
 services:
-  pocketbase:
-    image: ghcr.io/muchobien/pocketbase:latest
-    container_name: abstract_pocketbase
-    restart: unless-stopped
-    ports:
-      - "8093:8090"
-    volumes:
-      - abstract_pb_data:/pb_data
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8090/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     image: ghcr.io/bangsmackpow/abstract-etl-backend:latest
     container_name: abstract_backend
@@ -22,9 +8,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
-      POCKETBASE_URL: http://abstract_pocketbase:8090
-      POCKETBASE_ADMIN_EMAIL: ${POCKETBASE_ADMIN_EMAIL}
-      POCKETBASE_ADMIN_PASSWORD: ${POCKETBASE_ADMIN_PASSWORD}
+      DB_PATH: /app/data/sqlite.db
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${POCKETBASE_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${POCKETBASE_ADMIN_PASSWORD}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       AI_PROVIDER: ${AI_PROVIDER:-openrouter}
@@ -34,10 +21,9 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
-      APP_URL: ${APP_URL:-http://192.168.254.5:5173}
-    depends_on:
-      pocketbase:
-        condition: service_healthy
+      APP_URL: ${APP_URL:-https://abstract.builtnetworks.com}
+    volumes:
+      - abstract_db_data:/app/data
 
   frontend:
     image: ghcr.io/bangsmackpow/abstract-etl-frontend:latest
@@ -49,5 +35,5 @@ services:
       - backend
 
 volumes:
-  abstract_pb_data:
+  abstract_db_data:
     driver: local

@@ -1,44 +1,37 @@
 import { create } from 'zustand';
-import { authApi } from '../services/api';
+import * as api from '../services/api';
 
 const useAuthStore = create((set, get) => ({
   user: (() => {
-    try { return JSON.parse(localStorage.getItem('user')); } catch { return null; }
+    try { 
+      const u = localStorage.getItem('auth_user');
+      return u ? JSON.parse(u) : null; 
+    } catch { return null; }
   })(),
-  token: localStorage.getItem('authToken'),
+  token: localStorage.getItem('auth_token'),
   loading: false,
   error: null,
 
   login: async (email, password) => {
     set({ loading: true, error: null });
     try {
-      const { data } = await authApi.login(email, password);
-      localStorage.setItem('authToken', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      const data = await api.login(email, password);
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_user', JSON.stringify(data.user));
       set({ user: data.user, token: data.token, loading: false });
       return data.user;
     } catch (err) {
-      const msg = err.response?.data?.error || 'Login failed';
+      const msg = err.response?.data?.message || 'Login failed';
       set({ error: msg, loading: false });
       throw new Error(msg);
     }
   },
 
-  logout: async () => {
-    await authApi.logout().catch(() => {});
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
+  logout: () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
     set({ user: null, token: null });
-  },
-
-  refreshUser: async () => {
-    try {
-      const { data } = await authApi.me();
-      localStorage.setItem('user', JSON.stringify(data));
-      set({ user: data });
-    } catch {
-      get().logout();
-    }
+    window.location.href = '/login';
   },
 
   isAdmin: () => get().user?.role === 'admin',

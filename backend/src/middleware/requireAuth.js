@@ -1,4 +1,8 @@
-const PocketBase = require('pocketbase/cjs');
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../services/authService');
+const { db } = require('../db');
+const { users } = require('../db/schema');
+const { eq } = require('drizzle-orm');
 
 async function requireAuth(req, res, next) {
   try {
@@ -8,30 +12,21 @@ async function requireAuth(req, res, next) {
     }
     const token = authHeader.split(' ')[1];
     
-    // Create a per-request instance to avoid singleton state issues
-    const authPb = new PocketBase(process.env.POCKETBASE_URL);
-    authPb.authStore.save(token, null);
-    
-    if (!authPb.authStore.isValid) {
-       return res.status(401).json({ error: true, message: 'Invalid or expired token' });
-    }
-
-    // Try to get user data from the store
-    // If authStore.model is null, we need one fetch.
-    // authRefresh is best, but if it fails with 401 "User not found" 
-    // it means the user was deleted or the token is from a different PB instance.
     try {
-      const userData = await authPb.collection('users').authRefresh();
-      req.user    = userData.record;
-      // Safety: ensure role exists
-      if (!req.user.role) req.user.role = 'abstractor'; 
-      req.pbToken = token;
+      const decoded = jwt.verify(token, JWT_SECRET);
+      
+      // Optional: Verify user still exists in DB
+      const [user] = await db.select().from(users).where(eq(users.id, decoded.id)).limit(1);
+      
+      if (!user) {
+        return res.status(401).json({ error: true, message: 'User not found' });
+      }
+
+      req.user = user;
       next();
     } catch (err) {
-      console.error('[requireAuth] PB Refresh Error:', err.status, err.message);
-      // Detailed error if possible
-      const msg = err.status === 401 ? 'Session expired or user not found' : 'Authentication service unavailable';
-      return res.status(401).json({ error: true, message: msg });
+      console.error('[requireAuth] JWT Verify Error:', err.message);
+      return res.status(401).json({ error: true, message: 'Invalid or expired token' });
     }
   } catch (err) {
     console.error('[requireAuth] General Error:', err.message);
