@@ -9,7 +9,7 @@ const client = new OpenAI({
   }
 });
 
-const DEFAULT_MODEL = process.env.AI_MODEL || 'google/gemini-flash-1.5-8b';
+const DEFAULT_MODEL = process.env.AI_MODEL || 'google/gemini-flash-1.5-8b:free';
 
 // Schema sent in the prompt
 const FIELD_SCHEMA = `{
