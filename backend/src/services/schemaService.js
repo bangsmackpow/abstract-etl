@@ -10,26 +10,29 @@ async function ensureSchema() {
     // 1. Ensure 'role' field exists on 'users'
     const userColl = collections.find(c => c.name === 'users');
     if (userColl) {
-      const hasRole = userColl.schema.find(f => f.name === 'role');
+      // Handle both old 'schema' and new 'fields' property (PocketBase v0.23+)
+      const fields = userColl.fields || userColl.schema || [];
+      const hasRole = fields.find(f => f.name === 'role');
+      
       if (!hasRole) {
         console.log('[Schema] Adding "role" field to users...');
         await pb.collections.update(userColl.id, {
-          schema: [
-            ...userColl.schema,
+          [userColl.fields ? 'fields' : 'schema']: [
+            ...fields,
             { name: 'role', type: 'select', required: true, options: { values: ['abstractor', 'admin'] } }
           ]
         });
       }
     }
 
-    // 2. Ensure 'jobs' collection exists with exact fields
+    // 2. Ensure 'jobs' collection exists
     const jobsColl = collections.find(c => c.name === 'jobs');
     if (!jobsColl) {
       console.log('[Schema] "jobs" collection missing. Creating now...');
       await pb.collections.create({
         name: 'jobs',
         type: 'base',
-        schema: [
+        schema: [ // Create uses 'schema' in the SDK version we use
           { name: 'created_by', type: 'relation', required: true, options: { collectionId: userColl.id, maxSelect: 1 } },
           { name: 'status', type: 'select', required: true, options: { values: ['draft', 'needs_review', 'complete'] } },
           { name: 'property_address', type: 'text', required: true },
