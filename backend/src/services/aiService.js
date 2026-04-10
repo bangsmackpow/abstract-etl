@@ -53,7 +53,7 @@ async function getPageCount(pdfPath) {
  * Main extraction pipeline
  */
 async function extractFromPDF(pdfPath, tempDir) {
-  const provider = process.env.AI_PROVIDER || 'gemini';
+  const provider = process.env.AI_PROVIDER || 'openrouter';
   console.log(`[AI] Starting extraction using provider: ${provider}`);
 
   const base64Images = await pdfToImages(pdfPath, tempDir);

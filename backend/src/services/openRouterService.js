@@ -1,10 +1,17 @@
-const fs = require('fs');
-const path = require('path');
+const OpenAI = require('openai');
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const client = new OpenAI({
+  apiKey: process.env.OPENROUTER_API_KEY,
+  baseURL: 'https://openrouter.ai/api/v1',
+  defaultHeaders: {
+    'HTTP-Referer': 'https://github.com/builtnetworks/abstract-etl',
+    'X-Title': 'Abstract ETL Tool'
+  }
+});
+
 const DEFAULT_MODEL = process.env.AI_MODEL || 'google/gemini-flash-1.5-8b';
 
-// Reuse the prompts from the original service
+// Schema sent in the prompt
 const FIELD_SCHEMA = `{
   "file_number": null,
   "property_address": null,
@@ -95,54 +102,31 @@ ${FIELD_SCHEMA}`;
  * Send images to OpenRouter and get extracted fields JSON
  */
 async function extractFromImages(base64Images) {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not set in environment variables');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is not set');
   }
 
-  const messages = [
-    {
-      role: 'system',
-      content: SYSTEM_PROMPT
-    },
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: 'Extract all data from these document images and return the populated JSON schema.' },
-        ...base64Images.map(b64 => ({
-          type: 'image_url',
-          image_url: {
-            url: `data:image/jpeg;base64,${b64}`
-          }
-        }))
-      ]
-    }
-  ];
-
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'HTTP-Referer': 'https://github.com/builtnetworks/abstract-etl', // Optional, for OpenRouter rankings
-      'X-Title': 'Abstract ETL Tool', // Optional
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: DEFAULT_MODEL,
-      messages: messages,
-      response_format: { type: 'json_object' } // Most modern models on OpenRouter support this
-    })
+  const response = await client.chat.completions.create({
+    model: DEFAULT_MODEL,
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Extract all data from these document images and return the populated JSON schema.' },
+          ...base64Images.map(b64 => ({
+            type: 'image_url',
+            image_url: { url: `data:image/jpeg;base64,${b64}` }
+          }))
+        ]
+      }
+    ],
+    response_format: { type: 'json_object' }
   });
 
-  const data = await response.json();
-  
-  if (data.error) {
-    console.error('[OpenRouter] Error:', data.error);
-    throw new Error(`OpenRouter API Error: ${data.error.message || 'Unknown error'}`);
-  }
+  const responseText = response.choices[0].message.content.trim();
 
-  const responseText = data.choices[0].message.content.trim();
-
-  // Strip any accidental markdown fences (though json_object should prevent them)
+  // Basic cleanup in case some models still include markdown fences despite response_format
   const cleaned = responseText
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
@@ -153,7 +137,7 @@ async function extractFromImages(base64Images) {
 }
 
 /**
- * Merge logic (identical to geminiService)
+ * Merge logic (identical to others)
  */
 function mergeExtractions(first, second) {
   const merged = { ...first };
@@ -173,12 +157,5 @@ function mergeExtractions(first, second) {
   });
   return merged;
 }
-
-/**
- * PDF conversion utility (moved/reused from geminiService)
- * We'll need to import the same utilities or refactor them.
- */
-// NOTE: For now, I'll rely on the caller to provide images or 
-// we will refactor the PDF logic into a shared utility.
 
 module.exports = { extractFromImages, mergeExtractions };
