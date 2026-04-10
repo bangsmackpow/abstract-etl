@@ -24,6 +24,13 @@ services:
       APP_URL: ${APP_URL:-https://abstract.builtnetworks.com}
     volumes:
       - abstract_db_data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - abstract_net
 
   frontend:
     image: ghcr.io/bangsmackpow/abstract-etl-frontend:latest
@@ -32,7 +39,14 @@ services:
     ports:
       - "5173:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    networks:
+      - abstract_net
+
+networks:
+  abstract_net:
+    driver: bridge
 
 volumes:
   abstract_db_data:
