@@ -1,6 +1,33 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Function to handle key trimming
+function getGenAI() {
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
+  return new GoogleGenerativeAI(apiKey);
+}
+
+/**
+ * Startup test for Gemini
+ */
+async function testGeminiConnection() {
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  if (!apiKey || apiKey.includes('your_gemini')) {
+    console.error('⚠️ [Gemini] No valid API key found in environment.');
+    return;
+  }
+
+  console.log(`[Gemini] Running startup test...`);
+  try {
+    const genAI = getGenAI();
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const result = await model.generateContent('Say "Ready"');
+    console.log(`✅ [Gemini] Test result: "${result.response.text().trim()}"`);
+  } catch (err) {
+    console.error(`❌ [Gemini] Startup Test Failed: ${err.message}`);
+  }
+}
+
+testGeminiConnection();
 
 // ── Field schema sent to Gemini in the prompt ─────────────────────────────────
 const FIELD_SCHEMA = `{
@@ -70,30 +97,15 @@ const FIELD_SCHEMA = `{
   ]
 }`;
 
-const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience reading property records.
-You will be given images of scanned property abstract documents (deeds, tax records, title searches, plat maps, mortgage documents).
-
-Your task is to extract all relevant data and return ONLY valid JSON matching this exact schema.
-Rules:
-- Return ONLY the JSON object — no markdown, no explanation, no backticks
-- For any field you cannot find or confirm, use null (not empty string)
-- For dates: use MM/DD/YYYY format
-- For dollar amounts: omit the $ sign and commas (e.g. "210000.00")
-- For arrays like grantors/grantees: include all names found
-- For chain of title: list entries in reverse chronological order (most recent first)
-- For "in_out_sale": true means it IS an arm's-length sale, false means it is NOT
-- For "open_closed" on assoc_docs: use "open" or "closed"
-- Include ALL chain of title entries, ALL mortgages, and ALL associated documents you find
-- Notes field on chain entries: capture any asterisk (*) notations exactly as written
-
-Schema to populate:
+const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract all data and return ONLY valid JSON matching this schema.
+Return ONLY JSON — no markdown. Use MM/DD/YYYY dates.
 ${FIELD_SCHEMA}`;
 
 /**
  * Send images to Gemini and get extracted fields JSON
  */
 async function extractFromImages(base64Images) {
-  // Use gemini-1.5-flash-latest (sometimes resolved 404s with stable names)
+  const genAI = getGenAI();
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
   // Build image parts for Gemini
@@ -101,42 +113,48 @@ async function extractFromImages(base64Images) {
     inlineData: { mimeType: 'image/jpeg', data: b64 }
   }));
 
-  const result = await model.generateContent([
-    { text: SYSTEM_PROMPT },
-    ...imageParts,
-    { text: 'Extract all data from these document images and return the populated JSON schema.' }
-  ]);
+  try {
+    const result = await model.generateContent([
+      { text: SYSTEM_PROMPT },
+      ...imageParts,
+      { text: 'Extract JSON from these document images.' }
+    ]);
 
-  const responseText = result.response.text().trim();
-
-  // Strip any accidental markdown fences
-  const cleaned = responseText
-    .replace(/^```json\s*/i, '')
-    .replace(/^```\s*/i, '')
-    .replace(/```\s*$/i, '')
-    .trim();
-
-  return JSON.parse(cleaned);
+    const responseText = result.response.text().trim();
+    const cleaned = responseText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    return JSON.parse(cleaned);
+  } catch (err) {
+    console.error('❌ [Gemini] AI Error:', err.message);
+    const aiError = new Error(`Gemini AI Error: ${err.message}`);
+    aiError.status = 502; // Map to 502 to avoid 401 logout issues
+    throw aiError;
+  }
 }
 
 /**
- * Merge two extraction results
+ * Intelligent merge logic
  */
 function mergeExtractions(first, second) {
   const merged = { ...first };
-
-  ['chain', 'mortgages', 'assoc_docs'].forEach(key => {
-    const firstArr  = first[key]  || [];
-    const secondArr = second[key] || [];
-    if (secondArr.length > firstArr.length) {
-      merged[key] = secondArr;
-    } else {
-      merged[key] = firstArr;
-    }
+  const arrayKeys = ['chain', 'mortgages', 'assoc_docs'];
+  
+  arrayKeys.forEach(key => {
+    const firstArr  = Array.isArray(first[key]) ? first[key] : [];
+    const secondArr = Array.isArray(second[key]) ? second[key] : [];
+    const combined = [...firstArr, ...secondArr];
+    const seen = new Set();
+    
+    merged[key] = combined.filter(item => {
+      if (!item || typeof item !== 'object') return false;
+      const fingerprint = `${item.document_title || ''}-${item.dated || ''}-${item.book_instrument || ''}-${item.page || ''}`;
+      if (fingerprint === '---' || seen.has(fingerprint)) return false;
+      seen.add(fingerprint);
+      return true;
+    });
   });
 
   Object.keys(second).forEach(key => {
-    if (!Array.isArray(second[key]) && (merged[key] === null || merged[key] === undefined)) {
+    if (!arrayKeys.includes(key) && (merged[key] === null || merged[key] === undefined)) {
       merged[key] = second[key];
     }
   });
