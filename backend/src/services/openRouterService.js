@@ -102,9 +102,10 @@ ${FIELD_SCHEMA}`;
  * Send images to OpenRouter and get extracted fields JSON
  */
 async function extractFromImages(base64Images) {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not set');
-  }
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY is missing');
+  
+  console.log(`[OpenRouter] Requesting extraction from model: ${DEFAULT_MODEL}`);
 
   try {
     const response = await client.chat.completions.create({
@@ -129,8 +130,8 @@ async function extractFromImages(base64Images) {
     const cleaned = responseText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {
-    console.error('❌ [OpenRouter] AI Error:', err.status, err.message);
-    if (err.response) console.error('   Response Data:', JSON.stringify(err.response.data));
+    console.error('❌ [OpenRouter] Error:', err.status, err.message);
+    if (err.response?.data) console.error('   AI Response Data:', JSON.stringify(err.response.data));
     throw err;
   }
 }

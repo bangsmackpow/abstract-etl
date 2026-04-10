@@ -1,74 +1,62 @@
 const pb = require('./pocketbaseClient');
 
 async function ensureSchema() {
-  console.log('🔍 [Schema] Starting schema verification...');
+  console.log('🔍 [Schema] Starting comprehensive schema verification...');
   
-  if (!pb.authStore.isValid) {
-    console.error('❌ [Schema] Admin is NOT authenticated. Cannot check schema.');
-    return;
-  }
-
   try {
-    // 1. Check/Add 'role' to users
-    const userCollections = await pb.collections.getOne('users');
-    console.log(`✅ [Schema] Found "users" collection (ID: ${userCollections.id})`);
-    
-    const hasRole = userCollections.schema.find(f => f.name === 'role');
-    if (!hasRole) {
-      console.log('[Schema] "role" field missing on users. Adding it...');
-      await pb.collections.update('users', {
-        schema: [
-          ...userCollections.schema,
-          {
-            name: 'role',
-            type: 'select',
-            required: true,
-            options: { values: ['abstractor', 'admin'] }
-          }
-        ]
-      });
-      console.log('✅ [Schema] "role" field added to users.');
-    }
+    const collections = await pb.collections.getFullList();
+    console.log(`✅ [Schema] Connected. Found ${collections.length} collections: ${collections.map(c => c.name).join(', ')}`);
 
-    // 2. Check/Create 'jobs'
-    try {
-      await pb.collections.getOne('jobs');
-      console.log('✅ [Schema] "jobs" collection exists.');
-    } catch (err) {
-      if (err.status === 404) {
-        console.log('[Schema] "jobs" collection missing. Creating it...');
-        await pb.collections.create({
-          name: 'jobs',
-          type: 'base',
+    // 1. Ensure 'role' field exists on 'users'
+    const userColl = collections.find(c => c.name === 'users');
+    if (userColl) {
+      const hasRole = userColl.schema.find(f => f.name === 'role');
+      if (!hasRole) {
+        console.log('[Schema] Adding "role" field to users...');
+        await pb.collections.update(userColl.id, {
           schema: [
-            { name: 'created_by', type: 'relation', required: true, options: { collectionId: userCollections.id, maxSelect: 1 } },
-            { name: 'status', type: 'select', required: true, options: { values: ['draft', 'needs_review', 'complete'] } },
-            { name: 'property_address', type: 'text', required: true },
-            { name: 'borrower_names', type: 'text' },
-            { name: 'county', type: 'text' },
-            { name: 'order_date', type: 'date' },
-            { name: 'fields_json', type: 'json' },
-            { name: 'ai_flags_json', type: 'json' },
-            { name: 'template_version', type: 'text' },
-            { name: 'email_sent', type: 'bool' },
-            { name: 'notes', type: 'text' }
-          ],
-          listRule: '@request.auth.id != ""',
-          viewRule: '@request.auth.id != ""',
-          createRule: '@request.auth.id != ""',
-          updateRule: '@request.auth.id != ""',
-          deleteRule: '@request.auth.role = "admin"'
+            ...userColl.schema,
+            { name: 'role', type: 'select', required: true, options: { values: ['abstractor', 'admin'] } }
+          ]
         });
-        console.log('✅ [Schema] "jobs" collection created.');
-      } else {
-        throw err;
       }
     }
 
-    console.log('🏁 [Schema] Schema verification complete.');
+    // 2. Ensure 'jobs' collection exists with exact fields
+    const jobsColl = collections.find(c => c.name === 'jobs');
+    if (!jobsColl) {
+      console.log('[Schema] "jobs" collection missing. Creating now...');
+      await pb.collections.create({
+        name: 'jobs',
+        type: 'base',
+        schema: [
+          { name: 'created_by', type: 'relation', required: true, options: { collectionId: userColl.id, maxSelect: 1 } },
+          { name: 'status', type: 'select', required: true, options: { values: ['draft', 'needs_review', 'complete'] } },
+          { name: 'property_address', type: 'text', required: true },
+          { name: 'borrower_names', type: 'text' },
+          { name: 'county', type: 'text' },
+          { name: 'order_date', type: 'date' },
+          { name: 'fields_json', type: 'json' },
+          { name: 'ai_flags_json', type: 'json' },
+          { name: 'template_version', type: 'text' },
+          { name: 'email_sent', type: 'bool' },
+          { name: 'notes', type: 'text' }
+        ],
+        listRule: '@request.auth.id != ""',
+        viewRule: '@request.auth.id != ""',
+        createRule: '@request.auth.id != ""',
+        updateRule: '@request.auth.id != ""',
+        deleteRule: '@request.auth.role = "admin"'
+      });
+      console.log('✅ [Schema] "jobs" collection created.');
+    } else {
+      console.log('✅ [Schema] "jobs" collection verified.');
+    }
+
+    console.log('🏁 [Schema] Verification complete.');
   } catch (err) {
-    console.error('❌ [Schema] Error during verification:', err.status, err.message);
-    if (err.data) console.error('   Data:', JSON.stringify(err.data));
+    console.error('❌ [Schema] Critical verification error:', err.status, err.message);
+    if (err.data) console.error('   Details:', JSON.stringify(err.data));
   }
 }
 
