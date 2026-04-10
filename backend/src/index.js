@@ -59,11 +59,11 @@ async function seedAdmin() {
   const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
   const adminPass  = process.env.ADMIN_PASSWORD || 'admin123';
   
-  const [existingAdmin] = await db.select().from(users).limit(1);
-  
+  const [existingAdmin] = await db.select().from(users).where(eq(users.email, adminEmail)).limit(1);
+  const hashedPassword = await hashPassword(adminPass);
+
   if (!existingAdmin) {
     console.log('🌱 Seeding initial admin user...');
-    const hashedPassword = await hashPassword(adminPass);
     await db.insert(users).values({
       name: 'System Admin',
       email: adminEmail,
@@ -71,6 +71,10 @@ async function seedAdmin() {
       role: 'admin'
     });
     console.log(`✅ Admin user created: ${adminEmail}`);
+  } else {
+    // Force update password to match environment variable
+    await db.update(users).set({ password: hashedPassword }).where(eq(users.id, existingAdmin.id));
+    console.log(`✅ Admin password synced for: ${adminEmail}`);
   }
 }
 
@@ -90,7 +94,7 @@ async function start() {
       console.log(`    Database: SQLite (WAL mode enabled)`);
       
       const provider = process.env.AI_PROVIDER || 'openrouter';
-      const model    = provider === 'openrouter' ? (process.env.AI_MODEL || 'google/gemini-flash-1.5-8b') : 'models/gemini-1.5-flash';
+      const model    = provider === 'openrouter' ? (process.env.AI_MODEL || 'google/gemini-flash-1.5-8b') : 'gemini-1.5-flash';
       console.log(`    AI Provider: ${provider} (${model})`);
     });
   } catch (err) {

@@ -19,7 +19,7 @@ async function testGeminiConnection() {
   console.log(`[Gemini] Running startup test...`);
   try {
     const genAI = getGenAI();
-    const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const result = await model.generateContent('Say "Ready"');
     console.log(`✅ [Gemini] Test result: "${result.response.text().trim()}"`);
   } catch (err) {
@@ -149,7 +149,7 @@ ${FIELD_SCHEMA}`;
  */
 async function extractFromImages(base64Images) {
   const genAI = getGenAI();
-  const model = genAI.getGenerativeModel({ model: 'models/gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   // Build image parts for Gemini
   const imageParts = base64Images.map(b64 => ({
