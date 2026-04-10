@@ -5,7 +5,7 @@ const path     = require('path');
 const fs       = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { requireAuth }    = require('../middleware/requireAuth');
-const { extractFromPDF } = require('../services/geminiService');
+const { extractFromPDF } = require('../services/aiService');
 const { createError }    = require('../middleware/errorHandler');
 
 // Multer: accept PDFs up to 50MB, stored in uploads/

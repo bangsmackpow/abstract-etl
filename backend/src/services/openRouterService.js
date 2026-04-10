@@ -1,8 +1,10 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
+const path = require('path');
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const DEFAULT_MODEL = process.env.AI_MODEL || 'google/gemini-flash-1.5-8b';
 
-// ── Field schema sent to Gemini in the prompt ─────────────────────────────────
+// Reuse the prompts from the original service
 const FIELD_SCHEMA = `{
   "file_number": null,
   "property_address": null,
@@ -90,26 +92,57 @@ Schema to populate:
 ${FIELD_SCHEMA}`;
 
 /**
- * Send images to Gemini and get extracted fields JSON
+ * Send images to OpenRouter and get extracted fields JSON
  */
 async function extractFromImages(base64Images) {
-  // Use gemini-1.5-flash (fixed the 2.5 typo)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  if (!OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY is not set in environment variables');
+  }
 
-  // Build image parts for Gemini
-  const imageParts = base64Images.map(b64 => ({
-    inlineData: { mimeType: 'image/jpeg', data: b64 }
-  }));
+  const messages = [
+    {
+      role: 'system',
+      content: SYSTEM_PROMPT
+    },
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Extract all data from these document images and return the populated JSON schema.' },
+        ...base64Images.map(b64 => ({
+          type: 'image_url',
+          image_url: {
+            url: `data:image/jpeg;base64,${b64}`
+          }
+        }))
+      ]
+    }
+  ];
 
-  const result = await model.generateContent([
-    { text: SYSTEM_PROMPT },
-    ...imageParts,
-    { text: 'Extract all data from these document images and return the populated JSON schema.' }
-  ]);
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://github.com/builtnetworks/abstract-etl', // Optional, for OpenRouter rankings
+      'X-Title': 'Abstract ETL Tool', // Optional
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: DEFAULT_MODEL,
+      messages: messages,
+      response_format: { type: 'json_object' } // Most modern models on OpenRouter support this
+    })
+  });
 
-  const responseText = result.response.text().trim();
+  const data = await response.json();
+  
+  if (data.error) {
+    console.error('[OpenRouter] Error:', data.error);
+    throw new Error(`OpenRouter API Error: ${data.error.message || 'Unknown error'}`);
+  }
 
-  // Strip any accidental markdown fences
+  const responseText = data.choices[0].message.content.trim();
+
+  // Strip any accidental markdown fences (though json_object should prevent them)
   const cleaned = responseText
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
@@ -120,11 +153,10 @@ async function extractFromImages(base64Images) {
 }
 
 /**
- * Merge two extraction results
+ * Merge logic (identical to geminiService)
  */
 function mergeExtractions(first, second) {
   const merged = { ...first };
-
   ['chain', 'mortgages', 'assoc_docs'].forEach(key => {
     const firstArr  = first[key]  || [];
     const secondArr = second[key] || [];
@@ -134,14 +166,19 @@ function mergeExtractions(first, second) {
       merged[key] = firstArr;
     }
   });
-
   Object.keys(second).forEach(key => {
     if (!Array.isArray(second[key]) && (merged[key] === null || merged[key] === undefined)) {
       merged[key] = second[key];
     }
   });
-
   return merged;
 }
+
+/**
+ * PDF conversion utility (moved/reused from geminiService)
+ * We'll need to import the same utilities or refactor them.
+ */
+// NOTE: For now, I'll rely on the caller to provide images or 
+// we will refactor the PDF logic into a shared utility.
 
 module.exports = { extractFromImages, mergeExtractions };

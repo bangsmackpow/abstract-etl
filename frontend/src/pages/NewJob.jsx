@@ -91,7 +91,7 @@ export default function NewJob() {
               {file && (
                 <div className="mt-4">
                   <div className="alert alert-info" style={{ marginBottom: 16 }}>
-                    🤖 Gemini AI will scan all pages and extract abstract data automatically.
+                    🤖 AI will scan all pages and extract abstract data automatically.
                     You'll review and correct each field before saving.
                   </div>
                   <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: 12 }}
