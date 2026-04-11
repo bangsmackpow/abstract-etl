@@ -20,11 +20,12 @@ async function testConnection() {
   
   if (!cleanKey || cleanKey.length < 10) return;
 
-  const model = (process.env.AI_MODEL || DEFAULT_MODEL).replace(':free', '');
-  console.log(`[OpenRouter] Running startup test...`);
+  let model = (process.env.AI_MODEL || DEFAULT_MODEL).trim();
+  if (model.endsWith(':free')) model = model.replace(':free', '');
+
+  console.log(`[OpenRouter] Startup Test: model=${model}, key_start=${cleanKey.substring(0, 10)}...`);
   
-  // Try 2.0 first, then fall back to 1.5
-  const variations = ['google/gemini-2.0-flash-001', 'google/gemini-flash-1.5'];
+  const variations = [model, `${model}:free`, 'google/gemini-2.0-flash-001'];
   const client = getClient();
 
   for (const v of variations) {
@@ -166,7 +167,9 @@ Schema to populate:
 ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
-  let model = process.env.AI_MODEL || DEFAULT_MODEL;
+  let model = (process.env.AI_MODEL || DEFAULT_MODEL).trim();
+  if (model.endsWith(':free')) model = model.replace(':free', '');
+
   console.log(`[OpenRouter] Extracting: model=${model}, images=${base64Images.length}`);
 
   try {
