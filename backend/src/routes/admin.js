@@ -7,6 +7,26 @@ const { requireAuth, requireAdmin } = require('../middleware/requireAuth');
 const { hashPassword } = require('../services/authService');
 const { createError } = require('../middleware/errorHandler');
 
+/**
+ * GET /api/admin/debug-users
+ * PUBLIC (temporary) debug route to verify database content.
+ */
+router.get('/debug-users', async (req, res) => {
+  try {
+    const allUsers = await db.select({
+      email: users.email,
+      role: users.role
+    }).from(users);
+    res.json({
+      count: allUsers.length,
+      emails: allUsers.map(u => u.email),
+      all: allUsers
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.use(requireAuth);
 router.use(requireAdmin);
 
