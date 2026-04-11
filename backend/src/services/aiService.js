@@ -1,7 +1,7 @@
 const { fromPath }           = require('pdf2pic');
 const fs                     = require('fs');
 const path                   = require('path');
-const geminiProvider         = require('./geminiService');
+// REMOVED broken geminiProvider to ensure it can NEVER be used
 const openRouterProvider     = require('./openRouterService');
 
 /**
@@ -58,23 +58,13 @@ async function getPageCount(pdfPath) {
  * Main extraction pipeline
  */
 async function extractFromPDF(pdfPath, tempDir) {
-  // Force openrouter as hard default if gemini is failing
-  const rawProvider = process.env.AI_PROVIDER || 'openrouter';
-  const provider = rawProvider.trim().toLowerCase();
-  
-  console.log(`[AI] Starting extraction using provider: ${provider}`);
+  // IGNORE provider env var - forcing OpenRouter because it's the only one working
+  console.log(`[AI] Starting extraction (OpenRouter FORCED)`);
 
   const base64Images = await pdfToImages(pdfPath, tempDir);
   console.log(`[AI] Total pages for AI: ${base64Images.length}`);
 
-  // If provider is gemini, but it failed startup tests or is generally broken,
-  // we could force openrouter here, but let's just make the mapping more explicit.
-  let activeProvider;
-  if (provider === 'gemini') {
-    activeProvider = geminiProvider;
-  } else {
-    activeProvider = openRouterProvider;
-  }
+  const activeProvider = openRouterProvider;
 
   // More conservative batching for OpenRouter/Gemini limits
   const BATCH_SIZE = 5;
