@@ -8,11 +8,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
 const JWT_EXPIRES_IN = '24h';
 
 async function hashPassword(password) {
-  return await bcrypt.hash(password, 10);
+  return bcrypt.hashSync(password, 10);
 }
 
 async function comparePassword(password, hashedPassword) {
-  return await bcrypt.compare(password, hashedPassword);
+  return bcrypt.compareSync(password, hashedPassword);
 }
 
 function generateToken(user) {
