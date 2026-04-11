@@ -66,10 +66,11 @@ async function seedAdmin() {
   }
 
   const [existingAdmin] = await db.select().from(users).where(eq(users.email, adminEmail)).limit(1);
+  const bcrypt = require('bcryptjs');
 
   if (!existingAdmin) {
     console.log('🌱 Seeding initial admin user...');
-    const hashedPassword = await hashPassword(adminPass);
+    const hashedPassword = bcrypt.hashSync(adminPass, 10);
     await db.insert(users).values({
       name: 'System Admin',
       email: adminEmail,
@@ -79,12 +80,11 @@ async function seedAdmin() {
     console.log(`✅ Admin user created: ${adminEmail}`);
   } else {
     // Check if we need to update the password (e.g. if env changed)
-    const { comparePassword } = require('./services/authService');
-    const isSame = await comparePassword(adminPass, existingAdmin.password);
+    const isSame = bcrypt.compareSync(adminPass, existingAdmin.password);
     
     if (!isSame) {
       console.log('👤 Admin password changed in env. Updating...');
-      const hashedPassword = await hashPassword(adminPass);
+      const hashedPassword = bcrypt.hashSync(adminPass, 10);
       await db.update(users).set({ password: hashedPassword }).where(eq(users.id, existingAdmin.id));
       console.log('✅ Admin password updated.');
     } else {
