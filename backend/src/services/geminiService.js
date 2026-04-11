@@ -1,35 +1,33 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Function to handle key trimming
 function getGenAI() {
   const apiKey = (process.env.GEMINI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
   return new GoogleGenerativeAI(apiKey);
 }
 
-/**
- * Startup test for Gemini
- */
 async function testGeminiConnection() {
   const apiKey = (process.env.GEMINI_API_KEY || '').trim();
-  if (!apiKey || apiKey.includes('your_gemini')) {
-    console.error('⚠️ [Gemini] No valid API key found in environment.');
-    return;
-  }
+  if (!apiKey || apiKey.includes('your_gemini')) return;
 
   console.log(`[Gemini] Running startup test...`);
-  try {
-    const genAI = getGenAI();
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent('Say "Ready"');
-    console.log(`✅ [Gemini] Test result: "${result.response.text().trim()}"`);
-  } catch (err) {
-    console.error(`❌ [Gemini] Startup Test Failed: ${err.message}`);
+  const variations = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'models/gemini-1.5-flash'];
+  
+  const genAI = getGenAI();
+  for (const v of variations) {
+    try {
+      const model = genAI.getGenerativeModel({ model: v });
+      const result = await model.generateContent('Say "Ready"');
+      console.log(`✅ [Gemini] Test Success with variation "${v}": "${result.response.text().trim()}"`);
+      return v; // Return working variation
+    } catch (err) {
+      console.warn(`⚠️ [Gemini] Variation "${v}" failed: ${err.message}`);
+    }
   }
+  console.error('❌ [Gemini] All variations failed.');
 }
 
 testGeminiConnection();
 
-// ── Field schema sent to Gemini in the prompt ─────────────────────────────────
 const FIELD_SCHEMA = `{
   "file_number": null,
   "property_address": null,
@@ -127,31 +125,15 @@ const FIELD_SCHEMA = `{
   "names_searched": []
 }`;
 
-const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience reading property records.
-You will be given images of scanned property abstract documents (deeds, tax records, title searches, plat maps, mortgage documents).
-
-Your task is to extract all relevant data and return ONLY valid JSON matching this exact schema.
-Rules:
-- Return ONLY the JSON object — no markdown, no explanation, no backticks
-- For any field you cannot find or confirm, use null (not empty string)
-- For dates: use MM/DD/YYYY format
-- For dollar amounts: omit the $ sign and commas (e.g. "210000.00")
-- For arrays like grantors/grantees: include all names found
-- For chain of title: list entries in reverse chronological order (most recent first)
-- Notes field on chain entries: capture any asterisk (*) notations exactly as written
-- legal_description: capture the full legal description text if found
-
-Schema to populate:
+const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract all data and return ONLY valid JSON matching this schema.
+Return ONLY JSON — no markdown. Use MM/DD/YYYY dates.
 ${FIELD_SCHEMA}`;
 
-/**
- * Send images to Gemini and get extracted fields JSON
- */
 async function extractFromImages(base64Images) {
   const genAI = getGenAI();
+  // Try stable flash model
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-  // Build image parts for Gemini
   const imageParts = base64Images.map(b64 => ({
     inlineData: { mimeType: 'image/jpeg', data: b64 }
   }));
@@ -160,7 +142,7 @@ async function extractFromImages(base64Images) {
     const result = await model.generateContent([
       { text: SYSTEM_PROMPT },
       ...imageParts,
-      { text: 'Extract JSON from these document images.' }
+      { text: 'Extract JSON from these images.' }
     ]);
 
     const responseText = result.response.text().trim();
@@ -169,14 +151,11 @@ async function extractFromImages(base64Images) {
   } catch (err) {
     console.error('❌ [Gemini] AI Error:', err.message);
     const aiError = new Error(`Gemini AI Error: ${err.message}`);
-    aiError.status = 502; // Map to 502 to avoid 401 logout issues
+    aiError.status = 502; 
     throw aiError;
   }
 }
 
-/**
- * Intelligent merge logic
- */
 function mergeExtractions(first, second) {
   const merged = { ...first };
   const arrayKeys = ['chain', 'mortgages', 'assoc_docs', 'judgments_liens', 'miscellaneous', 'names_searched'];
@@ -184,12 +163,6 @@ function mergeExtractions(first, second) {
   arrayKeys.forEach(key => {
     const firstArr  = Array.isArray(first[key]) ? first[key] : [];
     const secondArr = Array.isArray(second[key]) ? second[key] : [];
-    
-    if (key === 'names_searched') {
-      merged[key] = [...new Set([...firstArr, ...secondArr])];
-      return;
-    }
-
     const combined = [...firstArr, ...secondArr];
     const seen = new Set();
     

@@ -12,35 +12,34 @@ function getClient() {
   });
 }
 
-// Fixed OpenRouter Model ID: https://openrouter.ai/google/gemini-flash-1.5-8b
 const DEFAULT_MODEL = 'google/gemini-flash-1.5';
 
 async function testConnection() {
   const rawKey = (process.env.OPENROUTER_API_KEY || '').trim();
   const cleanKey = rawKey.replace(/^["']|["']$/g, '');
   
-  if (!cleanKey || cleanKey.length < 10) {
-    console.error('❌ [OpenRouter] No API key detected or key too short.');
-    return;
-  }
+  if (!cleanKey || cleanKey.length < 10) return;
 
-  let model = process.env.AI_MODEL || DEFAULT_MODEL;
-  // Cleanup common mistake suffix
-  if (model.endsWith(':free')) model = model.replace(':free', '');
-
-  console.log(`[OpenRouter] Startup Test: model=${model}, key_start=${cleanKey.substring(0, 10)}...`);
+  const model = (process.env.AI_MODEL || DEFAULT_MODEL).replace(':free', '');
+  console.log(`[OpenRouter] Running startup test...`);
   
-  try {
-    const client = getClient();
-    const response = await client.chat.completions.create({
-      model: model,
-      messages: [{ role: 'user', content: 'Say "Ready"' }],
-      max_tokens: 10
-    });
-    console.log(`✅ [OpenRouter] Startup Test Success: "${response.choices[0].message.content.trim()}"`);
-  } catch (err) {
-    console.error(`❌ [OpenRouter] Startup Test Failed: ${err.status} ${err.message}`);
+  const variations = [model, `${model}:free`];
+  const client = getClient();
+
+  for (const v of variations) {
+    try {
+      const response = await client.chat.completions.create({
+        model: v,
+        messages: [{ role: 'user', content: 'Say "Ready"' }],
+        max_tokens: 10
+      });
+      console.log(`✅ [OpenRouter] Test Success with variation "${v}": "${response.choices[0].message.content.trim()}"`);
+      return v;
+    } catch (err) {
+      console.warn(`⚠️ [OpenRouter] Variation "${v}" failed: ${err.status} ${err.message}`);
+    }
   }
+  console.error('❌ [OpenRouter] All variations failed.');
 }
 
 testConnection();
@@ -142,25 +141,11 @@ const FIELD_SCHEMA = `{
   "names_searched": []
 }`;
 
-const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience.
-Your task is to extract all relevant data and return ONLY valid JSON matching this exact schema.
-Rules:
-- Return ONLY the JSON object — no markdown, no explanation, no backticks
-- For any field you cannot find or confirm, use null (not empty string)
-- For dates: use MM/DD/YYYY format
-- For dollar amounts: omit the $ sign and commas (e.g. "210000.00")
-- For arrays like grantors/grantees: include all names found
-- For chain of title: list entries in reverse chronological order (most recent first)
-- Notes field on chain entries: capture any asterisk (*) notations exactly as written
-- legal_description: capture the full legal description text if found
-
-Schema to populate:
+const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract data and return ONLY valid JSON.
 ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
   let model = process.env.AI_MODEL || DEFAULT_MODEL;
-  if (model.endsWith(':free')) model = model.replace(':free', '');
-
   console.log(`[OpenRouter] Extracting: model=${model}, images=${base64Images.length}`);
 
   try {
@@ -198,19 +183,11 @@ async function extractFromImages(base64Images) {
 function mergeExtractions(first, second) {
   const merged = { ...first };
   const arrayKeys = ['chain', 'mortgages', 'assoc_docs', 'judgments_liens', 'miscellaneous', 'names_searched'];
-  
   arrayKeys.forEach(key => {
     const firstArr  = Array.isArray(first[key]) ? first[key] : [];
     const secondArr = Array.isArray(second[key]) ? second[key] : [];
-    
-    if (key === 'names_searched') {
-      merged[key] = [...new Set([...firstArr, ...secondArr])];
-      return;
-    }
-
     const combined = [...firstArr, ...secondArr];
     const seen = new Set();
-    
     merged[key] = combined.filter(item => {
       if (!item || typeof item !== 'object') return false;
       const fingerprint = `${item.document_title || ''}-${item.dated || ''}-${item.book_instrument || ''}-${item.page || ''}`;
@@ -219,13 +196,11 @@ function mergeExtractions(first, second) {
       return true;
     });
   });
-
   Object.keys(second).forEach(key => {
     if (!arrayKeys.includes(key) && (merged[key] === null || merged[key] === undefined || merged[key] === '')) {
       merged[key] = second[key];
     }
   });
-
   return merged;
 }
 
