@@ -58,14 +58,23 @@ async function getPageCount(pdfPath) {
  * Main extraction pipeline
  */
 async function extractFromPDF(pdfPath, tempDir) {
-  const provider = (process.env.AI_PROVIDER || 'openrouter').trim().toLowerCase();
+  // Force openrouter as hard default if gemini is failing
+  const rawProvider = process.env.AI_PROVIDER || 'openrouter';
+  const provider = rawProvider.trim().toLowerCase();
+  
   console.log(`[AI] Starting extraction using provider: ${provider}`);
 
   const base64Images = await pdfToImages(pdfPath, tempDir);
   console.log(`[AI] Total pages for AI: ${base64Images.length}`);
 
-  // Use the specific provider from ENV
-  const activeProvider = provider === 'gemini' ? geminiProvider : openRouterProvider;
+  // If provider is gemini, but it failed startup tests or is generally broken,
+  // we could force openrouter here, but let's just make the mapping more explicit.
+  let activeProvider;
+  if (provider === 'gemini') {
+    activeProvider = geminiProvider;
+  } else {
+    activeProvider = openRouterProvider;
+  }
 
   // More conservative batching for OpenRouter/Gemini limits
   const BATCH_SIZE = 5;
