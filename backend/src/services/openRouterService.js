@@ -12,7 +12,7 @@ function getClient() {
   });
 }
 
-const DEFAULT_MODEL = 'google/gemini-flash-1.5';
+const DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
 
 async function testConnection() {
   const rawKey = (process.env.OPENROUTER_API_KEY || '').trim();
@@ -23,7 +23,8 @@ async function testConnection() {
   const model = (process.env.AI_MODEL || DEFAULT_MODEL).replace(':free', '');
   console.log(`[OpenRouter] Running startup test...`);
   
-  const variations = [model, `${model}:free`];
+  // Try 2.0 first, then fall back to 1.5
+  const variations = ['google/gemini-2.0-flash-001', 'google/gemini-flash-1.5'];
   const client = getClient();
 
   for (const v of variations) {

@@ -10,15 +10,17 @@ async function testGeminiConnection() {
   if (!apiKey || apiKey.includes('your_gemini')) return;
 
   console.log(`[Gemini] Running startup test...`);
-  const variations = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'models/gemini-1.5-flash'];
+  // Try 2.0 first as it's the current recommended free model
+  const variations = ['gemini-2.0-flash-exp', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
   
   const genAI = getGenAI();
   for (const v of variations) {
     try {
       const model = genAI.getGenerativeModel({ model: v });
       const result = await model.generateContent('Say "Ready"');
-      console.log(`✅ [Gemini] Test Success with variation "${v}": "${result.response.text().trim()}"`);
-      return v; // Return working variation
+      const text = result.response.text().trim();
+      console.log(`✅ [Gemini] Test Success with "${v}": "${text}"`);
+      return v;
     } catch (err) {
       console.warn(`⚠️ [Gemini] Variation "${v}" failed: ${err.message}`);
     }
@@ -131,8 +133,8 @@ ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
   const genAI = getGenAI();
-  // Try stable flash model
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  // Use 2.0 if possible
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
 
   const imageParts = base64Images.map(b64 => ({
     inlineData: { mimeType: 'image/jpeg', data: b64 }
