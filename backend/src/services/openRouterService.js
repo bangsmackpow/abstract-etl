@@ -142,7 +142,27 @@ const FIELD_SCHEMA = `{
   "names_searched": []
 }`;
 
-const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract data and return ONLY valid JSON.
+const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience.
+Your task is to extract ALL relevant data from the scanned property documents and return valid JSON.
+
+### CRITICAL INSTRUCTIONS:
+1. **CAPTURE FULL DATA**: Do not summarize. If a document has 5 deeds, you must list all 5 in the "chain". If there are multiple tax parcels or IDs, capture them all.
+2. **PROPERTY ADDRESS**: Always capture the COMPLETE address including Street, City, State, and Zip.
+3. **IN/OUT SALE LOGIC**: 
+   - Look for the "In/Out Sale" checkboxes on the search order.
+   - If "Yes" is checked for a deed, set "in_out_sale" to true.
+   - If "No" is checked, set "in_out_sale" to false.
+4. **CURRENCY**: You MAY use commas in dollar amounts (e.g., "210,000.00").
+5. **LEGAL DESCRIPTION**: Capture the FULL text of the legal description. Do not truncate with "...".
+6. **NAMES SEARCHED**: List EVERY name mentioned in the "Names Searched" section of the document.
+7. **MORTGAGES**: Capture all Deeds of Trust (DOT). Ensure you find the Borrower and Trustee names for each.
+
+### RULES:
+- Return ONLY the JSON object — no markdown, no explanation.
+- Use null for missing fields.
+- Use MM/DD/YYYY for dates.
+
+Schema to populate:
 ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
@@ -197,11 +217,13 @@ function mergeExtractions(first, second) {
       return true;
     });
   });
+
   Object.keys(second).forEach(key => {
     if (!arrayKeys.includes(key) && (merged[key] === null || merged[key] === undefined || merged[key] === '')) {
       merged[key] = second[key];
     }
   });
+
   return merged;
 }
 
