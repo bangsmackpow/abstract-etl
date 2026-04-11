@@ -64,7 +64,8 @@ async function extractFromPDF(pdfPath, tempDir) {
   const base64Images = await pdfToImages(pdfPath, tempDir);
   console.log(`[AI] Total pages for AI: ${base64Images.length}`);
 
-  const activeProvider = provider === 'openrouter' ? openRouterProvider : geminiProvider;
+  // Use OpenRouter by default as it's the only one passing startup tests
+  const activeProvider = provider === 'gemini' ? geminiProvider : openRouterProvider;
 
   // More conservative batching for OpenRouter/Gemini limits
   const BATCH_SIZE = 5;

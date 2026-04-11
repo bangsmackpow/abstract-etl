@@ -29,17 +29,25 @@ function generateToken(user) {
 }
 
 async function login(email, password) {
-  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  const cleanEmail = (email || '').trim().toLowerCase();
+  console.log(`[AuthService] Querying for email: "${cleanEmail}"`);
+  
+  const [user] = await db.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
   
   if (!user) {
+    console.warn(`[AuthService] No user found with email: "${cleanEmail}"`);
     throw new Error('Invalid email or password');
   }
 
-  const isPasswordValid = await comparePassword(password, user.password);
+  console.log(`[AuthService] User found: ${user.id}, role: ${user.role}. Verifying password...`);
+
+  const isPasswordValid = comparePassword(password, user.password);
   if (!isPasswordValid) {
+    console.warn(`[AuthService] Password mismatch for user: ${cleanEmail}`);
     throw new Error('Invalid email or password');
   }
 
+  console.log(`[AuthService] Password verified for: ${cleanEmail}`);
   const token = generateToken(user);
   
   // Don't return the password
