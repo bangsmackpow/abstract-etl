@@ -28,6 +28,12 @@ const LIEN_TEMPLATE = () => ({
   amount: null, plaintiff: null, defendant: null
 });
 
+const MISC_TEMPLATE = () => ({
+  document_title: null, book_instrument: null, page: null,
+  dated: null, recorded: null, consideration: null,
+  grantor_assignor: null, grantee_assignee: null
+});
+
 export default function EditJob() {
   const { id }    = useParams();
   const navigate  = useNavigate();
@@ -101,6 +107,7 @@ export default function EditJob() {
   const mortgages = fields.mortgages  || [];
   const assocDocs = fields.assoc_docs || [];
   const liens     = fields.judgments_liens || [];
+  const misc      = fields.miscellaneous || [];
 
   return (
     <div>
@@ -159,6 +166,13 @@ export default function EditJob() {
             onChange={setField} onFlagChange={setFlag} aiFlags={aiFlags} />
           <FieldInput label="Improvement Value" fieldKey="improvement_value" value={fields.improvement_value}
             onChange={setField} onFlagChange={setFlag} aiFlags={aiFlags} />
+          <FieldInput label="Excise Tax / Revenue Stamps" fieldKey="excise_tax" value={fields.excise_tax}
+            onChange={setField} onFlagChange={setFlag} aiFlags={aiFlags} />
+          <FieldInput label="Search Depth (e.g. 30 Year)" fieldKey="search_depth" value={fields.search_depth}
+            onChange={setField} onFlagChange={setFlag} aiFlags={aiFlags} />
+          <FieldInput label="Marital Status of Owners" fieldKey="marital_status" value={fields.marital_status}
+            onChange={setField} onFlagChange={setFlag} aiFlags={aiFlags} />
+          
           <div />
           <FieldInput label="Tax Amount (1st)" fieldKey="tax_amount_1st" value={fields.tax_amount_1st}
             onChange={setField} onFlagChange={setFlag} aiFlags={aiFlags} />
@@ -308,6 +322,38 @@ export default function EditJob() {
       ))}
       <button className="btn btn-ghost btn-sm mb-4" onClick={() => addListEntry('judgments_liens', LIEN_TEMPLATE)}>+ Add Judgment / Lien</button>
 
+      {/* MISCELLANEOUS DOCUMENTS */}
+      <div className="section-divider">Miscellaneous Documents</div>
+      {misc.map((m, i) => (
+        <div className="card mb-3" key={i}>
+          <div className="card-header" style={{ justifyContent: 'space-between' }}>
+            <span>Misc Document {i + 1}</span>
+            <button className="btn btn-danger btn-sm" onClick={() => setFields(f => ({ ...f, miscellaneous: f.miscellaneous.filter((_, idx) => idx !== i) }))}>Remove</button>
+          </div>
+          <div className="card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ gridColumn: 'span 2' }}>
+              <FieldInput label="Document Title" fieldKey={`misc[${i}].document_title`} value={m.document_title}
+                onChange={(_, v) => setNestedField('miscellaneous', i, 'document_title', v, MISC_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            </div>
+            <FieldInput label="Book / Instrument" fieldKey={`misc[${i}].book_instrument`} value={m.book_instrument}
+              onChange={(_, v) => setNestedField('miscellaneous', i, 'book_instrument', v, MISC_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Page" fieldKey={`misc[${i}].page`} value={m.page}
+              onChange={(_, v) => setNestedField('miscellaneous', i, 'page', v, MISC_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Dated" fieldKey={`misc[${i}].dated`} value={m.dated}
+              onChange={(_, v) => setNestedField('miscellaneous', i, 'dated', v, MISC_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Recorded" fieldKey={`misc[${i}].recorded`} value={m.recorded}
+              onChange={(_, v) => setNestedField('miscellaneous', i, 'recorded', v, MISC_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Consideration" fieldKey={`misc[${i}].consideration`} value={m.consideration}
+              onChange={(_, v) => setNestedField('miscellaneous', i, 'consideration', v, MISC_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Grantor / Assignor" fieldKey={`misc[${i}].grantor_assignor`} value={m.grantor_assignor}
+              onChange={(_, v) => setNestedField('miscellaneous', i, 'grantor_assignor', v, MISC_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+            <FieldInput label="Grantee / Assignee" fieldKey={`misc[${i}].grantee_assignee`} value={m.grantee_assignee}
+              onChange={(_, v) => setNestedField('miscellaneous', i, 'grantee_assignee', v, MISC_TEMPLATE)} onFlagChange={setFlag} aiFlags={aiFlags} />
+          </div>
+        </div>
+      ))}
+      <button className="btn btn-ghost btn-sm mb-4" onClick={() => addListEntry('miscellaneous', MISC_TEMPLATE)}>+ Add Misc Document</button>
+
       {/* NAMES SEARCHED */}
       <div className="section-divider">Names Searched</div>
       <div className="card mb-4">
@@ -319,12 +365,21 @@ export default function EditJob() {
         </div>
       </div>
 
+      {/* ADDITIONAL INFORMATION */}
+      <div className="section-divider">Additional Information</div>
+      <div className="card mb-4">
+        <div className="card-body">
+          <FieldInput label="Notes / Comments" fieldKey="additional_information" value={fields.additional_information}
+            onChange={setField} onFlagChange={setFlag} aiFlags={aiFlags} textarea />
+        </div>
+      </div>
+
       {/* NOTES */}
-      <div className="section-divider">Abstractor Notes</div>
+      <div className="section-divider">Abstractor Notes (System Only)</div>
       <div className="card mb-4">
         <div className="card-body">
           <textarea className="form-textarea" rows={4} value={notes} onChange={e => setNotes(e.target.value)}
-            placeholder="Add any notes, exceptions, or items to flag..." />
+            placeholder="Internal system notes..." />
         </div>
       </div>
 

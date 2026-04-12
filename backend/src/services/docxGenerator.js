@@ -19,7 +19,7 @@ async function generateDocx(fields) {
   const borders = { top: border, bottom: border, left: border, right: border };
 
   function cell(text, opts = {}) {
-    const { bold = false, shade = null, span = 1, width = null, align = AlignmentType.LEFT } = opts;
+    const { bold = false, shade = null, span = 1, width = null, align = AlignmentType.LEFT, italics = false } = opts;
     return new TableCell({
       borders,
       columnSpan: span,
@@ -28,7 +28,7 @@ async function generateDocx(fields) {
       margins: { top: 40, bottom: 40, left: 80, right: 80 },
       children: [new Paragraph({
         alignment: align,
-        children: [new TextRun({ text: val(text), bold, size: 18, font: 'Arial' })]
+        children: [new TextRun({ text: val(text), bold, italics, size: 18, font: 'Arial' })]
       })]
     });
   }
@@ -58,8 +58,7 @@ async function generateDocx(fields) {
     });
   }
 
-  // ── Tables ─────────────────────────────────────────────────────────────────
-  
+  // ── Order Information Table ────────────────────────────────────────────────
   const orderTable = new Table({
     width: { size: 9360, type: WidthType.DXA },
     columnWidths: [1200, 2400, 1200, 1800, 1200, 1560],
@@ -73,7 +72,7 @@ async function generateDocx(fields) {
         valueCell(dash(f.completed_date), 1560),
       ]}),
       new TableRow({ children: [
-        labelCell('Property Address:', 1200),
+        labelCell('Address:', 1200),
         new TableCell({
           borders, columnSpan: 5,
           margins: { top: 40, bottom: 40, left: 80, right: 80 },
@@ -91,12 +90,20 @@ async function generateDocx(fields) {
         valueCell(dash(f.parcel_id), 1560),
       ]}),
       new TableRow({ children: [
-        labelCell('Assessed Value:', 1200),
+        labelCell('Assessed Val:', 1200),
         valueCell(dash(f.assessed_value), 2400),
         labelCell('Land Value:', 1200),
         valueCell(dash(f.land_value), 1800),
         labelCell('Impr. Value:', 1200),
         valueCell(dash(f.improvement_value), 1560),
+      ]}),
+      new TableRow({ children: [
+        labelCell('Excise Tax:', 1200),
+        valueCell(dash(f.excise_tax), 2400),
+        labelCell('Search Depth:', 1200),
+        valueCell(dash(f.search_depth), 1800),
+        labelCell('Marital Stat:', 1200),
+        valueCell(dash(f.marital_status), 1560),
       ]}),
       new TableRow({ children: [
         labelCell('Tax Amount:', 1200),
@@ -144,7 +151,7 @@ async function generateDocx(fields) {
     new TableRow({ children: [
       labelCell(`(${i + 1}) Document Title:`, 2000),
       valueCell(val(e.document_title), 3360),
-      labelCell('Book/Instrument:', 1200),
+      labelCell('Book/Inst:', 1200),
       valueCell(val(e.book_instrument), 1200),
       labelCell('Page:', 600),
       valueCell(val(e.page), 1000),
@@ -157,7 +164,7 @@ async function generateDocx(fields) {
       labelCell('Consideration:', 1200),
       valueCell(val(e.consideration), 1200),
       labelCell('In/Out?', 900),
-      valueCell(e.in_out_sale === true ? 'Yes' : 'No', 1560),
+      valueCell(e.in_out_sale === true ? 'Yes' : e.in_out_sale === false ? 'No' : '—', 1560),
     ]}),
     new TableRow({ children: [
       labelCell('Grantor(s):', 1200),
@@ -167,7 +174,7 @@ async function generateDocx(fields) {
       labelCell('Grantee(s):', 1200),
       new TableCell({ borders, columnSpan: 7, children: [
         new Paragraph({ children: [new TextRun({ text: (e.grantees || []).join('; ') || '—', size: 18 })] }),
-        ...(e.notes ? [new Paragraph({ children: [new TextRun({ text: `Note: ${e.notes}`, size: 16, italics: true })] })] : [])
+        ...(e.notes ? [new Paragraph({ children: [new TextRun({ text: `Notes: ${e.notes}`, size: 16, italics: true, color: '555555' })] })] : [])
       ] })
     ]}),
   ]);
@@ -176,7 +183,7 @@ async function generateDocx(fields) {
     new TableRow({ children: [
       labelCell(`(${i + 1}) Document Title:`, 2000),
       valueCell(val(m.document_title), 3360),
-      labelCell('Book/Instrument:', 1300),
+      labelCell('Book/Inst:', 1300),
       valueCell(val(m.book_instrument), 1200),
       labelCell('Page:', 500),
       valueCell(val(m.page), 1000),
@@ -226,11 +233,55 @@ async function generateDocx(fields) {
     ]}),
   ]);
 
+  const miscRows = (f.miscellaneous || []).flatMap((m, i) => [
+    new TableRow({ children: [
+      labelCell(`(${i + 1}) Document Title:`, 2000),
+      valueCell(val(m.document_title), 3360),
+      labelCell('Book/Inst:', 1200),
+      valueCell(val(m.book_instrument), 1200),
+      labelCell('Page:', 600),
+      valueCell(val(m.page), 1000),
+    ]}),
+    new TableRow({ children: [
+      labelCell('Dated:', 800),
+      valueCell(val(m.dated), 1400),
+      labelCell('Recorded:', 900),
+      valueCell(val(m.recorded), 1400),
+      labelCell('Consideration:', 1200),
+      valueCell(val(m.consideration), 1200),
+      cell('', { span: 2 }),
+    ]}),
+    new TableRow({ children: [
+      labelCell('Grantor/Assignor:', 1400),
+      valueCell(dash(m.grantor_assignor), 3000),
+      labelCell('Grantee/Assignee:', 1400),
+      valueCell(dash(m.grantee_assignee), 3560),
+    ]}),
+  ]);
+
   const legalPara = new Table({
     width: { size: 9360, type: WidthType.DXA },
     rows: [new TableRow({ children: [
       new TableCell({ borders, margins: { top: 100, bottom: 100, left: 100, right: 100 },
         children: [new Paragraph({ children: [new TextRun({ text: dash(f.legal_description), size: 18 })] })]
+      })
+    ]})]
+  });
+
+  const additionalPara = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    rows: [new TableRow({ children: [
+      new TableCell({ borders, margins: { top: 100, bottom: 100, left: 100, right: 100 },
+        children: [new Paragraph({ children: [new TextRun({ text: dash(f.additional_information), size: 18, italics: true })] })]
+      })
+    ]})]
+  });
+
+  const namesPara = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    rows: [new TableRow({ children: [
+      new TableCell({ borders, margins: { top: 100, bottom: 100, left: 100, right: 100 },
+        children: [new Paragraph({ children: [new TextRun({ text: (f.names_searched || []).join('; ') || 'None provided.', size: 18 })] })]
       })
     ]})]
   });
@@ -254,6 +305,15 @@ async function generateDocx(fields) {
         new Paragraph({ spacing: { before: 120 } }),
         sectionHeader('JUDGMENTS / LIENS'),
         new Table({ width: { size: 9360, type: WidthType.DXA }, rows: lienRows.length ? lienRows : [new TableRow({ children: [cell('No judgments or liens found.', { span: 4, italics: true })] })] }),
+        new Paragraph({ spacing: { before: 120 } }),
+        sectionHeader('MISCELLANEOUS DOCUMENTS'),
+        new Table({ width: { size: 9360, type: WidthType.DXA }, rows: miscRows.length ? miscRows : [new TableRow({ children: [cell('No miscellaneous documents found.', { span: 4, italics: true })] })] }),
+        new Paragraph({ spacing: { before: 120 } }),
+        sectionHeader('NAMES SEARCHED'),
+        namesPara,
+        new Paragraph({ spacing: { before: 120 } }),
+        sectionHeader('ADDITIONAL INFORMATION'),
+        additionalPara,
       ]
     }]
   });

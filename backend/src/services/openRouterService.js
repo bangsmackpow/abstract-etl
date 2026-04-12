@@ -64,7 +64,10 @@ const FIELD_SCHEMA = `{
   "tax_due_2nd": null,
   "tax_delinquent": null,
   "tax_paid": null,
+  "excise_tax": null,
+  "search_depth": null,
   "current_vesting_owner": null,
+  "marital_status": null,
   "chain": [
     {
       "index": 1,
@@ -158,6 +161,10 @@ Your task is to extract ALL relevant data from the scanned property documents an
 6. **CURRENCY**: You SHOULD use commas in dollar amounts (e.g. "210,000.00").
 7. **LEGAL DESCRIPTION**: Capture the ENTIRE legal description text word-for-word. Do NOT use "..." or summarize.
 8. **NAMES SEARCHED**: Include EVERY individual or entity name listed in the "Names Searched" section.
+9. **STATE SPECIFICS (NC/TN)**:
+   - **Excise Tax**: Look for "Excise Tax" or "Revenue Stamps" (especially in NC).
+   - **Marital Status**: Note marital status of owners if stated (e.g., "husband and wife").
+   - **Search Depth**: Note the years covered by the search (e.g., "30 Year Search").
 
 ### FORMATTING:
 - Return ONLY the JSON object. No markdown, no explanation.
