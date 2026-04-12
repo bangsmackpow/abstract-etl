@@ -1,5 +1,10 @@
 const OpenAI = require('openai');
 
+/**
+ * OpenRouter Service
+ * Standardized on google/gemini-2.0-flash-001 for stability and accuracy.
+ */
+
 function getClient() {
   const apiKey = (process.env.OPENROUTER_API_KEY || '').trim().replace(/^["']|["']$/g, '');
   return new OpenAI({
@@ -12,36 +17,31 @@ function getClient() {
   });
 }
 
-const DEFAULT_MODEL = 'google/gemini-2.0-flash-001';
+// HARDCODED WORKING MODEL
+const PRIMARY_MODEL = 'google/gemini-2.0-flash-001';
 
 async function testConnection() {
   const rawKey = (process.env.OPENROUTER_API_KEY || '').trim();
   const cleanKey = rawKey.replace(/^["']|["']$/g, '');
   
-  if (!cleanKey || cleanKey.length < 10) return;
-
-  let model = (process.env.AI_MODEL || DEFAULT_MODEL).trim();
-  if (model.endsWith(':free')) model = model.replace(':free', '');
-
-  console.log(`[OpenRouter] Startup Test: model=${model}, key_start=${cleanKey.substring(0, 10)}...`);
-  
-  const variations = [model, `${model}:free`, 'google/gemini-2.0-flash-001'];
-  const client = getClient();
-
-  for (const v of variations) {
-    try {
-      const response = await client.chat.completions.create({
-        model: v,
-        messages: [{ role: 'user', content: 'Say "Ready"' }],
-        max_tokens: 10
-      });
-      console.log(`✅ [OpenRouter] Test Success with variation "${v}": "${response.choices[0].message.content.trim()}"`);
-      return v;
-    } catch (err) {
-      console.warn(`⚠️ [OpenRouter] Variation "${v}" failed: ${err.status} ${err.message}`);
-    }
+  if (!cleanKey || cleanKey.length < 10) {
+    console.error('❌ [OpenRouter] No API key detected.');
+    return;
   }
-  console.error('❌ [OpenRouter] All variations failed.');
+
+  console.log(`[OpenRouter] Startup Test using: ${PRIMARY_MODEL}`);
+  
+  try {
+    const client = getClient();
+    const response = await client.chat.completions.create({
+      model: PRIMARY_MODEL,
+      messages: [{ role: 'user', content: 'Say "Ready"' }],
+      max_tokens: 10
+    });
+    console.log(`✅ [OpenRouter] Startup Test Success: "${response.choices[0].message.content.trim()}"`);
+  } catch (err) {
+    console.error(`❌ [OpenRouter] Startup Test Failed: ${err.status} ${err.message}`);
+  }
 }
 
 testConnection();
@@ -146,42 +146,40 @@ const FIELD_SCHEMA = `{
 const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience.
 Your task is to extract ALL relevant data from the scanned property documents and return valid JSON.
 
-### CRITICAL INSTRUCTIONS:
-1. **CAPTURE FULL DATA**: Do not summarize. If a document has 5 deeds, you must list all 5 in the "chain". If there are multiple tax parcels or IDs, capture them all.
-2. **PROPERTY ADDRESS**: Always capture the COMPLETE address including Street, City, State, and Zip.
-3. **IN/OUT SALE LOGIC**: 
-   - Look for the "In/Out Sale" checkboxes on the search order.
-   - If "Yes" is checked for a deed, set "in_out_sale" to true.
-   - If "No" is checked, set "in_out_sale" to false.
-4. **CURRENCY**: You MAY use commas in dollar amounts (e.g., "210,000.00").
-5. **LEGAL DESCRIPTION**: Capture the FULL text of the legal description. Do not truncate with "...".
-6. **NAMES SEARCHED**: List EVERY name mentioned in the "Names Searched" section of the document.
-7. **MORTGAGES**: Capture all Deeds of Trust (DOT). Ensure you find the Borrower and Trustee names for each.
+### CRITICAL ACCURACY RULES:
+1. **PROPERTY ADDRESS**: Capture the COMPLETE address (Street, City, State, and Zip Code). Do not truncate.
+2. **PARCEL ID / TAX ID**: Capture the exact string. If it contains parenthesis or dashes, include them exactly as written.
+3. **IN/OUT SALE**: 
+   - Look at the "In/Out Sale" section for each deed in the chain.
+   - If "Yes" is checked or marked, set "in_out_sale" to true.
+   - If "No" is checked or marked, set "in_out_sale" to false.
+4. **COMPLETE CHAIN**: Extract EVERY deed or document listed in the "Chain-of-Title" section across all pages. Do not skip any entries.
+5. **MORTGAGES / DOT**: Extract ALL mortgages and Deeds of Trust. Ensure you capture the Borrower and Trustee names for each.
+6. **CURRENCY**: You SHOULD use commas in dollar amounts (e.g. "210,000.00").
+7. **LEGAL DESCRIPTION**: Capture the ENTIRE legal description text word-for-word. Do NOT use "..." or summarize.
+8. **NAMES SEARCHED**: Include EVERY individual or entity name listed in the "Names Searched" section.
 
-### RULES:
-- Return ONLY the JSON object — no markdown, no explanation.
+### FORMATTING:
+- Return ONLY the JSON object. No markdown, no explanation.
 - Use null for missing fields.
-- Use MM/DD/YYYY for dates.
+- Use MM/DD/YYYY for all dates.
 
 Schema to populate:
 ${FIELD_SCHEMA}`;
 
 async function extractFromImages(base64Images) {
-  let model = (process.env.AI_MODEL || DEFAULT_MODEL).trim();
-  if (model.endsWith(':free')) model = model.replace(':free', '');
-
-  console.log(`[OpenRouter] Extracting: model=${model}, images=${base64Images.length}`);
+  console.log(`[OpenRouter] Extracting with model: ${PRIMARY_MODEL} (${base64Images.length} images)`);
 
   try {
     const client = getClient();
     const response = await client.chat.completions.create({
-      model: model,
+      model: PRIMARY_MODEL,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'Extract JSON from these images.' },
+            { type: 'text', text: 'Extract JSON data from these property images according to the schema and critical accuracy rules.' },
             ...base64Images.map(b64 => ({
               type: 'image_url',
               image_url: { url: `data:image/jpeg;base64,${b64}` }
@@ -196,7 +194,7 @@ async function extractFromImages(base64Images) {
     const cleaned = responseText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {
-    console.error(`❌ [OpenRouter] AI Error (${model}):`, err.status, err.message);
+    console.error(`❌ [OpenRouter] AI Error:`, err.status, err.message);
     const aiError = new Error(`AI Provider Error: ${err.message}`);
     aiError.status = 502; 
     aiError.data = err.response?.data;
@@ -207,11 +205,19 @@ async function extractFromImages(base64Images) {
 function mergeExtractions(first, second) {
   const merged = { ...first };
   const arrayKeys = ['chain', 'mortgages', 'assoc_docs', 'judgments_liens', 'miscellaneous', 'names_searched'];
+  
   arrayKeys.forEach(key => {
     const firstArr  = Array.isArray(first[key]) ? first[key] : [];
     const secondArr = Array.isArray(second[key]) ? second[key] : [];
+    
+    if (key === 'names_searched') {
+      merged[key] = [...new Set([...firstArr, ...secondArr])];
+      return;
+    }
+
     const combined = [...firstArr, ...secondArr];
     const seen = new Set();
+    
     merged[key] = combined.filter(item => {
       if (!item || typeof item !== 'object') return false;
       const fingerprint = `${item.document_title || ''}-${item.dated || ''}-${item.book_instrument || ''}-${item.page || ''}`;

@@ -107,10 +107,8 @@ async function start() {
     app.listen(PORT, () => {
       console.log(`✅  Abstract ETL backend running on port ${PORT}`);
       console.log(`    Database: SQLite (WAL mode enabled)`);
-      
-      const provider = process.env.AI_PROVIDER || 'openrouter';
-      const model    = provider === 'openrouter' ? (process.env.AI_MODEL || 'google/gemini-flash-1.5-8b') : 'gemini-1.5-flash';
-      console.log(`    AI Provider: ${provider} (${model})`);
+      console.log(`    AI Provider: OpenRouter (Forced)`);
+      console.log(`    AI Model: google/gemini-2.0-flash-001`);
     });
   } catch (err) {
     console.error('❌ Failed to start backend:', err);
