@@ -81,7 +81,10 @@ You must determine the "file_number" using this strict priority order:
 2. **TAX INFO**: Capture split 1st/2nd installments.
 3. **IN/OUT SALE**: True if "Yes/Out", False if "No/In".
 4. **LEGAL DESCRIPTION**: Capture ENTIRE text word-for-word.
-5. **NAMES SEARCHED**: Capture EVERY name listed.
+5. **NAMES SEARCHED**: 
+   - Capture EVERY name listed in the search section.
+   - **BORROWER RULE**: If a borrower is listed on the request form (usually at the top), that borrower MUST be included in the "Names Searched" section.
+   - **SORTING**: The borrower or borrowers must be listed FIRST in "Names Searched", in the exact same order they appear on the request form. Follow them with the remaining searched names.
 6. **ALTERNATIVES**: Provide best guess in field and up to 2 others in "alternatives" object keyed by JSON path.
 
 Return valid JSON matching this schema:
