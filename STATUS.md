@@ -12,6 +12,8 @@
 - [x] **Phase 1 Foundations**: Strict TypeScript and linting safety gates live.
 - [x] **Phase 2 Completion**: Native PDF Upgrade (Gemini 2.5) and feature set finalized.
 - [x] **Customer Rules**: Priority-based File Number extraction and mandatory sequence enforced.
+- [x] **Foreclosure Logic**: Trustee's Deed grouping and starred reference item formatting.
+- [x] **Names Searched Refinement**: Detailed inclusion/exclusion rules (Heirs, Owners, etc.) and borrower-first sorting.
 - [x] **Feature: Alternatives**: Added AI-powered value alternatives in the UI.
 - [x] **Admin: Deletion**: Added trash-icon actions across all job tables.
 
