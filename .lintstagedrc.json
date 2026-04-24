@@ -1,0 +1,10 @@
+{
+  "*.{ts,tsx,js,jsx}": [
+    "npm run typecheck",
+    "eslint --fix",
+    "prettier --write"
+  ],
+  "*.json": [
+    "prettier --write"
+  ]
+}

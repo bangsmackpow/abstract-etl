@@ -1,0 +1,6 @@
+{
+  "$schema": "https://knip.dev/schema.json",
+  "entry": ["backend/src/index.js", "frontend/src/main.jsx"],
+  "project": ["**/*.{js,jsx,ts,tsx}"],
+  "ignoreDependencies": ["husky"]
+}

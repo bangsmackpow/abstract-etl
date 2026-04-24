@@ -1,9 +1,9 @@
 /** @type { import("drizzle-kit").Config } */
 module.exports = {
-  schema: "./src/db/schema.js",
-  out: "./drizzle",
-  dialect: "sqlite",
+  schema: './src/db/schema.js',
+  out: './drizzle',
+  dialect: 'sqlite',
   dbCredentials: {
-    url: process.env.DB_PATH || "./data/sqlite.db",
+    url: process.env.DB_PATH || './data/sqlite.db',
   },
 };

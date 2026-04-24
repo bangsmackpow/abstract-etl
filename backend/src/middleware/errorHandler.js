@@ -2,7 +2,7 @@
  * Global error handler — returns consistent JSON errors.
  * Catches both thrown errors and async rejections (express-async-errors).
  */
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, _next) {
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.message, err.status, JSON.stringify(err.data || {}));
   if (process.env.NODE_ENV === 'development') console.error(err.stack);
 

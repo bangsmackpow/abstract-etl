@@ -53,7 +53,6 @@ app.use(errorHandler);
 // ── Startup ──────────────────────────────────────────────────────────────────
 const { db } = require('./db');
 const { users } = require('./db/schema');
-const { hashPassword } = require('./services/authService');
 const { eq } = require('drizzle-orm');
 
 async function seedAdmin() {
@@ -106,9 +105,9 @@ async function start() {
 
     const server = app.listen(PORT, () => {
       console.log(`✅  Abstract ETL backend running on port ${PORT}`);
-      console.log(`    Database: SQLite (WAL mode enabled)`);
-      console.log(`    AI Provider: OpenRouter (Forced)`);
-      console.log(`    AI Model: google/gemini-2.0-flash-001`);
+      console.log('    Database: SQLite (WAL mode enabled)');
+      console.log('    AI Provider: OpenRouter (Forced)');
+      console.log('    AI Model: google/gemini-2.0-flash-001');
     });
 
     // Increase timeout for long AI extractions (10 mins)

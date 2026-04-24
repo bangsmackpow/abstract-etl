@@ -1,6 +1,4 @@
 const { fromPath }           = require('pdf2pic');
-const fs                     = require('fs');
-const path                   = require('path');
 // REMOVED broken geminiProvider to ensure it can NEVER be used
 const openRouterProvider     = require('./openRouterService');
 
@@ -59,7 +57,7 @@ async function getPageCount(pdfPath) {
  */
 async function extractFromPDF(pdfPath, tempDir) {
   // IGNORE provider env var - forcing OpenRouter because it's the only one working
-  console.log(`[AI] Starting extraction (OpenRouter FORCED)`);
+  console.log('[AI] Starting extraction (OpenRouter FORCED)');
 
   const base64Images = await pdfToImages(pdfPath, tempDir);
   console.log(`[AI] Total pages for AI: ${base64Images.length}`);
@@ -84,7 +82,7 @@ async function extractFromPDF(pdfPath, tempDir) {
 
     // Small delay between batches to respect rate limits
     if (i + BATCH_SIZE < base64Images.length) {
-      console.log(`[AI] Cooldown between batches...`);
+      console.log('[AI] Cooldown between batches...');
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }

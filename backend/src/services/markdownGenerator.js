@@ -8,12 +8,12 @@ function generateMarkdown(fields) {
   const val = (v) => (v !== null && v !== undefined && v !== '') ? String(v).toUpperCase() : '';
   const dash = (v) => val(v) || '—';
 
-  let md = `# PROPERTY ABSTRACT REPORT\n\n`;
+  let md = '# PROPERTY ABSTRACT REPORT\n\n';
 
   // Order Information
-  md += `## ORDER INFORMATION\n`;
-  md += `| Field | Value |\n`;
-  md += `| :--- | :--- |\n`;
+  md += '## ORDER INFORMATION\n';
+  md += '| Field | Value |\n';
+  md += '| :--- | :--- |\n';
   md += `| File Number | ${dash(oi.file_number)} |\n`;
   md += `| Effective Date | ${dash(oi.effective_date)} |\n`;
   md += `| Completed Date | ${dash(oi.completed_date)} |\n`;
@@ -34,13 +34,13 @@ function generateMarkdown(fields) {
   md += `| Current Vesting Owner | ${dash(oi.current_vesting_owner)} |\n\n`;
 
   // Legal Description
-  md += `## LEGAL DESCRIPTION\n`;
+  md += '## LEGAL DESCRIPTION\n';
   md += `${dash(f.legal_description)}\n\n`;
 
   // Chain of Title
-  md += `## CHAIN OF TITLE\n`;
+  md += '## CHAIN OF TITLE\n';
   if (!f.chain_of_title || f.chain_of_title.length === 0) {
-    md += `*No chain entries found.*\n\n`;
+    md += '*No chain entries found.*\n\n';
   } else {
     f.chain_of_title.forEach((e, i) => {
       md += `### Entry ${i + 1}: ${dash(e.document_title)}\n`;
@@ -51,14 +51,14 @@ function generateMarkdown(fields) {
       md += `- **Grantor(s)**: ${(e.grantors || []).map(g => g.toUpperCase()).join('; ') || '—'}\n`;
       md += `- **Grantee(s)**: ${(e.grantees || []).map(g => g.toUpperCase()).join('; ') || '—'}\n`;
       if (e.notes) md += `- **Notes**: ${val(e.notes)}\n`;
-      md += `\n`;
+      md += '\n';
     });
   }
 
   // Mortgages
-  md += `## MORTGAGES / DEEDS OF TRUST\n`;
+  md += '## MORTGAGES / DEEDS OF TRUST\n';
   if (!f.mortgages || f.mortgages.length === 0) {
-    md += `*No open mortgages found.*\n\n`;
+    md += '*No open mortgages found.*\n\n';
   } else {
     f.mortgages.forEach((m, i) => {
       md += `### Mortgage ${i + 1}: ${dash(m.document_title)}\n`;
@@ -70,14 +70,14 @@ function generateMarkdown(fields) {
       md += `- **Borrower**: ${dash(m.borrower)}\n`;
       md += `- **Trustee**: ${dash(m.trustee)}\n`;
       if (m.notes) md += `- **Notes**: ${val(m.notes)}\n`;
-      md += `\n`;
+      md += '\n';
     });
   }
 
   // Associated Documents
-  md += `## ASSOCIATED DOCUMENTS\n`;
+  md += '## ASSOCIATED DOCUMENTS\n';
   if (!f.associated_documents || f.associated_documents.length === 0) {
-    md += `*No associated documents found.*\n\n`;
+    md += '*No associated documents found.*\n\n';
   } else {
     f.associated_documents.forEach((a, i) => {
       md += `### Document ${i + 1}: ${dash(a.document_title)}\n`;
@@ -87,14 +87,14 @@ function generateMarkdown(fields) {
       md += `- **Grantor/Assignor**: ${dash(a.grantor_assignor)}\n`;
       md += `- **Grantee/Assignee**: ${dash(a.grantee_assignee)}\n`;
       if (a.notes) md += `- **Notes**: ${val(a.notes)}\n`;
-      md += `\n`;
+      md += '\n';
     });
   }
 
   // Judgments/Liens
-  md += `## JUDGMENTS / LIENS\n`;
+  md += '## JUDGMENTS / LIENS\n';
   if (!f.judgments_liens || f.judgments_liens.length === 0) {
-    md += `*No judgments or liens found.*\n\n`;
+    md += '*No judgments or liens found.*\n\n';
   } else {
     f.judgments_liens.forEach((l, i) => {
       md += `### Judgment/Lien ${i + 1}: ${dash(l.document_title)}\n`;
@@ -103,14 +103,14 @@ function generateMarkdown(fields) {
       md += `- **Amount**: ${dash(l.amount)}\n`;
       md += `- **Plaintiff**: ${dash(l.plaintiff)}\n`;
       md += `- **Defendant**: ${dash(l.defendant)}\n`;
-      md += `\n`;
+      md += '\n';
     });
   }
 
   // Miscellaneous
-  md += `## MISCELLANEOUS DOCUMENTS\n`;
+  md += '## MISCELLANEOUS DOCUMENTS\n';
   if (!f.misc_documents || f.misc_documents.length === 0) {
-    md += `*No miscellaneous documents found.*\n\n`;
+    md += '*No miscellaneous documents found.*\n\n';
   } else {
     f.misc_documents.forEach((m, i) => {
       md += `### Document ${i + 1}: ${dash(m.document_title)}\n`;
@@ -119,16 +119,16 @@ function generateMarkdown(fields) {
       md += `- **Consideration**: ${dash(m.consideration)}\n`;
       md += `- **Grantor/Assignor**: ${dash(m.grantor_assignor)}\n`;
       md += `- **Grantee/Assignee**: ${dash(m.grantee_assignee)}\n`;
-      md += `\n`;
+      md += '\n';
     });
   }
 
   // Names Searched
-  md += `## NAMES SEARCHED\n`;
+  md += '## NAMES SEARCHED\n';
   md += `${(f.names_searched || []).map(n => n.toUpperCase()).join('; ') || 'NONE PROVIDED.'}\n\n`;
 
   // Additional Info
-  md += `## ADDITIONAL INFORMATION\n`;
+  md += '## ADDITIONAL INFORMATION\n';
   md += `${dash(f.additional_information)}\n`;
 
   return md;

@@ -51,7 +51,7 @@ async function login(email, password) {
   const token = generateToken(user);
   
   // Don't return the password
-  const { password: _, ...userWithoutPassword } = user;
+  const { password: _password, ...userWithoutPassword } = user;
   
   return {
     user: userWithoutPassword,

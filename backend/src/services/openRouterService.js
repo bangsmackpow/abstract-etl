@@ -222,7 +222,7 @@ async function extractFromImages(base64Images, retryCount = 0) {
       return extractFromImages(base64Images, retryCount + 1);
     }
 
-    console.error(`❌ [OpenRouter] AI Error:`, err.status, err.message);
+    console.error('❌ [OpenRouter] AI Error:', err.status, err.message);
     const aiError = new Error(`AI Provider Error: ${err.message}`);
     aiError.status = err.status || 502; 
     aiError.data = err.response?.data;

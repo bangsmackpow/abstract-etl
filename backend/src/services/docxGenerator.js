@@ -1,9 +1,7 @@
 const { 
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  AlignmentType, BorderStyle, WidthType, ShadingType, VerticalAlign
+  AlignmentType, BorderStyle, WidthType, ShadingType
 } = require('docx');
-const fs   = require('fs');
-const path = require('path');
 
 /**
  * Given a filled fields object, produce a .docx buffer.

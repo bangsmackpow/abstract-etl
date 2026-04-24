@@ -1,0 +1,8 @@
+node_modules
+dist
+backend/uploads
+backend/data
+package-lock.json
+*.docx
+*.pdf
+*.md
