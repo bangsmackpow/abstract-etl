@@ -33,7 +33,7 @@ AI-powered title abstract management system.
 | `APP_URL` | Base URL of the frontend (for emails) |
 
 ## Key Features
-- **Native PDF Extraction**: Direct pass-through to Gemini 2.0 Flash. No image conversion required.
+- **Native PDF Extraction**: Direct pass-through to Gemini 2.5 Flash. No image conversion required.
 - **Intelligent Alternatives**: UI dropdowns allowing users to pick from multiple AI guesses for messy text.
 - **Multi-Format Export**: Generate professional Word (.docx) and Markdown (.md) reports instantly.
 - **Customer Priority Rules**: Specialized extraction logic for File Numbers based on filename, company, and address.

@@ -29,7 +29,7 @@ To achieve "Industrial Grade" foundations while maintaining "Best-in-Class" extr
 
 By switching to direct Google integration for the AI engine:
 1. **Simplified Pipeline:** Remove the entire "PDF-to-Image" conversion logic (`pdf2pic`, `graphicsmagick`, `ghostscript`).
-2. **Visual Reasoning:** Gemini 2.0 handles the OCR and layout analysis internally, preserving accuracy for handwritten notes and complex legal tables.
+2. **Visual Reasoning:** Gemini 2.5 handles the OCR and layout analysis internally, preserving accuracy for handwritten notes and complex legal tables.
 3. **Reduced Latency:** Removing the local image conversion step significantly speeds up the total "Time-to-Review."
 4. **Massive Context:** Gemini natively handles massive PDFs (up to 2M tokens) without the need for manual page-by-batch management.
 

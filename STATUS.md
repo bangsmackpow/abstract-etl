@@ -2,7 +2,7 @@
 
 ## Current State
 - **Architecture**: Monorepo with industrial-grade foundations (ESLint, Prettier, Husky).
-- **AI Engine**: **Gemini 2.0 Flash (Native)**. Bypasses OpenRouter for true PDF pass-through.
+- **AI Engine**: **Gemini 2.5 Flash (Native)**. Direct Google SDK integration for true PDF pass-through.
 - **Accuracy**: Implemented customer-specific **File Number Priority Rules** and enforced the **Hazelwood Extraction Sequence**.
 - **Schema**: Unified nested `order_info` structure. Supports split tax installments (1st/2nd) and automatic ALL CAPS formatting.
 - **Reliability**: Timeouts increased to 10 minutes; manual image batching removed in favor of single-shot native processing.
@@ -10,9 +10,9 @@
 
 ## Recent Milestones
 - [x] **Phase 1 Foundations**: Strict TypeScript and linting safety gates live.
-- [x] **Native PDF Upgrade**: Moved to direct `@google/generative-ai` integration.
+- [x] **Phase 2 Completion**: Native PDF Upgrade (Gemini 2.5) and feature set finalized.
+- [x] **Customer Rules**: Priority-based File Number extraction and mandatory sequence enforced.
 - [x] **Feature: Alternatives**: Added AI-powered value alternatives in the UI.
-- [x] **Feature: Markdown**: Dual-format reporting (.docx and .md) completed.
 - [x] **Admin: Deletion**: Added trash-icon actions across all job tables.
 
 ## Active Blockers / Issues
