@@ -81,6 +81,12 @@ async function extractFromPDF(pdfPath, tempDir) {
     } else {
       finalResult = activeProvider.mergeExtractions(finalResult, batchResult);
     }
+
+    // Small delay between batches to respect rate limits
+    if (i + BATCH_SIZE < base64Images.length) {
+      console.log(`[AI] Cooldown between batches...`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 
   return finalResult;

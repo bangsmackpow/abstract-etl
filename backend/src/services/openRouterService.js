@@ -181,8 +181,14 @@ Example: "alternatives": { "order_info.current_vesting_owner": ["JOHN S. BLILEY"
 Schema to populate:
 ${FIELD_SCHEMA}`;
 
-async function extractFromImages(base64Images) {
-  console.log(`[OpenRouter] Extracting with model: ${PRIMARY_MODEL} (${base64Images.length} images)`);
+/**
+ * Sleep helper
+ */
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function extractFromImages(base64Images, retryCount = 0) {
+  const MAX_RETRIES = 3;
+  console.log(`[OpenRouter] Extracting with model: ${PRIMARY_MODEL} (${base64Images.length} images) - Attempt ${retryCount + 1}`);
 
   try {
     const client = getClient();
@@ -208,9 +214,17 @@ async function extractFromImages(base64Images) {
     const cleaned = responseText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
     return JSON.parse(cleaned);
   } catch (err) {
+    // Retry on 429 (Rate Limit) or 504 (Timeout/Aborted) or 502 (Bad Gateway)
+    if ((err.status === 429 || err.status === 504 || err.status === 502) && retryCount < MAX_RETRIES) {
+      const delay = Math.pow(2, retryCount) * 2000; // 2s, 4s, 8s
+      console.warn(`⚠️ [OpenRouter] Error ${err.status}. Retrying in ${delay}ms...`);
+      await sleep(delay);
+      return extractFromImages(base64Images, retryCount + 1);
+    }
+
     console.error(`❌ [OpenRouter] AI Error:`, err.status, err.message);
     const aiError = new Error(`AI Provider Error: ${err.message}`);
-    aiError.status = 502; 
+    aiError.status = err.status || 502; 
     aiError.data = err.response?.data;
     throw aiError;
   }
