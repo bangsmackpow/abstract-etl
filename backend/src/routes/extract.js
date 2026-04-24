@@ -5,7 +5,7 @@ const path     = require('path');
 const fs       = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { requireAuth }    = require('../middleware/requireAuth');
-const { extractFromPDF } = require('../services/aiService');
+const googleAiService = require('../services/googleAiService');
 const { createError }    = require('../middleware/errorHandler');
 
 // Multer: accept PDFs up to 50MB, stored in uploads/
@@ -22,20 +22,16 @@ router.use(requireAuth);
 
 /**
  * POST /api/extract
- * Accepts a PDF upload, runs Gemini extraction, returns extracted fields JSON.
- * Does NOT create the job record — that's done by the frontend after user review.
+ * Accepts a PDF upload, runs Native Gemini extraction, returns extracted fields JSON.
  */
 router.post('/', upload.single('pdf'), async (req, res) => {
   if (!req.file) throw createError('No PDF file provided');
 
   const pdfPath = req.file.path;
-  const tempDir = path.join(__dirname, '../uploads', uuidv4());
-  fs.mkdirSync(tempDir, { recursive: true });
-
   const startTime = Date.now();
 
   try {
-    const extractedFields = await extractFromPDF(pdfPath, tempDir);
+    const extractedFields = await googleAiService.extractFromPDF(pdfPath);
     const processingTimeMs = Date.now() - startTime;
 
     // Build ai_flags_json — mark all returned fields as 'ai'
@@ -67,11 +63,13 @@ router.post('/', upload.single('pdf'), async (req, res) => {
       filename: req.file.originalname,
       processingTimeMs
     });
+  } catch (err) {
+    console.error('❌ [Extract] Failed:', err);
+    throw createError(`AI Extraction Failed: ${err.message}`, 500);
   } finally {
-    // Clean up temp files
+    // Clean up temp file
     try {
-      fs.unlinkSync(pdfPath);
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      if (fs.existsSync(pdfPath)) fs.unlinkSync(pdfPath);
     } catch (e) { /* ignore cleanup errors */ }
   }
 });
