@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: '/api',
-  timeout: 120000  // 2 min — Gemini extraction can be slow on large PDFs
+  timeout: 600000  // 10 min — Gemini extraction can be slow on large PDFs
 });
 
 // Attach token from localStorage to every request

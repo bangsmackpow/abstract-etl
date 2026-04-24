@@ -104,12 +104,16 @@ async function start() {
     
     await seedAdmin();
 
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`✅  Abstract ETL backend running on port ${PORT}`);
       console.log(`    Database: SQLite (WAL mode enabled)`);
       console.log(`    AI Provider: OpenRouter (Forced)`);
       console.log(`    AI Model: google/gemini-2.0-flash-001`);
     });
+
+    // Increase timeout for long AI extractions (10 mins)
+    server.timeout = 600000;
+    server.keepAliveTimeout = 610000;
   } catch (err) {
     console.error('❌ Failed to start backend:', err);
     process.exit(1);
