@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getJobs } from '../services/api';
+import { getJobs, deleteJob } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 'Complete' };
 
 export default function Dashboard() {
+  const { isAdmin } = useAuth();
   const [jobs, setJobs]     = useState([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -21,6 +23,17 @@ export default function Dashboard() {
       setError('Failed to load jobs.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this abstract? This cannot be undone.')) return;
+    try {
+      await deleteJob(id);
+      setJobs(jobs.filter(j => j.id !== id));
+    } catch (err) {
+      alert('Failed to delete job.');
     }
   };
 
@@ -67,7 +80,7 @@ export default function Dashboard() {
                 <th>County</th>
                 <th>Status</th>
                 <th>Created</th>
-                <th>Actions</th>
+                <th style={{ width: 120 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -79,7 +92,14 @@ export default function Dashboard() {
                   <td><span className={`status-badge status-${job.status}`}>{STATUS_LABELS[job.status] || job.status}</span></td>
                   <td>{new Date(job.createdAt).toLocaleDateString()}</td>
                   <td onClick={e => e.stopPropagation()}>
-                    <Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">Edit</Link>
+                    <div className="flex gap-2">
+                      <Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">Edit</Link>
+                      {isAdmin && (
+                        <button className="btn btn-ghost btn-sm text-error" onClick={(e) => handleDelete(job.id, e)} title="Delete Job">
+                          🗑️
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

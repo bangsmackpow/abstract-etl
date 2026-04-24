@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getJob, updateJob, downloadDocx, downloadMarkdown } from '../services/api';
+import { getJob, updateJob, downloadDocx, downloadMarkdown, deleteJob } from '../services/api';
 import AbstractForm from '../components/AbstractForm';
+import { useAuth } from '../hooks/useAuth';
 
 export default function EditJob() {
   const { id }    = useParams();
   const navigate  = useNavigate();
+  const { isAdmin } = useAuth();
   const [job, setJob]       = useState(null);
   const [fields, setFields] = useState({});
   const [aiFlags, setAiFlags] = useState({});
@@ -95,6 +97,16 @@ export default function EditJob() {
     finally { setDownloadingMd(false); }
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this abstract? This cannot be undone.')) return;
+    try {
+      await deleteJob(id);
+      navigate('/');
+    } catch {
+      setError('Delete failed.');
+    }
+  };
+
   if (!job && !error) return <div className="card card-body" style={{ marginTop: 20, textAlign: 'center' }}>
     <span className="spinner spinner-dark" /> Loading job...
   </div>;
@@ -120,6 +132,11 @@ export default function EditJob() {
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
+          {isAdmin && (
+            <button className="btn btn-ghost text-error" onClick={handleDelete} title="Delete Job">
+              🗑️ Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -160,6 +177,11 @@ export default function EditJob() {
       <div className="flex justify-between items-center" style={{ paddingBottom: 60 }}>
         <button className="btn btn-ghost" onClick={() => navigate('/')}>← Back to Dashboard</button>
         <div className="flex gap-2">
+          {isAdmin && (
+            <button className="btn btn-ghost text-error" onClick={handleDelete}>
+              Delete Abstract
+            </button>
+          )}
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save and Exit'}
           </button>

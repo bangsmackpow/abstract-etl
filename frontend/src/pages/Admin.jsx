@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getJobs, getUsers, getAdminMetrics, createUser, changePassword, deleteUser } from '../services/api';
+import { getJobs, getUsers, getAdminMetrics, createUser, changePassword, deleteUser, deleteJob } from '../services/api';
 
 const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 'Complete' };
 
@@ -73,6 +73,16 @@ export default function Admin() {
       refreshData();
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to delete user');
+    }
+  };
+
+  const handleDeleteJob = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this abstract? This cannot be undone.')) return;
+    try {
+      await deleteJob(id);
+      setJobs(jobs.filter(j => j.id !== id));
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to delete job');
     }
   };
 
@@ -150,7 +160,14 @@ export default function Admin() {
                       <td>{users.find(u => u.id === job.createdBy)?.name || '—'}</td>
                       <td><span className={`status-badge status-${job.status}`}>{STATUS_LABELS[job.status]}</span></td>
                       <td>{new Date(job.createdAt).toLocaleDateString()}</td>
-                      <td><Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">View</Link></td>
+                      <td>
+                        <div className="flex gap-2">
+                          <Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">View</Link>
+                          <button className="btn btn-ghost btn-sm text-error" onClick={() => handleDeleteJob(job.id)} title="Delete Job">
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
