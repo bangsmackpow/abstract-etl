@@ -97,12 +97,13 @@ router.post('/', async (req, res) => {
     processing_time_ms 
   } = req.body;
 
-  if (!property_address) throw createError('property_address is required');
+  // Allow empty address on creation, default to PENDING so job can still be saved
+  const finalAddress = property_address || 'PENDING ADDRESS';
 
   const [record] = await db.insert(jobs).values({
     createdBy: req.user.id,
     status: 'draft',
-    propertyAddress: property_address,
+    propertyAddress: finalAddress,
     borrowerNames: borrower_names || '',
     county: county || '',
     orderDate: order_date || null,

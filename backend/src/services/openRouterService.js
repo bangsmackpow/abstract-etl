@@ -233,13 +233,17 @@ async function extractFromImages(base64Images, retryCount = 0) {
 function mergeExtractions(first, second) {
   const merged = { ...first };
   
-  // Merge order_info
-  merged.order_info = { ...(first.order_info || {}), ...(second.order_info || {}) };
-  Object.keys(second.order_info || {}).forEach(key => {
-    if (second.order_info[key] && (!first.order_info || !first.order_info[key])) {
-      merged.order_info[key] = second.order_info[key];
-    }
-  });
+  // Merge order_info carefully - don't let nulls in 'second' overwrite values in 'first'
+  merged.order_info = { ...(first.order_info || {}) };
+  if (second.order_info) {
+    Object.keys(second.order_info).forEach(key => {
+      const val = second.order_info[key];
+      // Only overwrite if the current value is empty/null and the new value is NOT empty/null
+      if ((val !== null && val !== undefined && val !== '') && (!merged.order_info[key])) {
+        merged.order_info[key] = val;
+      }
+    });
+  }
 
   const arrayKeys = ['chain_of_title', 'mortgages', 'associated_documents', 'judgments_liens', 'misc_documents', 'names_searched'];
   
