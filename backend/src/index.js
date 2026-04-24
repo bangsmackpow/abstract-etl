@@ -106,7 +106,7 @@ async function start() {
     const server = app.listen(PORT, () => {
       console.log(`✅  Abstract ETL backend running on port ${PORT}`);
       console.log(`    Database: SQLite (WAL mode enabled)`);
-      console.log(`    AI Provider: Google Native (Gemini 2.0 Flash)`);
+      console.log(`    AI Provider: Google Native (Gemini 2.5 Flash)`);
     });
 
 
