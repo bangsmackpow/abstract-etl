@@ -32,9 +32,9 @@ export default function NewJob() {
 
       // 2. Create job record with extracted data
       const job = await createJob({
-        property_address: fields.property_address || '',
-        borrower_names:   fields.current_vesting_owner || '',
-        county:           fields.county || '',
+        property_address: fields.order_info?.property_address || '',
+        borrower_names:   fields.order_info?.current_vesting_owner || '',
+        county:           fields.order_info?.county || '',
         fields_json:      fields,
         ai_flags_json:    aiFlags,
         processing_time_ms: processingTimeMs

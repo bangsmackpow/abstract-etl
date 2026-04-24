@@ -47,28 +47,30 @@ async function testConnection() {
 testConnection();
 
 const FIELD_SCHEMA = `{
-  "file_number": null,
-  "property_address": null,
-  "effective_date": null,
-  "completed_date": null,
-  "county": null,
-  "township": null,
-  "parcel_id": null,
-  "assessed_value": null,
-  "land_value": null,
-  "improvement_value": null,
-  "tax_id": null,
-  "tax_amount_1st": null,
-  "tax_amount_2nd": null,
-  "tax_due_1st": null,
-  "tax_due_2nd": null,
-  "tax_delinquent": null,
-  "tax_paid": null,
-  "excise_tax": null,
-  "search_depth": null,
-  "current_vesting_owner": null,
-  "marital_status": null,
-  "chain": [
+  "order_info": {
+    "file_number": null,
+    "property_address": null,
+    "effective_date": null,
+    "completed_date": null,
+    "county": null,
+    "township": null,
+    "parcel_id": null,
+    "assessed_value": null,
+    "land_value": null,
+    "improvement_value": null,
+    "tax_id": null,
+    "tax_amount_1st": null,
+    "tax_amount_2nd": null,
+    "tax_due_1st": null,
+    "tax_due_2nd": null,
+    "tax_delinquent": null,
+    "tax_paid": null,
+    "excise_tax": null,
+    "search_depth": null,
+    "current_vesting_owner": null,
+    "marital_status": null
+  },
+  "chain_of_title": [
     {
       "index": 1,
       "document_title": null,
@@ -97,10 +99,10 @@ const FIELD_SCHEMA = `{
       "mers_number": null,
       "borrower": null,
       "trustee": null,
-      "open_mortgages_to_report": null
+      "notes": null
     }
   ],
-  "assoc_docs": [
+  "associated_documents": [
     {
       "index": 1,
       "document_title": null,
@@ -111,7 +113,7 @@ const FIELD_SCHEMA = `{
       "recorded": null,
       "grantor_assignor": null,
       "grantee_assignee": null,
-      "open_closed": null
+      "notes": null
     }
   ],
   "judgments_liens": [
@@ -125,10 +127,11 @@ const FIELD_SCHEMA = `{
       "case_number": null,
       "amount": null,
       "plaintiff": null,
-      "defendant": null
+      "defendant": null,
+      "notes": null
     }
   ],
-  "miscellaneous": [
+  "misc_documents": [
     {
       "index": 1,
       "document_title": null,
@@ -138,12 +141,14 @@ const FIELD_SCHEMA = `{
       "recorded": null,
       "consideration": null,
       "grantor_assignor": null,
-      "grantee_assignee": null
+      "grantee_assignee": null,
+      "notes": null
     }
   ],
   "legal_description": null,
   "additional_information": null,
-  "names_searched": []
+  "names_searched": [],
+  "alternatives": {}
 }`;
 
 const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience.
@@ -151,25 +156,27 @@ Your task is to extract ALL relevant data from the scanned property documents an
 
 ### CRITICAL ACCURACY RULES:
 1. **PROPERTY ADDRESS**: Capture the COMPLETE address (Street, City, State, and Zip Code). Do not truncate.
-2. **PARCEL ID / TAX ID**: Capture the exact string. If it contains parenthesis or dashes, include them exactly as written.
-3. **IN/OUT SALE**: 
-   - Look at the "In/Out Sale" section for each deed in the chain.
-   - If "Yes" is checked or marked, set "in_out_sale" to true.
-   - If "No" is checked or marked, set "in_out_sale" to false.
-4. **COMPLETE CHAIN**: Extract EVERY deed or document listed in the "Chain-of-Title" section across all pages. Do not skip any entries.
-5. **MORTGAGES / DOT**: Extract ALL mortgages and Deeds of Trust. Ensure you capture the Borrower and Trustee names for each.
-6. **CURRENCY**: You SHOULD use commas in dollar amounts (e.g. "210,000.00").
-7. **LEGAL DESCRIPTION**: Capture the ENTIRE legal description text word-for-word. Do NOT use "..." or summarize.
-8. **NAMES SEARCHED**: Include EVERY individual or entity name listed in the "Names Searched" section.
-9. **STATE SPECIFICS (NC/TN)**:
-   - **Excise Tax**: Look for "Excise Tax" or "Revenue Stamps" (especially in NC).
-   - **Marital Status**: Note marital status of owners if stated (e.g., "husband and wife").
-   - **Search Depth**: Note the years covered by the search (e.g., "30 Year Search").
+2. **PARCEL ID / TAX ID**: Capture the exact string. Include all dashes, dots, or parentheses.
+3. **TAX INFORMATION**: Look for split installments (1st and 2nd). Populate tax_amount_1st, tax_amount_2nd, etc. accordingly.
+4. **IN/OUT SALE**: 
+   - Set "in_out_sale" to true if "Yes" or "Out" is marked for a deed.
+   - Set "in_out_sale" to false if "No" or "In" is marked.
+5. **COMPLETE CHAIN**: Extract EVERY deed or document listed in the "Chain-of-Title" section. 
+6. **MORTGAGES / DOT**: Extract ALL mortgages and Deeds of Trust. Capture Borrower and Trustee names.
+7. **ASSOCIATED DOCUMENTS**: Capture Assignments, Subordinations, and Releases here.
+8. **LEGAL DESCRIPTION**: Capture the ENTIRE text word-for-word. Do NOT summarize or use "...".
+9. **NOTES**: Capture any field notes prefixed with an asterisk (*) or in marginalia.
+10. **NAMES SEARCHED**: Include EVERY name listed in the search section.
+
+### ALTERNATIVES FEATURE:
+If a field is difficult to read (handwritten, blurry, or ambiguous like "Cook" vs "Cash"), provide your best guess in the primary field and list up to 2 other possible interpretations in the "alternatives" object.
+The "alternatives" object should be keyed by the JSON path of the field.
+Example: "alternatives": { "order_info.current_vesting_owner": ["JOHN S. BLILEY", "JOHN B. SMILEY"] }
 
 ### FORMATTING:
-- Return ONLY the JSON object. No markdown, no explanation.
-- Use null for missing fields.
+- Return ONLY the JSON object.
 - Use MM/DD/YYYY for all dates.
+- Use commas in dollar amounts (e.g., "142,900.00").
 
 Schema to populate:
 ${FIELD_SCHEMA}`;
@@ -186,7 +193,7 @@ async function extractFromImages(base64Images) {
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'Extract JSON data from these property images according to the schema and critical accuracy rules.' },
+            { type: 'text', text: 'Extract JSON data from these property images according to the schema and critical accuracy rules. Be thorough and capture all details.' },
             ...base64Images.map(b64 => ({
               type: 'image_url',
               image_url: { url: `data:image/jpeg;base64,${b64}` }
@@ -211,7 +218,16 @@ async function extractFromImages(base64Images) {
 
 function mergeExtractions(first, second) {
   const merged = { ...first };
-  const arrayKeys = ['chain', 'mortgages', 'assoc_docs', 'judgments_liens', 'miscellaneous', 'names_searched'];
+  
+  // Merge order_info
+  merged.order_info = { ...(first.order_info || {}), ...(second.order_info || {}) };
+  Object.keys(second.order_info || {}).forEach(key => {
+    if (second.order_info[key] && (!first.order_info || !first.order_info[key])) {
+      merged.order_info[key] = second.order_info[key];
+    }
+  });
+
+  const arrayKeys = ['chain_of_title', 'mortgages', 'associated_documents', 'judgments_liens', 'misc_documents', 'names_searched'];
   
   arrayKeys.forEach(key => {
     const firstArr  = Array.isArray(first[key]) ? first[key] : [];
@@ -234,11 +250,13 @@ function mergeExtractions(first, second) {
     });
   });
 
-  Object.keys(second).forEach(key => {
-    if (!arrayKeys.includes(key) && (merged[key] === null || merged[key] === undefined || merged[key] === '')) {
-      merged[key] = second[key];
-    }
+  // Merge top level strings
+  ['legal_description', 'additional_information'].forEach(key => {
+    if (!merged[key] && second[key]) merged[key] = second[key];
   });
+
+  // Merge alternatives
+  merged.alternatives = { ...(first.alternatives || {}), ...(second.alternatives || {}) };
 
   return merged;
 }

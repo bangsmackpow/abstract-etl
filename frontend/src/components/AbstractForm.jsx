@@ -24,8 +24,7 @@ function Section({ title, children }) {
   );
 }
 
-function Field({ label, path, fields, aiFlags, onChange, onFlagChange, multiline, placeholder }) {
-  // Resolve nested path like "order_info.property_address"
+function Field({ label, path, fields, aiFlags, alternatives, onChange, onFlagChange, multiline, placeholder }) {
   const value = getNestedValue(fields, path);
   return (
     <FieldInput
@@ -33,29 +32,30 @@ function Field({ label, path, fields, aiFlags, onChange, onFlagChange, multiline
       fieldKey={path}
       value={value}
       aiFlags={aiFlags}
-      onChange={(key, val) => onChange(key, val)}
+      alternatives={alternatives}
+      onChange={onChange}
       onFlagChange={onFlagChange}
-      multiline={multiline}
+      textarea={multiline}
       placeholder={placeholder}
     />
   );
 }
 
 export default function AbstractForm({ fields, aiFlags, onFieldChange, onFlagChange }) {
-  const oi = fields?.order_info || {};
   const chain = fields?.chain_of_title || [];
   const mortgages = fields?.mortgages || [];
   const assocDocs = fields?.associated_documents || [];
   const judgments = fields?.judgments_liens || [];
   const miscDocs = fields?.misc_documents || [];
+  const alternatives = fields?.alternatives || {};
 
-  const fieldProps = { fields, aiFlags, onChange: onFieldChange, onFlagChange };
+  const fieldProps = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
 
   return (
     <div>
       {/* ORDER INFORMATION */}
       <Section title="Order Information">
-        <div style={s.grid4}>
+        <div style={s.grid3}>
           <Field label="File Number" path="order_info.file_number" {...fieldProps} />
           <Field label="Effective Date" path="order_info.effective_date" placeholder="MM/DD/YYYY" {...fieldProps} />
           <Field label="Completed Date" path="order_info.completed_date" placeholder="MM/DD/YYYY" {...fieldProps} />
@@ -72,253 +72,239 @@ export default function AbstractForm({ fields, aiFlags, onFieldChange, onFlagCha
           <Field label="Improvement Value" path="order_info.improvement_value" placeholder="0.00" {...fieldProps} />
           <Field label="Tax ID" path="order_info.tax_id" {...fieldProps} />
         </div>
-        <div style={s.grid4}>
-          <Field label="Tax Amount" path="order_info.tax_amount" {...fieldProps} />
-          <Field label="Due Date(s)" path="order_info.tax_due" {...fieldProps} />
-          <Field label="Delinquent" path="order_info.tax_delinquent" {...fieldProps} />
-          <Field label="Paid" path="order_info.tax_paid" {...fieldProps} />
+        
+        <div className="alert alert-info" style={{ marginBottom: 16, fontSize: 13 }}>
+          <strong>Tax Installments:</strong> Capture both 1st and 2nd installments if present.
         </div>
+
+        <div style={s.grid4}>
+          <Field label="Tax Amount (1st)" path="order_info.tax_amount_1st" placeholder="0.00" {...fieldProps} />
+          <Field label="Due Date (1st)" path="order_info.tax_due_1st" placeholder="MM/DD/YYYY" {...fieldProps} />
+          <Field label="Tax Amount (2nd)" path="order_info.tax_amount_2nd" placeholder="0.00" {...fieldProps} />
+          <Field label="Due Date (2nd)" path="order_info.tax_due_2nd" placeholder="MM/DD/YYYY" {...fieldProps} />
+        </div>
+
+        <div style={s.grid3}>
+          <Field label="Tax Delinquent" path="order_info.tax_delinquent" {...fieldProps} />
+          <Field label="Tax Paid" path="order_info.tax_paid" {...fieldProps} />
+          <Field label="Marital Status" path="order_info.marital_status" {...fieldProps} />
+        </div>
+
+        <div style={s.grid2}>
+          <Field label="Excise Tax" path="order_info.excise_tax" {...fieldProps} />
+          <Field label="Search Depth" path="order_info.search_depth" {...fieldProps} />
+        </div>
+        
         <Field label="Current Vesting Owner" path="order_info.current_vesting_owner" {...fieldProps} />
       </Section>
 
       {/* CHAIN OF TITLE */}
       <Section title={`Chain of Title (${chain.length} entries)`}>
-        {[0, 1, 2, 3, 4, 5].map(i => (
-          <ChainEntry key={i} index={i} chain={chain} fields={fields} aiFlags={aiFlags}
+        {chain.map((_, i) => (
+          <ChainEntry key={i} index={i} chain={chain} fields={fields} aiFlags={aiFlags} alternatives={alternatives}
             onFieldChange={onFieldChange} onFlagChange={onFlagChange} />
         ))}
+        {chain.length === 0 && <div className="text-muted text-sm italic p-4 border rounded bg-gray-50">No entries detected by AI.</div>}
       </Section>
 
       {/* MORTGAGES */}
-      <Section title="Mortgages / Deeds of Trust">
-        {(mortgages.length > 0 ? mortgages : [{}]).map((_, i) => (
-          <MortgageEntry key={i} index={i} mortgages={mortgages} fields={fields} aiFlags={aiFlags}
+      <Section title={`Mortgages / Deeds of Trust (${mortgages.length})`}>
+        {mortgages.map((_, i) => (
+          <MortgageEntry key={i} index={i} mortgages={mortgages} fields={fields} aiFlags={aiFlags} alternatives={alternatives}
             onFieldChange={onFieldChange} onFlagChange={onFlagChange} />
         ))}
+        {mortgages.length === 0 && <div className="text-muted text-sm italic p-4 border rounded bg-gray-50">No mortgages detected.</div>}
       </Section>
 
       {/* ASSOCIATED DOCUMENTS */}
-      <Section title="Associated Documents">
-        {[0, 1, 2].map(i => (
-          <AssocDocEntry key={i} index={i} docs={assocDocs} fields={fields} aiFlags={aiFlags}
+      <Section title={`Associated Documents (${assocDocs.length})`}>
+        {assocDocs.map((_, i) => (
+          <AssocDocEntry key={i} index={i} docs={assocDocs} fields={fields} aiFlags={aiFlags} alternatives={alternatives}
             onFieldChange={onFieldChange} onFlagChange={onFlagChange} />
         ))}
+        {assocDocs.length === 0 && <div className="text-muted text-sm italic p-4 border rounded bg-gray-50">No assignments or associated docs.</div>}
       </Section>
 
       {/* JUDGMENTS/LIENS */}
-      <Section title="Judgments / Liens">
-        {[0, 1, 2].map(i => (
-          <JudgmentEntry key={i} index={i} judgments={judgments} fields={fields} aiFlags={aiFlags}
+      <Section title={`Judgments / Liens (${judgments.length})`}>
+        {judgments.map((_, i) => (
+          <JudgmentEntry key={i} index={i} judgments={judgments} fields={fields} aiFlags={aiFlags} alternatives={alternatives}
             onFieldChange={onFieldChange} onFlagChange={onFlagChange} />
         ))}
+        {judgments.length === 0 && <div className="text-muted text-sm italic p-4 border rounded bg-gray-50">No judgments found.</div>}
       </Section>
 
       {/* MISCELLANEOUS */}
-      <Section title="Miscellaneous Documents">
-        {[0, 1, 2].map(i => (
-          <MiscEntry key={i} index={i} misc={miscDocs} fields={fields} aiFlags={aiFlags}
+      <Section title={`Miscellaneous Documents (${miscDocs.length})`}>
+        {miscDocs.map((_, i) => (
+          <MiscEntry key={i} index={i} misc={miscDocs} fields={fields} aiFlags={aiFlags} alternatives={alternatives}
             onFieldChange={onFieldChange} onFlagChange={onFlagChange} />
         ))}
       </Section>
 
       {/* LEGAL / ADDITIONAL */}
-      <Section title="Additional Information">
+      <Section title="Final Details">
         <Field label="Legal Description" path="legal_description" multiline {...fieldProps} />
-        <Field label="Names Searched" path="names_searched" multiline {...fieldProps} />
+        <Field label="Names Searched" path="names_searched" multiline placeholder="Separate names with semicolons" 
+          onChange={(k, v) => onFieldChange(k, v.split(';').map(x => x.trim()).filter(Boolean))} 
+          {...fieldProps} 
+          value={Array.isArray(fields?.names_searched) ? fields.names_searched.join('; ') : fields?.names_searched}
+        />
         <Field label="Additional Information" path="additional_information" multiline {...fieldProps} />
       </Section>
     </div>
   );
 }
 
-function ChainEntry({ index, chain, fields, aiFlags, onFieldChange, onFlagChange }) {
+function ChainEntry({ index, chain, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
   const entry = chain[index] || {};
   const base = `chain_of_title.${index}`;
-  const fp = { fields: { [base]: entry, ...fields }, aiFlags, onChange: (path, val) => onFieldChange(`chain_of_title.${index}.${path.split('.').pop()}`, val), onFlagChange };
+  const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
 
   return (
     <div style={s.entryCard}>
       <div style={s.entryNum}>Entry {index + 1}</div>
       <div style={s.grid3}>
-        <FieldInput label="Document Title" fieldKey={`${base}.document_title`} value={entry.document_title} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`chain_of_title.${index}.document_title`, v)}
-          onFlagChange={onFlagChange} />
-        <FieldInput label="Book/Instrument" fieldKey={`${base}.book_instrument`} value={entry.book_instrument} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`chain_of_title.${index}.book_instrument`, v)}
-          onFlagChange={onFlagChange} />
-        <FieldInput label="Page" fieldKey={`${base}.page`} value={entry.page} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`chain_of_title.${index}.page`, v)}
-          onFlagChange={onFlagChange} />
+        <Field label="Document Title" path={`${base}.document_title`} {...fp} />
+        <Field label="Book/Instrument" path={`${base}.book_instrument`} {...fp} />
+        <Field label="Page" path={`${base}.page`} {...fp} />
       </div>
       <div style={s.grid4}>
-        <FieldInput label="Dated" fieldKey={`${base}.dated`} value={entry.dated} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`chain_of_title.${index}.dated`, v)}
-          onFlagChange={onFlagChange} placeholder="MM/DD/YYYY" />
-        <FieldInput label="Recorded" fieldKey={`${base}.recorded`} value={entry.recorded} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`chain_of_title.${index}.recorded`, v)}
-          onFlagChange={onFlagChange} placeholder="MM/DD/YYYY" />
-        <FieldInput label="Consideration" fieldKey={`${base}.consideration`} value={entry.consideration} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`chain_of_title.${index}.consideration`, v)}
-          onFlagChange={onFlagChange} placeholder="0.00" />
+        <Field label="Dated" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
+        <Field label="Recorded" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+        <Field label="Consideration" path={`${base}.consideration`} placeholder="0.00" {...fp} />
         <div>
           <div style={{ fontSize: '12px', fontWeight: '600', color: '#4a5568', textTransform: 'uppercase', marginBottom: '8px' }}>In/Out Sale?</div>
           <label style={s.checkbox}>
             <input type="checkbox" checked={!!entry.in_out_sale}
-              onChange={e => onFieldChange(`chain_of_title.${index}.in_out_sale`, e.target.checked)} />
+              onChange={e => onFieldChange(`${base}.in_out_sale`, e.target.checked)} />
             Out of Family
           </label>
         </div>
       </div>
-      <FieldInput label="Grantor(s)" fieldKey={`${base}.grantors`}
-        value={Array.isArray(entry.grantors) ? entry.grantors.join('; ') : entry.grantors || ''}
-        aiFlags={aiFlags}
-        onChange={(k, v) => onFieldChange(`chain_of_title.${index}.grantors`, v.split(';').map(x => x.trim()).filter(Boolean))}
-        onFlagChange={onFlagChange} placeholder="Separate multiple names with semicolons" />
-      <FieldInput label="Grantee(s)" fieldKey={`${base}.grantees`}
-        value={Array.isArray(entry.grantees) ? entry.grantees.join('; ') : entry.grantees || ''}
-        aiFlags={aiFlags}
-        onChange={(k, v) => onFieldChange(`chain_of_title.${index}.grantees`, v.split(';').map(x => x.trim()).filter(Boolean))}
-        onFlagChange={onFlagChange} placeholder="Separate multiple names with semicolons" />
-      <FieldInput label="Notes" fieldKey={`${base}.notes`} value={entry.notes} aiFlags={aiFlags}
-        onChange={(k, v) => onFieldChange(`chain_of_title.${index}.notes`, v)}
-        onFlagChange={onFlagChange} placeholder="*Asterisk notes, e.g. *FORECLOSED DOT 501/450" />
+      <Field label="Grantor(s)" path={`${base}.grantors`}
+        placeholder="Separate multiple names with semicolons"
+        onChange={(k, v) => onFieldChange(k, v.split(';').map(x => x.trim()).filter(Boolean))}
+        {...fp} 
+        value={Array.isArray(entry.grantors) ? entry.grantors.join('; ') : entry.grantors}
+      />
+      <Field label="Grantee(s)" path={`${base}.grantees`}
+        placeholder="Separate multiple names with semicolons"
+        onChange={(k, v) => onFieldChange(k, v.split(';').map(x => x.trim()).filter(Boolean))}
+        {...fp}
+        value={Array.isArray(entry.grantees) ? entry.grantees.join('; ') : entry.grantees}
+      />
+      <Field label="Notes" path={`${base}.notes`} placeholder="*Asterisk notes" {...fp} />
     </div>
   );
 }
 
-function MortgageEntry({ index, mortgages, aiFlags, onFieldChange, onFlagChange }) {
+function MortgageEntry({ index, mortgages, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
   const entry = mortgages[index] || {};
   const base = `mortgages.${index}`;
+  const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+
   return (
     <div style={s.entryCard}>
       <div style={s.entryNum}>Mortgage {index + 1}</div>
       <div style={s.grid3}>
-        <FieldInput label="Document Title" fieldKey={`${base}.document_title`} value={entry.document_title} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`mortgages.${index}.document_title`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Book/Instrument" fieldKey={`${base}.book_instrument`} value={entry.book_instrument} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`mortgages.${index}.book_instrument`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Page" fieldKey={`${base}.page`} value={entry.page} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`mortgages.${index}.page`, v)} onFlagChange={onFlagChange} />
+        <Field label="Document Title" path={`${base}.document_title`} {...fp} />
+        <Field label="Book/Instrument" path={`${base}.book_instrument`} {...fp} />
+        <Field label="Page" path={`${base}.page`} {...fp} />
       </div>
       <div style={s.grid4}>
-        <FieldInput label="Dated" fieldKey={`${base}.dated`} value={entry.dated} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`mortgages.${index}.dated`, v)} onFlagChange={onFlagChange} placeholder="MM/DD/YYYY" />
-        <FieldInput label="Recorded" fieldKey={`${base}.recorded`} value={entry.recorded} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`mortgages.${index}.recorded`, v)} onFlagChange={onFlagChange} placeholder="MM/DD/YYYY" />
-        <FieldInput label="Consideration" fieldKey={`${base}.consideration`} value={entry.consideration} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`mortgages.${index}.consideration`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Maturity Date" fieldKey={`${base}.maturity_date`} value={entry.maturity_date} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`mortgages.${index}.maturity_date`, v)} onFlagChange={onFlagChange} placeholder="MM/DD/YYYY" />
+        <Field label="Dated" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
+        <Field label="Recorded" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+        <Field label="Consideration" path={`${base}.consideration`} {...fp} />
+        <Field label="Maturity Date" path={`${base}.maturity_date`} placeholder="MM/DD/YYYY" {...fp} />
       </div>
-      <FieldInput label="Lender (include MERS# if present)" fieldKey={`${base}.lender`} value={entry.lender} aiFlags={aiFlags}
-        onChange={(k, v) => onFieldChange(`mortgages.${index}.lender`, v)} onFlagChange={onFlagChange} />
+      <Field label="Lender (include MERS# if present)" path={`${base}.lender`} {...fp} />
       <div style={s.grid2}>
-        <FieldInput label="Borrower" fieldKey={`${base}.borrower`} value={entry.borrower} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`mortgages.${index}.borrower`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Trustee" fieldKey={`${base}.trustee`} value={entry.trustee} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`mortgages.${index}.trustee`, v)} onFlagChange={onFlagChange} />
+        <Field label="Borrower" path={`${base}.borrower`} {...fp} />
+        <Field label="Trustee" path={`${base}.trustee`} {...fp} />
       </div>
+      <Field label="Notes" path={`${base}.notes`} {...fp} />
     </div>
   );
 }
 
-function AssocDocEntry({ index, docs, aiFlags, onFieldChange, onFlagChange }) {
-  const entry = docs[index] || {};
+function AssocDocEntry({ index, docs, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
   const base = `associated_documents.${index}`;
+  const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+
   return (
     <div style={s.entryCard}>
-      <div style={s.entryNum}>Document {index + 1}</div>
+      <div style={s.entryNum}>Associated Document {index + 1}</div>
       <div style={s.grid3}>
-        <FieldInput label="Document Title" fieldKey={`${base}.document_title`} value={entry.document_title} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`associated_documents.${index}.document_title`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Book/Instrument" fieldKey={`${base}.book_instrument`} value={entry.book_instrument} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`associated_documents.${index}.book_instrument`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Page" fieldKey={`${base}.page`} value={entry.page} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`associated_documents.${index}.page`, v)} onFlagChange={onFlagChange} />
+        <Field label="Document Title" path={`${base}.document_title`} {...fp} />
+        <Field label="Book/Instrument" path={`${base}.book_instrument`} {...fp} />
+        <Field label="Page" path={`${base}.page`} {...fp} />
       </div>
       <div style={s.grid3}>
-        <FieldInput label="Dated" fieldKey={`${base}.dated`} value={entry.dated} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`associated_documents.${index}.dated`, v)} onFlagChange={onFlagChange} placeholder="MM/DD/YYYY" />
-        <FieldInput label="Recorded" fieldKey={`${base}.recorded`} value={entry.recorded} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`associated_documents.${index}.recorded`, v)} onFlagChange={onFlagChange} placeholder="MM/DD/YYYY" />
-        <FieldInput label="Consideration" fieldKey={`${base}.consideration`} value={entry.consideration} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`associated_documents.${index}.consideration`, v)} onFlagChange={onFlagChange} />
+        <Field label="Dated" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
+        <Field label="Recorded" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+        <Field label="Consideration" path={`${base}.consideration`} {...fp} />
       </div>
       <div style={s.grid2}>
-        <FieldInput label="Grantor/Assignor" fieldKey={`${base}.grantor_assignor`} value={entry.grantor_assignor} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`associated_documents.${index}.grantor_assignor`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Grantee/Assignee" fieldKey={`${base}.grantee_assignee`} value={entry.grantee_assignee} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`associated_documents.${index}.grantee_assignee`, v)} onFlagChange={onFlagChange} />
+        <Field label="Grantor/Assignor" path={`${base}.grantor_assignor`} {...fp} />
+        <Field label="Grantee/Assignee" path={`${base}.grantee_assignee`} {...fp} />
       </div>
+      <Field label="Notes" path={`${base}.notes`} {...fp} />
     </div>
   );
 }
 
-function JudgmentEntry({ index, judgments, aiFlags, onFieldChange, onFlagChange }) {
-  const entry = judgments[index] || {};
+function JudgmentEntry({ index, judgments, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
   const base = `judgments_liens.${index}`;
+  const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+
   return (
     <div style={s.entryCard}>
       <div style={s.entryNum}>Judgment/Lien {index + 1}</div>
       <div style={s.grid3}>
-        <FieldInput label="Document Title" fieldKey={`${base}.document_title`} value={entry.document_title} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`judgments_liens.${index}.document_title`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Book/Instrument" fieldKey={`${base}.book_instrument`} value={entry.book_instrument} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`judgments_liens.${index}.book_instrument`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Page" fieldKey={`${base}.page`} value={entry.page} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`judgments_liens.${index}.page`, v)} onFlagChange={onFlagChange} />
+        <Field label="Document Title" path={`${base}.document_title`} {...fp} />
+        <Field label="Book/Instrument" path={`${base}.book_instrument`} {...fp} />
+        <Field label="Page" path={`${base}.page`} {...fp} />
       </div>
       <div style={s.grid4}>
-        <FieldInput label="Dated" fieldKey={`${base}.dated`} value={entry.dated} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`judgments_liens.${index}.dated`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Recorded" fieldKey={`${base}.recorded`} value={entry.recorded} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`judgments_liens.${index}.recorded`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Case #" fieldKey={`${base}.case_number`} value={entry.case_number} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`judgments_liens.${index}.case_number`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Amount" fieldKey={`${base}.amount`} value={entry.amount} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`judgments_liens.${index}.amount`, v)} onFlagChange={onFlagChange} />
+        <Field label="Dated" path={`${base}.dated`} {...fp} />
+        <Field label="Recorded" path={`${base}.recorded`} {...fp} />
+        <Field label="Case #" path={`${base}.case_number`} {...fp} />
+        <Field label="Amount" path={`${base}.amount`} {...fp} />
       </div>
       <div style={s.grid2}>
-        <FieldInput label="Plaintiff" fieldKey={`${base}.plaintiff`} value={entry.plaintiff} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`judgments_liens.${index}.plaintiff`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Defendant" fieldKey={`${base}.defendant`} value={entry.defendant} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`judgments_liens.${index}.defendant`, v)} onFlagChange={onFlagChange} />
+        <Field label="Plaintiff" path={`${base}.plaintiff`} {...fp} />
+        <Field label="Defendant" path={`${base}.defendant`} {...fp} />
       </div>
     </div>
   );
 }
 
-function MiscEntry({ index, misc, aiFlags, onFieldChange, onFlagChange }) {
-  const entry = misc[index] || {};
+function MiscEntry({ index, misc, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
   const base = `misc_documents.${index}`;
+  const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+
   return (
     <div style={s.entryCard}>
-      <div style={s.entryNum}>Document {index + 1}</div>
+      <div style={s.entryNum}>Misc Document {index + 1}</div>
       <div style={s.grid3}>
-        <FieldInput label="Document Title" fieldKey={`${base}.document_title`} value={entry.document_title} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`misc_documents.${index}.document_title`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Book/Instrument" fieldKey={`${base}.book_instrument`} value={entry.book_instrument} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`misc_documents.${index}.book_instrument`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Page" fieldKey={`${base}.page`} value={entry.page} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`misc_documents.${index}.page`, v)} onFlagChange={onFlagChange} />
+        <Field label="Document Title" path={`${base}.document_title`} {...fp} />
+        <Field label="Book/Instrument" path={`${base}.book_instrument`} {...fp} />
+        <Field label="Page" path={`${base}.page`} {...fp} />
       </div>
       <div style={s.grid3}>
-        <FieldInput label="Dated" fieldKey={`${base}.dated`} value={entry.dated} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`misc_documents.${index}.dated`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Recorded" fieldKey={`${base}.recorded`} value={entry.recorded} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`misc_documents.${index}.recorded`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Consideration" fieldKey={`${base}.consideration`} value={entry.consideration} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`misc_documents.${index}.consideration`, v)} onFlagChange={onFlagChange} />
+        <Field label="Dated" path={`${base}.dated`} {...fp} />
+        <Field label="Recorded" path={`${base}.recorded`} {...fp} />
+        <Field label="Consideration" path={`${base}.consideration`} {...fp} />
       </div>
       <div style={s.grid2}>
-        <FieldInput label="Grantor/Assignor" fieldKey={`${base}.grantor_assignor`} value={entry.grantor_assignor} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`misc_documents.${index}.grantor_assignor`, v)} onFlagChange={onFlagChange} />
-        <FieldInput label="Grantee/Assignee" fieldKey={`${base}.grantee_assignee`} value={entry.grantee_assignee} aiFlags={aiFlags}
-          onChange={(k, v) => onFieldChange(`misc_documents.${index}.grantee_assignee`, v)} onFlagChange={onFlagChange} />
+        <Field label="Grantor/Assignor" path={`${base}.grantor_assignor`} {...fp} />
+        <Field label="Grantee/Assignee" path={`${base}.grantee_assignee`} {...fp} />
       </div>
     </div>
   );
 }
+
 
 function getNestedValue(obj, path) {
   if (!obj || !path) return '';
