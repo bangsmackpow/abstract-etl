@@ -81,11 +81,18 @@ You must determine the "file_number" using this strict priority order:
 2. **TAX INFO**: Capture split 1st/2nd installments.
 3. **IN/OUT SALE**: True if "Yes/Out", False if "No/In".
 4. **LEGAL DESCRIPTION**: Capture ENTIRE text word-for-word.
-5. **NAMES SEARCHED**: 
+5. **TRUSTEE'S DEED & FORECLOSURE**:
+   - If a **Trustee's Deed** appears, index it as the numbered chain entry.
+   - Any related foreclosure documents (Account of Sale, Substitute Trustees, Modification, Foreclosed DOT, etc.) MUST be listed directly below that Trustee's Deed as separate **starred items** (starting with *) in the "notes" field, NOT as separate numbered entries.
+   - **DOT Identification**: 
+     - Label the foreclosed DOT as: `*FORECLOSED DOT [BOOK/PAGE OR INSTRUMENT]`
+     - Label any other DOT open at the time as: `*DOT OPEN AT THE TIME OF FORECLOSURE [BOOK/PAGE OR INSTRUMENT]`
+   - Resume normal numbered numbering for the next actual deed or conveyance.
+6. **NAMES SEARCHED**: 
    - Capture EVERY name listed in the search section.
    - **BORROWER RULE**: If a borrower is listed on the request form (usually at the top), that borrower MUST be included in the "Names Searched" section.
    - **SORTING**: The borrower or borrowers must be listed FIRST in "Names Searched", in the exact same order they appear on the request form. Follow them with the remaining searched names.
-6. **ALTERNATIVES**: Provide best guess in field and up to 2 others in "alternatives" object keyed by JSON path.
+7. **ALTERNATIVES**: Provide best guess in field and up to 2 others in "alternatives" object keyed by JSON path.
 
 Return valid JSON matching this schema:
 ${FIELD_SCHEMA}`;

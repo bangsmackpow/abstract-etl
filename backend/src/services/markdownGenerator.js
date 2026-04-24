@@ -50,8 +50,9 @@ function generateMarkdown(fields) {
       md += `- **In/Out Sale**: ${e.in_out_sale === true ? 'YES' : e.in_out_sale === false ? 'NO' : '—'}\n`;
       md += `- **Grantor(s)**: ${(e.grantors || []).map(g => g.toUpperCase()).join('; ') || '—'}\n`;
       md += `- **Grantee(s)**: ${(e.grantees || []).map(g => g.toUpperCase()).join('; ') || '—'}\n`;
-      if (e.notes) md += `- **Notes**: ${val(e.notes)}\n`;
-      md += '\n';
+      if (e.notes) md += `- **Notes**: ${e.notes.startsWith('*') ? val(e.notes) : `NOTES: ${val(e.notes)}`}\n`;
+      md += `\n`;
+
     });
   }
 

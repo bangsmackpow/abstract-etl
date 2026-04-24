@@ -173,7 +173,7 @@ async function generateDocx(fields) {
       labelCell('Grantee(s):', 1200),
       new TableCell({ borders, columnSpan: 7, children: [
         new Paragraph({ children: [new TextRun({ text: (e.grantees || []).map(g => g.toUpperCase()).join('; ') || '—', size: 18 })] }),
-        ...(e.notes ? [new Paragraph({ children: [new TextRun({ text: `NOTES: ${e.notes.toUpperCase()}`, size: 16, italics: true, color: '555555' })] })] : [])
+        ...(e.notes ? [new Paragraph({ children: [new TextRun({ text: e.notes.startsWith('*') ? e.notes.toUpperCase() : `NOTES: ${e.notes.toUpperCase()}`, size: 16, italics: true, color: '555555' })] })] : [])
       ] })
     ]}),
   ]);
