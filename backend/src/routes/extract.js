@@ -31,7 +31,8 @@ router.post('/', upload.single('pdf'), async (req, res) => {
   const startTime = Date.now();
 
   try {
-    const extractedFields = await googleAiService.extractFromPDF(pdfPath);
+    const filename = req.file.originalname || '';
+    const extractedFields = await googleAiService.extractFromPDF(pdfPath, filename);
     const processingTimeMs = Date.now() - startTime;
 
     // Build ai_flags_json — mark all returned fields as 'ai'

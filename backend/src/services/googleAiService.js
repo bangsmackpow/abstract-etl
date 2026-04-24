@@ -55,25 +55,46 @@ const FIELD_SCHEMA = `{
 
 const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract ALL relevant data from the attached PDF.
 
-### CRITICAL RULES:
+### MANDATORY EXTRACTION SEQUENCE:
+The PDF is arranged in a specific order. You MUST extract and organize information in this exact sequence:
+1. Order Information
+2. Chain of Title
+3. Mortgages / Deeds of Trust
+4. Associated Documents (Assignments/Releases)
+5. Judgments / Liens
+6. Miscellaneous Documents
+7. Legal Description
+8. Additional Information
+9. Names Searched
+
+### FILE NUMBER PRIORITY RULES:
+You must determine the "file_number" using this strict priority order:
+1. **Filename first**: If the provided filename contains a usable ID (e.g., "512571 - 16683.pdf"), use the full ID ("512571-16683").
+2. **Company + ID**: If a company name (e.g., TACS, Mortiles, ECU) and an ID are found, use "CompanyName FullID" (e.g., "TACS 512571-16683").
+3. **ID Only**: If there is an ID but no company, use the ID alone.
+4. **Company + Address**: If no ID exists, but a company and address are found, use "CompanyName FullPropertyAddress" (e.g., "ECU 123 Bible Lane...").
+5. **Address Only**: If no company or ID exists, use the full Property Address as the File Number.
+6. **Never invent a File Number.**
+
+### CRITICAL ACCURACY RULES:
 1. **PROPERTY ADDRESS**: Capture COMPLETE address.
 2. **TAX INFO**: Capture split 1st/2nd installments.
 3. **IN/OUT SALE**: True if "Yes/Out", False if "No/In".
-4. **ASSOCIATED DOCS**: Capture Assignments, Subordinations, Releases.
-5. **LEGAL DESCRIPTION**: Capture ENTIRE text word-for-word.
-6. **NAMES SEARCHED**: Capture EVERY name listed.
-7. **ALTERNATIVES**: If text is ambiguous, provide best guess in field and up to 2 others in "alternatives" object keyed by JSON path.
+4. **LEGAL DESCRIPTION**: Capture ENTIRE text word-for-word.
+5. **NAMES SEARCHED**: Capture EVERY name listed.
+6. **ALTERNATIVES**: Provide best guess in field and up to 2 others in "alternatives" object keyed by JSON path.
 
 Return valid JSON matching this schema:
 ${FIELD_SCHEMA}`;
 
-async function extractFromPDF(pdfPath) {
-  console.log(`[GoogleAI] Extracting native PDF: ${pdfPath}`);
+async function extractFromPDF(pdfPath, originalFilename = '') {
+  console.log(`[GoogleAI] Extracting native PDF: ${pdfPath} (Filename: ${originalFilename})`);
   
   const model = getModel();
   const pdfBuffer = fs.readFileSync(pdfPath);
 
   const promptParts = [
+    { text: `The original filename is: "${originalFilename}"` },
     { text: SYSTEM_PROMPT },
     {
       inlineData: {
