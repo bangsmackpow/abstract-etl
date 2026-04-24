@@ -3,28 +3,28 @@
 This project is a high-performance ETL system for property abstracts. Agents working on this project must adhere to the following standards.
 
 ## Tech Stack
-- **Backend**: Node.js Express (REST API).
+- **Backend**: Node.js Express (CommonJS, moving to Hono/ESM).
+- **Frontend**: React (Vite, ESM) + Zustand.
+- **Hygiene**: ESLint 8 (Flat-ish), Prettier, Husky.
+- **Validation**: Zod (Runtime environment checks).
 - **Database**: SQLite (managed via Drizzle ORM).
-- **ORM**: Drizzle ORM (Schema in `backend/src/db/schema.js`).
-- **Auth**: Custom JWT (logic in `backend/src/services/authService.js`).
-- **Frontend**: React (Vite) + Zustand for state management.
-- **AI**: Gemini 1.5 Flash (via `@google/generative-ai` or `openai` for OpenRouter).
+- **AI**: Gemini 2.0 Flash (via direct `@google/generative-ai` SDK).
 
 ## Core Services
-- `aiService.js`: The primary entry point for document extraction. Handles PDF conversion and batching.
-- `geminiService.js`: Direct Google Gemini implementation.
-- `openRouterService.js`: OpenRouter / OpenAI SDK implementation.
-- `docxGenerator.js`: Programmatically builds .docx files from extracted JSON.
+- `googleAiService.js`: **Primary AI Engine.** Handles native PDF pass-through. Bypasses OpenRouter.
+- `docxGenerator.js`: Builds .docx files (ALL CAPS enforcement).
+- `markdownGenerator.js`: Builds .md files (ALL CAPS enforcement).
+- `env.js / env.ts`: Centralized Zod validation for process.env.
 
 ## Key Rules
-1. **Schema Integrity**: Any changes to the database must be done through `src/db/schema.js` and followed by `npx drizzle-kit generate` to keep migrations in sync.
-2. **Batching**: Always process images in batches (max 5-10) to avoid payload timeouts or model context limits.
-3. **Security**: Never hardcode secrets. Always use environment variables.
-4. **Auth**: Any new route that requires a user must use the `requireAuth` middleware. Any administrative route must use `requireAdmin`.
-5. **JSON Consistency**: The AI must return raw JSON. Always include the JSON schema in the system prompt.
+1. **Hygiene First**: Never commit code that fails `npm run validate`.
+2. **Schema Integrity**: Database changes -> `src/db/schema.js` -> `npm run db:generate`.
+3. **No Image Conversion**: The system now uses **Native PDF**. Do not use `pdf2pic` or `sharp` for extraction tasks.
+4. **Native APIs**: Prefer standard Web APIs (fetch, crypto) over Node-specific ones to prepare for Cloudflare migration.
+5. **JSON Mode**: AI must return structured JSON. Ensure `responseMimeType: "application/json"` is set in AI configs.
 
 ## Future Path (Cloudflare)
-The project is being architected to move to **Cloudflare Workers**. 
-- Prefer lightweight dependencies.
-- Use Drizzle ORM exclusively for data access (it translates easily to D1).
-- Avoid Node-specific APIs where possible (e.g., prefer `fetch` over `axios` in new code).
+The project is currently in the **Hybrid Phase**. 
+- Use Drizzle ORM exclusively for data access.
+- Avoid libraries that require heavy Node.js binaries (like `sharp`).
+- Keep code lightweight for edge deployment.
