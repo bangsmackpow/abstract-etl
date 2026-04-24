@@ -26,10 +26,18 @@ To maintain alignment with the Hazelwood run-sheet standard, information is extr
 7.  Additional Information
 8.  Names Searched
 
-## 3. Borrower & Names Searched Logic
-*   **Forced Inclusion**: Any borrower listed on the initial request form MUST be included in the "Names Searched" section of the final report.
-*   **Primary Placement**: Borrowers are always listed **FIRST** in the "Names Searched" section.
-*   **Sequence Preservation**: If multiple borrowers exist, they are listed in the exact same order they appear on the original request form.
+## 3. Names Searched Logic (Priority & Inclusions)
+*   **Forced Inclusion**: The following parties MUST be included in the "Names Searched" section:
+    *   Any borrower listed on the initial request form.
+    *   Every Grantor and Grantee identified in the Chain of Title.
+    *   Any individual who obtained, owned, bought, or sold the property.
+    *   Heirs identified from Wills, Lists of Heirs (LOH), or Real Estate Affidavits (REA).
+*   **Mandatory Exclusions**: The following parties are explicitly EXCLUDED from "Names Searched":
+    *   Special Commissioners.
+    *   Trustees listed on Trustee’s Deeds.
+*   **Sorting Order**: 
+    1.  Borrowers appear **FIRST** in the exact same order they appear on the original request form.
+    2.  All other applicable parties follow the borrowers.
 
 ## 4. Trustee’s Deed & Foreclosure Logic
 *   **Primary Entry**: A **Trustee’s Deed** is treated as a standard numbered entry in the Chain of Title.

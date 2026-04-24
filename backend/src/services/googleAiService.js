@@ -88,11 +88,20 @@ You must determine the "file_number" using this strict priority order:
      - Label the foreclosed DOT as: `*FORECLOSED DOT [BOOK/PAGE OR INSTRUMENT]`
      - Label any other DOT open at the time as: `*DOT OPEN AT THE TIME OF FORECLOSURE [BOOK/PAGE OR INSTRUMENT]`
    - Resume normal numbered numbering for the next actual deed or conveyance.
-6. **NAMES SEARCHED**: 
-   - Capture EVERY name listed in the search section.
-   - **BORROWER RULE**: If a borrower is listed on the request form (usually at the top), that borrower MUST be included in the "Names Searched" section.
-   - **SORTING**: The borrower or borrowers must be listed FIRST in "Names Searched", in the exact same order they appear on the request form. Follow them with the remaining searched names.
-7. **ALTERNATIVES**: Provide best guess in field and up to 2 others in "alternatives" object keyed by JSON path.
+5. **NAMES SEARCHED**: 
+   - **INCLUSION**: Must include:
+     - Borrower(s) listed on the request form.
+     - EVERY Grantor and EVERY Grantee from the Chain of Title.
+     - EVERY person who obtained, owned, bought, or sold the property.
+     - Heirs identified from Wills, List of Heirs (LOH), or Real Estate Affidavits (REA).
+   - **EXCLUSIONS**: Do NOT include:
+     - Special Commissioners.
+     - Trustees listed on Trustee’s Deeds.
+   - **SORTING**: 
+     - 1st: Borrower(s) in the exact order they appear on the request form.
+     - 2nd: All other applicable names captured from the document.
+6. **ALTERNATIVES**: Provide best guess in field and up to 2 others in "alternatives" object keyed by JSON path.
+
 
 Return valid JSON matching this schema:
 ${FIELD_SCHEMA}`;
