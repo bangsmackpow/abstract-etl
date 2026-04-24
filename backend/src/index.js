@@ -105,10 +105,10 @@ async function start() {
 
     const server = app.listen(PORT, () => {
       console.log(`✅  Abstract ETL backend running on port ${PORT}`);
-      console.log('    Database: SQLite (WAL mode enabled)');
-      console.log('    AI Provider: OpenRouter (Forced)');
-      console.log('    AI Model: google/gemini-2.0-flash-001');
+      console.log(`    Database: SQLite (WAL mode enabled)`);
+      console.log(`    AI Provider: Google Native (Gemini 2.0 Flash)`);
     });
+
 
     // Increase timeout for long AI extractions (10 mins)
     server.timeout = 600000;

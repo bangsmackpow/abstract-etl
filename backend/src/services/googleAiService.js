@@ -17,6 +17,25 @@ function getModel() {
   });
 }
 
+async function testConnection() {
+  const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim();
+  if (!apiKey) {
+    console.warn('⚠️ [GoogleAI] GOOGLE_AI_API_KEY not set.');
+    return;
+  }
+
+  try {
+    const model = getModel();
+    const result = await model.generateContent("Say 'Ready'");
+    const response = await result.response;
+    console.log(`✅ [GoogleAI] Connection Verified: "${response.text().trim()}"`);
+  } catch (err) {
+    console.error(`❌ [GoogleAI] Connection Failed:`, err.message);
+  }
+}
+
+testConnection();
+
 const FIELD_SCHEMA = `{
   "order_info": {
     "file_number": null, "property_address": null, "effective_date": null, "completed_date": null,
