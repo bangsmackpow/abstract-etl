@@ -85,8 +85,8 @@ You must determine the "file_number" using this strict priority order:
    - If a **Trustee's Deed** appears, index it as the numbered chain entry.
    - Any related foreclosure documents (Account of Sale, Substitute Trustees, Modification, Foreclosed DOT, etc.) MUST be listed directly below that Trustee's Deed as separate **starred items** (starting with *) in the "notes" field, NOT as separate numbered entries.
    - **DOT Identification**: 
-     - Label the foreclosed DOT as: `*FORECLOSED DOT [BOOK/PAGE OR INSTRUMENT]`
-     - Label any other DOT open at the time as: `*DOT OPEN AT THE TIME OF FORECLOSURE [BOOK/PAGE OR INSTRUMENT]`
+     - Label the foreclosed DOT as: \*FORECLOSED DOT [BOOK/PAGE OR INSTRUMENT]
+     - Label any other DOT open at the time as: \*DOT OPEN AT THE TIME OF FORECLOSURE [BOOK/PAGE OR INSTRUMENT]
    - Resume normal numbered numbering for the next actual deed or conveyance.
 5. **NAMES SEARCHED**: 
    - **INCLUSION**: Must include:
