@@ -51,7 +51,7 @@ function generateMarkdown(fields) {
       md += `- **Grantor(s)**: ${(e.grantors || []).map(g => g.toUpperCase()).join('; ') || '—'}\n`;
       md += `- **Grantee(s)**: ${(e.grantees || []).map(g => g.toUpperCase()).join('; ') || '—'}\n`;
       if (e.notes) md += `- **Notes**: ${e.notes.startsWith('*') ? val(e.notes) : `NOTES: ${val(e.notes)}`}\n`;
-      md += `\n`;
+      md += '\n';
 
     });
   }

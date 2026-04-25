@@ -12,8 +12,8 @@ function getModel() {
   
   const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({ 
-    model: "gemini-2.5-flash",
-    generationConfig: { responseMimeType: "application/json" }
+    model: 'gemini-2.5-flash',
+    generationConfig: { responseMimeType: 'application/json' }
   });
 }
 
@@ -30,7 +30,7 @@ async function testConnection() {
     const response = await result.response;
     console.log(`✅ [GoogleAI] Connection Verified: "${response.text().trim()}"`);
   } catch (err) {
-    console.error(`❌ [GoogleAI] Connection Failed:`, err.message);
+    console.error('❌ [GoogleAI] Connection Failed:', err.message);
   }
 }
 
@@ -85,8 +85,8 @@ You must determine the "file_number" using this strict priority order:
    - If a **Trustee's Deed** appears, index it as the numbered chain entry.
    - Any related foreclosure documents (Account of Sale, Substitute Trustees, Modification, Foreclosed DOT, etc.) MUST be listed directly below that Trustee's Deed as separate **starred items** (starting with *) in the "notes" field, NOT as separate numbered entries.
    - **DOT Identification**: 
-     - Label the foreclosed DOT as: \*FORECLOSED DOT [BOOK/PAGE OR INSTRUMENT]
-     - Label any other DOT open at the time as: \*DOT OPEN AT THE TIME OF FORECLOSURE [BOOK/PAGE OR INSTRUMENT]
+     - Label the foreclosed DOT as: *FORECLOSED DOT [BOOK/PAGE OR INSTRUMENT]
+     - Label any other DOT open at the time as: *DOT OPEN AT THE TIME OF FORECLOSURE [BOOK/PAGE OR INSTRUMENT]
    - Resume normal numbered numbering for the next actual deed or conveyance.
 5. **NAMES SEARCHED**: 
    - **INCLUSION**: Must include:
@@ -117,8 +117,8 @@ async function extractFromPDF(pdfPath, originalFilename = '') {
     { text: SYSTEM_PROMPT },
     {
       inlineData: {
-        data: pdfBuffer.toString("base64"),
-        mimeType: "application/pdf"
+        data: pdfBuffer.toString('base64'),
+        mimeType: 'application/pdf'
       }
     }
   ];
@@ -129,7 +129,7 @@ async function extractFromPDF(pdfPath, originalFilename = '') {
     const text = response.text();
     return JSON.parse(text);
   } catch (err) {
-    console.error(`❌ [GoogleAI] Error:`, err.message);
+    console.error('❌ [GoogleAI] Error:', err.message);
     throw err;
   }
 }

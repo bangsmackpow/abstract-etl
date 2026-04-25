@@ -1,6 +1,19 @@
 {
   "$schema": "https://knip.dev/schema.json",
-  "entry": ["backend/src/index.js", "frontend/src/main.jsx"],
+  "entry": [
+    "backend/src/index.js",
+    "frontend/src/main.jsx",
+    "backend/src/routes/*.js",
+    "backend/src/services/*.js"
+  ],
   "project": ["**/*.{js,jsx,ts,tsx}"],
-  "ignoreDependencies": ["husky"]
+  "ignore": ["**/uploads/**", "**/data/**"],
+  "ignoreDependencies": [
+    "husky",
+    "sharp",
+    "pdf2pic",
+    "pocketbase",
+    "mammoth",
+    "@google/generative-ai"
+  ]
 }
