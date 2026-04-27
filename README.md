@@ -34,6 +34,8 @@ AI-powered title abstract management system.
 
 ## Key Features
 - **Native PDF Extraction**: Direct pass-through to Gemini 2.5 Flash. No image conversion required.
+- **Professional Style Logic**: Semantic spouse formatting (`&` vs `,`), life estate syntax, and automated township city-inference.
+- **Smart Chain Filtering**: Intelligent separation of numbered Insales and formatted Additional Information for Outsales/Encumbrances.
 - **Intelligent Alternatives**: UI dropdowns allowing users to pick from multiple AI guesses for messy text.
 - **Multi-Format Export**: Generate professional Word (.docx) and Markdown (.md) reports instantly.
 - **Customer Priority Rules**: Specialized extraction logic for File Numbers based on filename, company, and address.

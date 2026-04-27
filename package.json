@@ -11,7 +11,7 @@
     "lint": "eslint . --cache",
     "format": "prettier --write .",
     "knip": "knip",
-    "validate": "npm run typecheck && npm run lint && (npm run knip || true)"
+    "validate": "npm run typecheck && npm run lint && (npm run knip || cmd /c \"exit 0\")"
   },
   "dependencies": {
     "zod": "^3.22.0"

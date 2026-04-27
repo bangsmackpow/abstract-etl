@@ -14,6 +14,8 @@
 - [x] **Customer Rules**: Priority-based File Number extraction and mandatory sequence enforced.
 - [x] **Foreclosure Logic**: Trustee's Deed grouping and starred reference item formatting.
 - [x] **Names Searched Refinement**: Detailed inclusion/exclusion rules (Heirs, Owners, etc.) and borrower-first sorting.
+- [x] **Professional Style Rules**: Implemented semantic spouse separators (&), life estate syntax, and automated township city-inference.
+- [x] **Smart Chain Filtering**: Numbered chain strictly for Insales; Outsales/Encumbrances move to Additional Information.
 - [x] **Feature: Alternatives**: Added AI-powered value alternatives in the UI.
 - [x] **Admin: Deletion**: Added trash-icon actions across all job tables.
 
