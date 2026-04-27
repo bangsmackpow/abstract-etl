@@ -53,55 +53,54 @@ const FIELD_SCHEMA = `{
   "legal_description": null, "additional_information": null, "names_searched": [], "alternatives": {}
 }`;
 
-const SYSTEM_PROMPT = `You are an expert title abstract processor. Extract ALL relevant data from the attached PDF.
+const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience.
+Your goal is to extract property data from the attached PDF into valid JSON.
+
+### MANDATORY STYLE & FORMATTING:
+1. **ALL CAPS**: Return ALL text (names, titles, notes, searched names, labels) in ALL CAPS.
+2. **NAME FORMATTING**:
+   - Do NOT include marital status (e.g., "A MARRIED MAN", "HUSBAND AND WIFE").
+   - If parties are married spouses in the instrument: separate with an ampersand (&). Example: "JOHN SMITH & JANE SMITH".
+   - If parties are NOT married: separate with a comma (,). Example: "JOHN SMITH, JANE SMITH".
+   - ALWAYS use full names for both parties. Never shorten or omit a name.
+   - If a person is both a grantor and grantee in the same instrument, list them in BOTH places.
+3. **LIFE ESTATE SYNTAX**: If a grantor reserves a life estate, format the Grantee line as: "[GRANTOR NAME] RESERVES LIFE ESTATE, [REMAINDERMAN NAME] REMAINDERMENT".
+4. **TOWNSHIP**: Set the township field to the CITY found in the property address.
+5. **CONSIDERATION**: Only enter a numeric dollar amount (e.g., "11,500.00") or the exact phrase "LOVE AND AFFECTION". Otherwise, leave it blank.
 
 ### MANDATORY EXTRACTION SEQUENCE:
-The PDF is arranged in a specific order. You MUST extract and organize information in this exact sequence:
 1. Order Information
-2. Chain of Title
+2. Chain of Title (INSALES ONLY)
 3. Mortgages / Deeds of Trust
 4. Associated Documents (Assignments/Releases)
 5. Judgments / Liens
 6. Miscellaneous Documents
 7. Legal Description
-8. Additional Information
+8. Additional Information (OUTSALES & ENCUMBRANCES)
 9. Names Searched
 
+### CRITICAL RULES:
+- **INSALES vs OUTSALES**:
+  - Numbered "chain_of_title" entries are for INSALES only (where current owner acquires property). Set "in_out_sale" to true for these.
+  - OUTSALES (selling pieces off) and supporting docs (EASEMENTS, ROWs, LEASES, C&Rs) must NOT be in the numbered chain.
+  - List OUTSALES/ENCUMBRANCES in "additional_information" using format: "BOOK/PAGE [LABEL]". Example: "2016/6754 OUTSALE", "738/1035 EASEMENT".
+- **TRUSTEE'S DEED & FORECLOSURE**:
+  - Index the Trustee's Deed as a numbered chain entry.
+  - List related docs (ACCOUNT OF SALE, SUBSTITUTE TRUSTEES, etc.) as starred items (*) in the notes of that entry.
+  - Label the foreclosed DOT as: *FORECLOSED DOT [BOOK/PAGE].
+  - Label other DOTs as: *DOT OPEN AT THE TIME OF FORECLOSURE [BOOK/PAGE].
+- **NAMES SEARCHED**: 
+  - Include: Borrower(s) listed on request form (LIST FIRST in original order), all Grantors/Grantees, Owners, and Heirs (Wills/LOH/REA).
+  - EXCLUDE: Special Commissioners and Trustees on Trustee's Deeds.
+- **LEGAL DESCRIPTION**: Capture ENTIRE text word-for-word. No "..." or summaries.
+
 ### FILE NUMBER PRIORITY RULES:
-You must determine the "file_number" using this strict priority order:
-1. **Filename first**: If the provided filename contains a usable ID (e.g., "512571 - 16683.pdf"), use the full ID ("512571-16683").
-2. **Company + ID**: If a company name (e.g., TACS, Mortiles, ECU) and an ID are found, use "CompanyName FullID" (e.g., "TACS 512571-16683").
-3. **ID Only**: If there is an ID but no company, use the ID alone.
-4. **Company + Address**: If no ID exists, but a company and address are found, use "CompanyName FullPropertyAddress" (e.g., "ECU 123 Bible Lane...").
-5. **Address Only**: If no company or ID exists, use the full Property Address as the File Number.
+1. **Filename first**: If the provided filename contains a usable ID, use the full ID.
+2. **Company + ID**: Use "CompanyName FullID" (e.g., "TACS 512571-16683", "MORTILES 251113011").
+3. **ID Only**: Use the ID alone if no company is evident.
+4. **Company + Address**: If no ID, use "CompanyName FullPropertyAddress".
+5. **Address Only**: Use full Property Address as the File Number.
 6. **Never invent a File Number.**
-
-### CRITICAL ACCURACY RULES:
-1. **PROPERTY ADDRESS**: Capture COMPLETE address.
-2. **TAX INFO**: Capture split 1st/2nd installments.
-3. **IN/OUT SALE**: True if "Yes/Out", False if "No/In".
-4. **LEGAL DESCRIPTION**: Capture ENTIRE text word-for-word.
-5. **TRUSTEE'S DEED & FORECLOSURE**:
-   - If a **Trustee's Deed** appears, index it as the numbered chain entry.
-   - Any related foreclosure documents (Account of Sale, Substitute Trustees, Modification, Foreclosed DOT, etc.) MUST be listed directly below that Trustee's Deed as separate **starred items** (starting with *) in the "notes" field, NOT as separate numbered entries.
-   - **DOT Identification**: 
-     - Label the foreclosed DOT as: *FORECLOSED DOT [BOOK/PAGE OR INSTRUMENT]
-     - Label any other DOT open at the time as: *DOT OPEN AT THE TIME OF FORECLOSURE [BOOK/PAGE OR INSTRUMENT]
-   - Resume normal numbered numbering for the next actual deed or conveyance.
-5. **NAMES SEARCHED**: 
-   - **INCLUSION**: Must include:
-     - Borrower(s) listed on the request form.
-     - EVERY Grantor and EVERY Grantee from the Chain of Title.
-     - EVERY person who obtained, owned, bought, or sold the property.
-     - Heirs identified from Wills, List of Heirs (LOH), or Real Estate Affidavits (REA).
-   - **EXCLUSIONS**: Do NOT include:
-     - Special Commissioners.
-     - Trustees listed on Trustee’s Deeds.
-   - **SORTING**: 
-     - 1st: Borrower(s) in the exact order they appear on the request form.
-     - 2nd: All other applicable names captured from the document.
-6. **ALTERNATIVES**: Provide best guess in field and up to 2 others in "alternatives" object keyed by JSON path.
-
 
 Return valid JSON matching this schema:
 ${FIELD_SCHEMA}`;
