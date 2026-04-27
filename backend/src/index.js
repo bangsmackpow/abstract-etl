@@ -16,7 +16,7 @@ const adminRoutes    = require('./routes/admin');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app  = express();
-const PORT = process.env.PORT || 3001;
+const PORT = env.PORT || 3001;
 
 // ── Uploads directory ────────────────────────────────────────────────────────
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -26,7 +26,7 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
   origin: [
-    process.env.APP_URL || 'http://localhost:5173',
+    env.APP_URL || 'http://localhost:5173',
     'http://localhost:5173',
     'http://localhost:3000'
   ],
@@ -57,8 +57,8 @@ const { users } = require('./db/schema');
 const { eq } = require('drizzle-orm');
 
 async function seedAdmin() {
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPass  = process.env.ADMIN_PASSWORD;
+  const adminEmail = env.ADMIN_EMAIL;
+  const adminPass  = env.ADMIN_PASSWORD;
   
   if (!adminEmail || !adminPass) {
     console.warn('⚠️ ADMIN_EMAIL or ADMIN_PASSWORD not set. Skipping admin seed/sync.');
