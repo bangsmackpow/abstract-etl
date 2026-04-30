@@ -11,7 +11,7 @@ function getModel() {
   const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
   if (!apiKey) throw new Error('GOOGLE_AI_API_KEY is missing from environment.');
 
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const genAI = new GoogleGenerativeAI(apiKey, { apiVersion: 'v1' });
   return genAI.getGenerativeModel({ 
     model: 'gemini-pro',
     generationConfig: { responseMimeType: 'application/json' }
