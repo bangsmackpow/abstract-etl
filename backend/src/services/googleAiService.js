@@ -11,9 +11,9 @@ function getModel() {
   const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
   if (!apiKey) throw new Error('GOOGLE_AI_API_KEY is missing from environment.');
 
-  const genAI = new GoogleGenerativeAI(apiKey, { apiVersion: 'v1' });
+  const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({ 
-    model: 'gemini-pro',
+    model: 'gemini-1.5-flash-latest',
     generationConfig: { responseMimeType: 'application/json' }
   });
 }
