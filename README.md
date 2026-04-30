@@ -14,7 +14,7 @@ AI-powered title abstract management system.
 - **Backend**: Node.js Express (Industrial-grade TypeScript foundations)
 - **Database**: SQLite with **WAL Mode** for high concurrency.
 - **ORM**: Drizzle ORM
-- **AI**: Google Gemini 2.5 Flash (Native PDF Pass-Through)
+- **AI**: Google Gemini 1.5 Flash (Native PDF Pass-Through)
 - **Validation**: Zod-powered runtime environment validation
 
 ## Workflow
@@ -33,11 +33,16 @@ AI-powered title abstract management system.
 | `APP_URL` | Base URL of the frontend (for emails) |
 
 ## Key Features
-- **Native PDF Extraction**: Direct pass-through to Gemini 2.5 Flash. No image conversion required.
+- **Dual-Version System**:
+  - **v1 (Legacy)**: The original system for existing workflows.
+  - **v2 (ProTitleUSA)**: A new, parallel system designed for the ProTitleUSA schema, featuring enhanced "Smart Suggestions" and a high-fidelity PDF output.
+- **Native PDF Extraction**: Direct pass-through to Gemini 1.5 Flash. No image conversion required.
 - **Professional Style Logic**: Semantic spouse formatting (`&` vs `,`), life estate syntax, and automated township city-inference.
 - **Smart Chain Filtering**: Intelligent separation of numbered Insales and formatted Additional Information for Outsales/Encumbrances.
-- **Intelligent Alternatives**: UI dropdowns allowing users to pick from multiple AI guesses for messy text.
-- **Multi-Format Export**: Generate professional Word (.docx) and Markdown (.md) reports instantly.
+- **Intelligent Alternatives**: UI dropdowns allowing users to pick from multiple AI guesses and fuzzy-matched master lists.
+- **Multi-Format Export**: 
+  - **v1**: Generate professional Word (.docx) and Markdown (.md) reports.
+  - **v2**: Generate high-fidelity PDF reports with custom branding.
 - **Customer Priority Rules**: Specialized extraction logic for File Numbers based on filename, company, and address.
 - **Strict Hygiene**: ESLint, Prettier, and Husky safety gates enforced across the monorepo.
 - **Admin Suite**:

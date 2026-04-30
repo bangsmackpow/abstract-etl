@@ -56,6 +56,15 @@ To maintain alignment with the Hazelwood run-sheet standard, information is extr
     *   Marked **TRUE/YES** if "Yes" or "Out" is indicated on the deed.
     *   Marked **FALSE/NO** if "No" or "In" is indicated.
 
+## 6. V2 System (ProTitleUSA) Rules
+The following rules apply exclusively to jobs created using the "v2" standard:
+*   **Schema**: Data is extracted into the ProTitleUSA-compliant schema.
+*   **Output Format**: The primary output is a high-fidelity PDF report, not a `.docx` file.
+*   **Deed Type Logic**: 
+    *   The system will attempt to match the extracted deed type against a master list of 24 standard ProTitleUSA types.
+    *   If no direct match is found, the value will be formatted as `OTHER - [DISCOVERED TYPE]`.
+*   **UI Suggestions**: The user interface provides "Smart Suggestions" for many fields, including fuzzy-matched options from master lists for fields like `deed_type`.
+
 ---
 
 ### **Approval**

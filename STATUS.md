@@ -2,7 +2,8 @@
 
 ## Current State
 - **Architecture**: Monorepo with industrial-grade foundations (ESLint, Prettier, Husky).
-- **AI Engine**: **Gemini 2.5 Flash (Native)**. Direct Google SDK integration for true PDF pass-through.
+- **AI Engine**: **Gemini 1.5 Flash (Native)**. Direct Google SDK integration for true PDF pass-through.
+- **V2 Workflow**: Added a parallel "v2" job system for the ProTitleUSA schema, including a new PDF generator and "Smart Suggestions" UI.
 - **Accuracy**: Implemented customer-specific **File Number Priority Rules** and enforced the **Hazelwood Extraction Sequence**.
 - **Schema**: Unified nested `order_info` structure. Supports split tax installments (1st/2nd) and automatic ALL CAPS formatting.
 - **Reliability**: Timeouts increased to 10 minutes; manual image batching removed in favor of single-shot native processing.
@@ -10,7 +11,12 @@
 
 ## Recent Milestones
 - [x] **Phase 1 Foundations**: Strict TypeScript and linting safety gates live.
-- [x] **Phase 2 Completion**: Native PDF Upgrade (Gemini 2.5) and feature set finalized.
+- [x] **Phase 2 Completion**: Native PDF Upgrade (Gemini 1.5), v2 Job System, and feature set finalized.
+- [x] **V2 Implementation**:
+  - [x] Added `v2` (ProTitleUSA) schema and extraction logic.
+  - [x] Created `pdfGenerator.js` for high-fidelity v2 reports.
+  - [x] Implemented "Smart Suggestions" UI with fuzzy matching.
+  - [x] Added version toggle to New Job page and "Standard" column to dashboard.
 - [x] **Customer Rules**: Priority-based File Number extraction and mandatory sequence enforced.
 - [x] **Foreclosure Logic**: Trustee's Deed grouping and starred reference item formatting.
 - [x] **Names Searched Refinement**: Detailed inclusion/exclusion rules (Heirs, Owners, etc.) and borrower-first sorting.

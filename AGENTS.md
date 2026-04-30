@@ -8,12 +8,13 @@ This project is a high-performance ETL system for property abstracts. Agents wor
 - **Hygiene**: ESLint 8 (Flat-ish), Prettier, Husky.
 - **Validation**: Zod (Runtime environment checks).
 - **Database**: SQLite (managed via Drizzle ORM).
-- **AI**: Gemini 2.5 Flash (via direct `@google/generative-ai` SDK).
+- **AI**: Gemini 1.5 Flash (via direct `@google/generative-ai` SDK).
 
 ## Core Services
-- `googleAiService.js`: **Primary AI Engine.** Handles native PDF pass-through. Bypasses OpenRouter.
-- `docxGenerator.js`: Builds .docx files (ALL CAPS enforcement).
-- `markdownGenerator.js`: Builds .md files (ALL CAPS enforcement).
+- `googleAiService.js`: **Primary AI Engine.** Handles native PDF pass-through for both v1 (Legacy) and v2 (ProTitleUSA) schemas.
+- `pdfGenerator.js`: Builds high-fidelity PDF reports for v2 jobs.
+- `docxGenerator.js`: Builds .docx files for v1 jobs.
+- `markdownGenerator.js`: Builds .md files for v1 jobs.
 - `env.js / env.ts`: Centralized Zod validation for process.env.
 
 ## Key Rules
