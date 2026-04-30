@@ -19,7 +19,7 @@ export default function Navbar() {
       </span>
       <Link to="/" className="navbar-link">
         Dashboard
-      </button>
+      </Link>
       <Link to="/jobs/new" className="navbar-link">
         + New Job
       </Link>
