@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: 'dist'
+    outDir: 'dist',
   },
   server: {
     host: '0.0.0.0',
@@ -13,8 +13,8 @@ export default defineConfig({
       '/api': {
         target: 'http://abstract_backend:3001',
         changeOrigin: true,
-        secure: false
-      }
-    }
-  }
+        secure: false,
+      },
+    },
+  },
 });

@@ -3,41 +3,58 @@ import { useNavigate } from 'react-router-dom';
 import { extractPDF, createJob } from '../services/api';
 
 export default function NewJob() {
-  const navigate  = useNavigate();
-  const [file, setFile]     = useState(null);
+  const navigate = useNavigate();
+  const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
-  const [stage, setStage]   = useState('upload'); // upload | processing | done
+  const [stage, setStage] = useState('upload'); // upload | processing | done
   const [progress, setProgress] = useState(0);
-  const [error, setError]   = useState('');
+  const [error, setError] = useState('');
+  const [version, setVersion] = useState('v1'); // v1 | v2
 
   const handleFile = (f) => {
-    if (f?.type !== 'application/pdf') { setError('Please select a PDF file.'); return; }
-    setFile(f); setError('');
+    if (f?.type !== 'application/pdf') {
+      setError('Please select a PDF file.');
+      return;
+    }
+    setFile(f);
+    setError('');
   };
 
   const handleDrop = useCallback((e) => {
-    e.preventDefault(); setDragOver(false);
+    e.preventDefault();
+    setDragOver(false);
     handleFile(e.dataTransfer.files[0]);
   }, []);
 
   const handleSubmit = async () => {
     if (!file) return;
-    setStage('processing'); setError('');
+    setStage('processing');
+    setError('');
     try {
       // 1. Upload PDF + run AI extraction
-      const { fields, aiFlags, processingTimeMs } = await extractPDF(file, (evt) => {
-        setProgress(Math.round((evt.loaded / evt.total) * 40)); // upload = 0-40%
-      });
+      const { fields, aiFlags, processingTimeMs } = await extractPDF(
+        file,
+        (evt) => {
+          setProgress(Math.round((evt.loaded / evt.total) * 40)); // upload = 0-40%
+        },
+        version
+      );
       setProgress(90);
 
       // 2. Create job record with extracted data
+      const isV2 = version === 'v2';
       const job = await createJob({
-        property_address: fields.order_info?.property_address || '',
-        borrower_names:   fields.order_info?.current_vesting_owner || '',
-        county:           fields.order_info?.county || '',
-        fields_json:      fields,
-        ai_flags_json:    aiFlags,
-        processing_time_ms: processingTimeMs
+        property_address: isV2
+          ? fields.property_info?.address
+          : fields.order_info?.property_address || '',
+        borrower_names: isV2
+          ? fields.property_info?.current_owner
+          : fields.order_info?.current_vesting_owner || '',
+        county: isV2 ? fields.property_info?.county : fields.order_info?.county || '',
+        fields_json: fields,
+        ai_flags_json: aiFlags,
+        template_version: version,
+        processing_time_ms: processingTimeMs,
       });
       setProgress(100);
       setStage('done');
@@ -46,15 +63,20 @@ export default function NewJob() {
       setTimeout(() => navigate(`/jobs/${job.id}`), 600);
     } catch (err) {
       setError(err.response?.data?.message || 'Extraction failed. Please try again.');
-      setStage('upload'); setProgress(0);
+      setStage('upload');
+      setProgress(0);
     }
   };
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
       <div className="flex items-center gap-3 mb-4">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--blue-dark)' }}>New Abstract Job</h1>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
+          ← Back
+        </button>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--blue-dark)' }}>
+          New Abstract Job
+        </h1>
       </div>
 
       <div className="card">
@@ -64,10 +86,35 @@ export default function NewJob() {
 
           {stage === 'upload' && (
             <>
+              <div className="mb-4">
+                <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>
+                  Select Extraction Standard:
+                </label>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button
+                    className={`btn ${version === 'v1' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setVersion('v1')}
+                    style={{ flex: 1 }}
+                  >
+                    V1 (Legacy)
+                  </button>
+                  <button
+                    className={`btn ${version === 'v2' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setVersion('v2')}
+                    style={{ flex: 1 }}
+                  >
+                    V2 (ProTitleUSA)
+                  </button>
+                </div>
+              </div>
+
               <div
                 className={`upload-zone ${dragOver ? 'drag-over' : ''}`}
                 onDrop={handleDrop}
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
                 onDragLeave={() => setDragOver(false)}
                 onClick={() => document.getElementById('pdf-input').click()}
               >
@@ -85,18 +132,26 @@ export default function NewJob() {
                     <div className="upload-text">Scanned search order PDFs accepted · Max 50MB</div>
                   </>
                 )}
-                <input id="pdf-input" type="file" accept="application/pdf" style={{ display: 'none' }}
-                  onChange={e => handleFile(e.target.files[0])} />
+                <input
+                  id="pdf-input"
+                  type="file"
+                  accept="application/pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => handleFile(e.target.files[0])}
+                />
               </div>
 
               {file && (
                 <div className="mt-4">
                   <div className="alert alert-info" style={{ marginBottom: 16 }}>
-                    🤖 AI will scan all pages and extract abstract data automatically.
-                    You'll review and correct each field before saving.
+                    🤖 AI will scan all pages and extract abstract data automatically. You'll review
+                    and correct each field before saving.
                   </div>
-                  <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: 12 }}
-                    onClick={handleSubmit}>
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center', padding: 12 }}
+                    onClick={handleSubmit}
+                  >
                     Start Extraction →
                   </button>
                 </div>
@@ -107,15 +162,30 @@ export default function NewJob() {
           {stage === 'processing' && (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-              <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8, color: 'var(--blue-dark)' }}>
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: 16,
+                  marginBottom: 8,
+                  color: 'var(--blue-dark)',
+                }}
+              >
                 AI is reading your document...
               </div>
               <div className="text-muted text-sm" style={{ marginBottom: 24 }}>
-                Converting pages and extracting data fields. This may take 30–90 seconds for large PDFs.
+                Converting pages and extracting data fields. This may take 30–90 seconds for large
+                PDFs.
               </div>
               <div style={{ background: '#eee', borderRadius: 8, height: 10, overflow: 'hidden' }}>
-                <div style={{ background: 'var(--blue-mid)', height: '100%', width: `${progress}%`,
-                  transition: 'width 0.5s', borderRadius: 8 }} />
+                <div
+                  style={{
+                    background: 'var(--blue-mid)',
+                    height: '100%',
+                    width: `${progress}%`,
+                    transition: 'width 0.5s',
+                    borderRadius: 8,
+                  }}
+                />
               </div>
               <div className="text-sm text-muted mt-2">{progress}%</div>
             </div>
@@ -124,7 +194,9 @@ export default function NewJob() {
           {stage === 'done' && (
             <div style={{ textAlign: 'center', padding: 40 }}>
               <div style={{ fontSize: 48 }}>✅</div>
-              <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--green)' }}>Extraction complete!</div>
+              <div style={{ fontWeight: 600, fontSize: 16, color: 'var(--green)' }}>
+                Extraction complete!
+              </div>
               <div className="text-muted text-sm">Redirecting to review form...</div>
             </div>
           )}

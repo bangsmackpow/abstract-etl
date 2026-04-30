@@ -36,7 +36,10 @@ router.get('/:jobId', async (req, res) => {
     .substring(0, 60);
   const filename = `abstract_${addr}.docx`;
 
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  );
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(buffer);
 });

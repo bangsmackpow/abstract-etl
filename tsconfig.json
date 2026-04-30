@@ -10,7 +10,7 @@
     "noUncheckedIndexedAccess": true,
     "verbatimModuleSyntax": true,
     "exactOptionalPropertyTypes": true,
-    
+
     /* Module Resolution */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

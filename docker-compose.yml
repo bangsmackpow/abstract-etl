@@ -4,7 +4,7 @@ services:
     container_name: abstract_backend
     restart: unless-stopped
     ports:
-      - "3003:3001"
+      - '3003:3001'
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -25,7 +25,11 @@ services:
     volumes:
       - abstract_db_data:/app/data
     healthcheck:
-      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://localhost:3001/api/health'').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"',
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -37,7 +41,7 @@ services:
     container_name: abstract_frontend
     restart: unless-stopped
     ports:
-      - "5173:80"
+      - '5173:80'
     depends_on:
       backend:
         condition: service_healthy

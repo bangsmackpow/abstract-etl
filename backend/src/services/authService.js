@@ -17,29 +17,29 @@ async function comparePassword(password, hashedPassword) {
 
 function generateToken(user) {
   return jwt.sign(
-    { 
-      id: user.id, 
-      email: user.email, 
+    {
+      id: user.id,
+      email: user.email,
       role: user.role,
-      name: user.name 
-    }, 
-    JWT_SECRET, 
+      name: user.name,
+    },
+    JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
 }
 
 async function login(email, password) {
   const cleanEmail = (email || '').trim().toLowerCase();
-  console.log(`[AuthService] Querying for email: "${cleanEmail}"`);
-  
+  // console.log(`[AuthService] Querying for email: "${cleanEmail}"`);
+
   const [user] = await db.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
-  
+
   if (!user) {
     console.warn(`[AuthService] No user found with email: "${cleanEmail}"`);
     throw new Error('Invalid email or password');
   }
 
-  console.log(`[AuthService] User found: ${user.id}, role: ${user.role}. Verifying password...`);
+  // console.log(`[AuthService] User found: ${user.id}, role: ${user.role}. Verifying password...`);
 
   const isPasswordValid = comparePassword(password, user.password);
   if (!isPasswordValid) {
@@ -47,15 +47,15 @@ async function login(email, password) {
     throw new Error('Invalid email or password');
   }
 
-  console.log(`[AuthService] Password verified for: ${cleanEmail}`);
+  // console.log(`[AuthService] Password verified for: ${cleanEmail}`);
   const token = generateToken(user);
-  
+
   // Don't return the password
   const { password: _password, ...userWithoutPassword } = user;
-  
+
   return {
     user: userWithoutPassword,
-    token
+    token,
   };
 }
 
@@ -64,5 +64,5 @@ module.exports = {
   comparePassword,
   generateToken,
   login,
-  JWT_SECRET
+  JWT_SECRET,
 };

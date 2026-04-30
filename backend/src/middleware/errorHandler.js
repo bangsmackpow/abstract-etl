@@ -3,16 +3,21 @@
  * Catches both thrown errors and async rejections (express-async-errors).
  */
 function errorHandler(err, req, res, _next) {
-  console.error(`[ERROR] ${req.method} ${req.path}:`, err.message, err.status, JSON.stringify(err.data || {}));
+  console.error(
+    `[ERROR] ${req.method} ${req.path}:`,
+    err.message,
+    err.status,
+    JSON.stringify(err.data || {})
+  );
   if (process.env.NODE_ENV === 'development') console.error(err.stack);
 
-  const status  = err.status || err.statusCode || 500;
+  const status = err.status || err.statusCode || 500;
   const message = err.message || 'Internal server error';
 
   res.status(status).json({
     error: true,
     message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 }
 

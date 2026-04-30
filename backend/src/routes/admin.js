@@ -16,25 +16,28 @@ router.use(requireAdmin);
  */
 router.get('/metrics', async (req, res) => {
   // Total jobs per user
-  const jobsPerUser = await db.select({
-    userId: users.id,
-    userName: users.name,
-    jobCount: count(jobs.id),
-    avgProcessingTime: avg(jobs.processingTimeMs)
-  })
-  .from(users)
-  .leftJoin(jobs, eq(users.id, jobs.createdBy))
-  .groupBy(users.id);
+  const jobsPerUser = await db
+    .select({
+      userId: users.id,
+      userName: users.name,
+      jobCount: count(jobs.id),
+      avgProcessingTime: avg(jobs.processingTimeMs),
+    })
+    .from(users)
+    .leftJoin(jobs, eq(users.id, jobs.createdBy))
+    .groupBy(users.id);
 
   // Overall stats
-  const [overall] = await db.select({
-    totalJobs: count(jobs.id),
-    avgProcessingTime: avg(jobs.processingTimeMs)
-  }).from(jobs);
+  const [overall] = await db
+    .select({
+      totalJobs: count(jobs.id),
+      avgProcessingTime: avg(jobs.processingTimeMs),
+    })
+    .from(jobs);
 
   res.json({
     perUser: jobsPerUser,
-    overall: overall
+    overall: overall,
   });
 });
 
@@ -43,13 +46,15 @@ router.get('/metrics', async (req, res) => {
  * List all users.
  */
 router.get('/users', async (req, res) => {
-  const allUsers = await db.select({
-    id: users.id,
-    name: users.name,
-    email: users.email,
-    role: users.role,
-    createdAt: users.createdAt
-  }).from(users);
+  const allUsers = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      createdAt: users.createdAt,
+    })
+    .from(users);
   res.json(allUsers);
 });
 
@@ -67,17 +72,20 @@ router.post('/users', async (req, res) => {
   const hashedPassword = await hashPassword(password);
 
   try {
-    const [newUser] = await db.insert(users).values({
-      name,
-      email,
-      password: hashedPassword,
-      role: role || 'abstractor'
-    }).returning({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      role: users.role
-    });
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        name,
+        email,
+        password: hashedPassword,
+        role: role || 'abstractor',
+      })
+      .returning({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+      });
 
     res.status(201).json(newUser);
   } catch (err) {
@@ -101,10 +109,11 @@ router.patch('/users/:id/password', async (req, res) => {
 
   const hashedPassword = await hashPassword(password);
 
-  await db.update(users)
-    .set({ 
+  await db
+    .update(users)
+    .set({
       password: hashedPassword,
-      updatedAt: sql`(strftime('%s', 'now'))`
+      updatedAt: sql`(strftime('%s', 'now'))`,
     })
     .where(eq(users.id, req.params.id));
 

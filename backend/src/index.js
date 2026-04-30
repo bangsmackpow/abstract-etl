@@ -2,20 +2,20 @@ require('dotenv').config();
 const { env } = require('./env');
 require('express-async-errors');
 const express = require('express');
-const cors    = require('cors');
-const helmet  = require('helmet');
-const morgan  = require('morgan');
-const path    = require('path');
-const fs      = require('fs');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const path = require('path');
+const fs = require('fs');
 
-const jobRoutes      = require('./routes/jobs');
-const extractRoutes  = require('./routes/extract');
+const jobRoutes = require('./routes/jobs');
+const extractRoutes = require('./routes/extract');
 const generateRoutes = require('./routes/generate');
-const authRoutes     = require('./routes/auth');
-const adminRoutes    = require('./routes/admin');
+const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 const { errorHandler } = require('./middleware/errorHandler');
 
-const app  = express();
+const app = express();
 const PORT = env.PORT || 3001;
 
 // ── Uploads directory ────────────────────────────────────────────────────────
@@ -24,14 +24,16 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({
-  origin: [
-    env.APP_URL || 'http://localhost:5173',
-    'http://localhost:5173',
-    'http://localhost:3000'
-  ],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: [
+      env.APP_URL || 'http://localhost:5173',
+      'http://localhost:5173',
+      'http://localhost:3000',
+    ],
+    credentials: true,
+  })
+);
 app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -42,11 +44,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // ── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/auth',     authRoutes);
-app.use('/api/jobs',     jobRoutes);
-app.use('/api/extract',  extractRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api/extract', extractRoutes);
 app.use('/api/generate', generateRoutes);
-app.use('/api/admin',    adminRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
@@ -58,8 +60,8 @@ const { eq } = require('drizzle-orm');
 
 async function seedAdmin() {
   const adminEmail = env.ADMIN_EMAIL;
-  const adminPass  = env.ADMIN_PASSWORD;
-  
+  const adminPass = env.ADMIN_PASSWORD;
+
   if (!adminEmail || !adminPass) {
     console.warn('⚠️ ADMIN_EMAIL or ADMIN_PASSWORD not set. Skipping admin seed/sync.');
     return;
@@ -69,26 +71,29 @@ async function seedAdmin() {
   const bcrypt = require('bcryptjs');
 
   if (!existingAdmin) {
-    console.log('🌱 Seeding initial admin user...');
+    // console.log('🌱 Seeding initial admin user...');
     const hashedPassword = bcrypt.hashSync(adminPass, 10);
     await db.insert(users).values({
       name: 'System Admin',
       email: adminEmail,
       password: hashedPassword,
-      role: 'admin'
+      role: 'admin',
     });
-    console.log(`✅ Admin user created: ${adminEmail}`);
+    // console.log(`✅ Admin user created: ${adminEmail}`);
   } else {
     // Check if we need to update the password (e.g. if env changed)
     const isSame = bcrypt.compareSync(adminPass, existingAdmin.password);
-    
+
     if (!isSame) {
-      console.log('👤 Admin password changed in env. Updating...');
+      // console.log('👤 Admin password changed in env. Updating...');
       const hashedPassword = bcrypt.hashSync(adminPass, 10);
-      await db.update(users).set({ password: hashedPassword }).where(eq(users.id, existingAdmin.id));
-      console.log('✅ Admin password updated.');
+      await db
+        .update(users)
+        .set({ password: hashedPassword })
+        .where(eq(users.id, existingAdmin.id));
+      // console.log('✅ Admin password updated.');
     } else {
-      console.log('✅ Admin user verified.');
+      // console.log('✅ Admin user verified.');
     }
   }
 }
@@ -99,17 +104,16 @@ async function start() {
     // For this migration, we'll assume the schema is created by drizzle-kit push
     // or we can use drizzle-orm/better-sqlite3/migrator
     const { migrate } = require('drizzle-orm/better-sqlite3/migrator');
-    console.log('🔄 Running database migrations...');
+    // console.log('🔄 Running database migrations...');
     await migrate(db, { migrationsFolder: './drizzle' });
-    
+
     await seedAdmin();
 
     const server = app.listen(PORT, () => {
-      console.log(`✅  Abstract ETL backend running on port ${PORT}`);
-      console.log('    Database: SQLite (WAL mode enabled)');
-      console.log('    AI Provider: Google Native (Gemini 2.5 Flash)');
+      // console.log(`✅  Abstract ETL backend running on port ${PORT}`);
+      // console.log('    Database: SQLite (WAL mode enabled)');
+      // console.log('    AI Provider: Google Native (Gemini 2.5 Flash)');
     });
-
 
     // Increase timeout for long AI extractions (10 mins)
     server.timeout = 600000;

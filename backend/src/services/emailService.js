@@ -10,8 +10,8 @@ function getTransporter() {
     secure: process.env.SMTP_PORT === '465',
     auth: {
       user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
+      pass: process.env.SMTP_PASS,
+    },
   });
   return transporter;
 }
@@ -56,7 +56,7 @@ async function sendCompletionEmail({ to, abstractorName, propertyAddress, jobId,
           </p>
         </div>
       </div>
-    `
+    `,
   });
 
   return true;

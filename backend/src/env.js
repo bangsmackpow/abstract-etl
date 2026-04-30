@@ -18,5 +18,5 @@ if (!_env.success) {
 }
 
 module.exports = {
-  env: _env.data
+  env: _env.data,
 };

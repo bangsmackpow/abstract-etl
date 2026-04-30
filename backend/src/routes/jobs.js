@@ -12,12 +12,14 @@ router.use(requireAuth);
 
 // GET /api/jobs/admin/users — admin: list all users for filter dropdown
 router.get('/admin/users', requireAdmin, async (req, res) => {
-  const allUsers = await db.select({
-    id: users.id,
-    name: users.name,
-    email: users.email,
-    role: users.role
-  }).from(users);
+  const allUsers = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+    })
+    .from(users);
   res.json(allUsers);
 });
 
@@ -34,38 +36,45 @@ router.get('/', async (req, res) => {
   } else if (userId) {
     filters.push(eq(jobs.createdBy, userId));
   }
-  
+
   if (status) {
     filters.push(eq(jobs.status, status));
   }
-  
+
   if (search) {
-    filters.push(or(
-      like(jobs.propertyAddress, `%${search}%`),
-      like(jobs.borrowerNames, `%${search}%`),
-      like(jobs.county, `%${search}%`)
-    ));
+    filters.push(
+      or(
+        like(jobs.propertyAddress, `%${search}%`),
+        like(jobs.borrowerNames, `%${search}%`),
+        like(jobs.county, `%${search}%`)
+      )
+    );
   }
 
   const whereClause = filters.length > 0 ? and(...filters) : undefined;
 
-  const records = await db.select().from(jobs)
+  const records = await db
+    .select()
+    .from(jobs)
     .where(whereClause)
     .orderBy(desc(jobs.createdAt))
     .limit(limit)
     .offset(offset);
 
   // Get total count for pagination
-  const [countResult] = await db.select({ 
-    count: sql`count(*)` 
-  }).from(jobs).where(whereClause);
+  const [countResult] = await db
+    .select({
+      count: sql`count(*)`,
+    })
+    .from(jobs)
+    .where(whereClause);
 
   res.json({
     items: records,
     page: Number(page),
     perPage: Number(perPage),
     totalItems: Number(countResult.count),
-    totalPages: Math.ceil(Number(countResult.count) / limit)
+    totalPages: Math.ceil(Number(countResult.count) / limit),
   });
 });
 
@@ -87,33 +96,36 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/jobs — create new job (called after extraction)
 router.post('/', async (req, res) => {
-  const { 
-    property_address, 
-    borrower_names, 
-    county, 
-    order_date, 
-    fields_json, 
+  const {
+    property_address,
+    borrower_names,
+    county,
+    order_date,
+    fields_json,
     ai_flags_json,
-    processing_time_ms 
+    processing_time_ms,
   } = req.body;
 
   // Allow empty address on creation, default to PENDING so job can still be saved
   const finalAddress = property_address || 'PENDING ADDRESS';
 
-  const [record] = await db.insert(jobs).values({
-    createdBy: req.user.id,
-    status: 'draft',
-    propertyAddress: finalAddress,
-    borrowerNames: borrower_names || '',
-    county: county || '',
-    orderDate: order_date || null,
-    fieldsJson: fields_json || {},
-    aiFlagsJson: ai_flags_json || {},
-    templateVersion: 'v1',
-    emailSent: false,
-    notes: '',
-    processingTimeMs: processing_time_ms || null
-  }).returning();
+  const [record] = await db
+    .insert(jobs)
+    .values({
+      createdBy: req.user.id,
+      status: 'draft',
+      propertyAddress: finalAddress,
+      borrowerNames: borrower_names || '',
+      county: county || '',
+      orderDate: order_date || null,
+      fieldsJson: fields_json || {},
+      aiFlagsJson: ai_flags_json || {},
+      templateVersion: 'v1',
+      emailSent: false,
+      notes: '',
+      processingTimeMs: processing_time_ms || null,
+    })
+    .returning();
 
   res.status(201).json(record);
 });
@@ -139,10 +151,11 @@ router.patch('/:id', async (req, res) => {
   if (req.body.fields_json !== undefined) updates.fieldsJson = req.body.fields_json;
   if (req.body.ai_flags_json !== undefined) updates.aiFlagsJson = req.body.ai_flags_json;
   if (req.body.notes !== undefined) updates.notes = req.body.notes;
-  
+
   updates.updatedAt = sql`(strftime('%s', 'now'))`;
 
-  const [updated] = await db.update(jobs)
+  const [updated] = await db
+    .update(jobs)
     .set(updates)
     .where(eq(jobs.id, req.params.id))
     .returning();
@@ -156,7 +169,7 @@ router.patch('/:id', async (req, res) => {
         abstractorName: user.name,
         propertyAddress: updated.propertyAddress,
         jobId: updated.id,
-        appUrl: process.env.APP_URL
+        appUrl: process.env.APP_URL,
       });
       if (sent) {
         await db.update(jobs).set({ emailSent: true }).where(eq(jobs.id, req.params.id));

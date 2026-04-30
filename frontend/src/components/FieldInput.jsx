@@ -1,16 +1,69 @@
 import { useState, useRef, useEffect } from 'react';
 
+// Simple Levenshtein distance for fuzzy matching
+function getLevenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) matrix[i][j] = matrix[i - 1][j - 1];
+      else
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
 /**
  * A form field that tracks whether its value was AI-extracted or manually entered.
- * Shows a colored badge and updates the aiFlags map on change.
+ * Now includes smart suggestions from master lists and fuzzy matching.
  */
-export default function FieldInput({ label, fieldKey, value, onChange, onFlagChange, aiFlags, alternatives = {}, type = 'text', textarea = false }) {
-  const isAI    = aiFlags?.[fieldKey] === 'ai';
+export default function FieldInput({
+  label,
+  fieldKey,
+  value,
+  onChange,
+  onFlagChange,
+  aiFlags,
+  alternatives = {},
+  type = 'text',
+  textarea = false,
+  masterList = [], // NEW: List of valid options for this field
+}) {
+  const isAI = aiFlags?.[fieldKey] === 'ai';
   const isEmpty = value === null || value === undefined || value === '';
-  const alts    = alternatives?.[fieldKey] || [];
-  
+
+  // Combine AI-provided alternatives with fuzzy matches from the master list
+  const rawAlts = alternatives?.[fieldKey] || [];
   const [showAlts, setShowAlts] = useState(false);
   const wrapperRef = useRef(null);
+
+  const getSmartSuggestions = () => {
+    let suggestions = [...rawAlts];
+
+    if (masterList.length > 0 && value) {
+      const normalizedValue = value.toUpperCase();
+      // Get top 5 fuzzy matches from master list
+      const fuzzyMatches = masterList
+        .map((opt) => ({ opt, dist: getLevenshteinDistance(normalizedValue, opt.toUpperCase()) }))
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, 5)
+        .map((m) => m.opt);
+
+      suggestions = [...new Set([...suggestions, ...fuzzyMatches])];
+    }
+
+    return suggestions.filter((s) => s !== value);
+  };
+
+  const suggestions = getSmartSuggestions();
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -18,13 +71,12 @@ export default function FieldInput({ label, fieldKey, value, onChange, onFlagCha
         setShowAlts(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleChange = (e) => {
     onChange(fieldKey, e.target.value);
-    // Once the user edits, mark as manual
     if (onFlagChange && aiFlags?.[fieldKey] === 'ai') {
       onFlagChange(fieldKey, 'manual');
     }
@@ -40,18 +92,18 @@ export default function FieldInput({ label, fieldKey, value, onChange, onFlagCha
     <div className="form-group" ref={wrapperRef}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {label && <label className="form-label">{label}</label>}
-        {alts.length > 0 && (
-          <button 
+        {suggestions.length > 0 && (
+          <button
             type="button"
             className="text-xs font-bold text-blue-mid hover:underline"
             onClick={() => setShowAlts(!showAlts)}
             style={{ marginBottom: 4 }}
           >
-            {showAlts ? 'Close Alts' : `Alternatives (${alts.length}) ▼`}
+            {showAlts ? 'Close Suggestions' : `Suggestions (${suggestions.length}) ▼`}
           </button>
         )}
       </div>
-      
+
       <div className="field-wrapper" style={{ position: 'relative' }}>
         {textarea ? (
           <textarea
@@ -61,14 +113,9 @@ export default function FieldInput({ label, fieldKey, value, onChange, onFlagCha
             style={{ paddingRight: 64 }}
           />
         ) : (
-          <input
-            className="form-input"
-            type={type}
-            value={value ?? ''}
-            onChange={handleChange}
-          />
+          <input className="form-input" type={type} value={value ?? ''} onChange={handleChange} />
         )}
-        
+
         {!isEmpty && !showAlts && (
           <span className={`field-badge ${isAI ? 'badge-ai' : 'badge-manual'}`}>
             {isAI ? '🤖 AI' : '✏️'}
@@ -77,22 +124,26 @@ export default function FieldInput({ label, fieldKey, value, onChange, onFlagCha
 
         {showAlts && (
           <div className="alternatives-dropdown">
-            <div style={{ padding: '8px', fontSize: '11px', fontWeight: 'bold', color: '#666', borderBottom: '1px solid #eee' }}>
-              POSSIBLE ALTERNATIVES
+            <div
+              style={{
+                padding: '8px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                color: '#666',
+                borderBottom: '1px solid #eee',
+              }}
+            >
+              SMART SUGGESTIONS
             </div>
-            {alts.map((alt, i) => (
-              <div 
-                key={i} 
-                className="alt-item"
-                onClick={() => selectAlt(alt)}
-              >
+            {suggestions.map((alt, i) => (
+              <div key={i} className="alt-item" onClick={() => selectAlt(alt)}>
                 {alt}
               </div>
             ))}
           </div>
         )}
       </div>
-      
+
       <style>{`
         .alternatives-dropdown {
           position: absolute;
@@ -128,4 +179,3 @@ export default function FieldInput({ label, fieldKey, value, onChange, onFlagCha
     </div>
   );
 }
-

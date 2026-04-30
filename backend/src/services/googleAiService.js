@@ -1,50 +1,25 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
+const { DEED_TYPES, VESTING_STATUSES, MORTGAGE_TYPES } = require('./proTitleConstants');
 
 /**
  * Native Google AI Service
- * Bypasses OpenRouter for native PDF pass-through and maximum accuracy.
+ * Supports v1 (Legacy) and v2 (ProTitleUSA) extraction.
  */
 
 function getModel() {
   const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
   if (!apiKey) throw new Error('GOOGLE_AI_API_KEY is missing from environment.');
-  
+
   const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({ 
-    model: 'gemini-2.5-flash',
-    generationConfig: { responseMimeType: 'application/json' }
+  return genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash', // Updated to 2.0 Flash for best performance/accuracy balance
+    generationConfig: { responseMimeType: 'application/json' },
   });
 }
 
-async function testConnection() {
-  const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim();
-  if (!apiKey) {
-    console.warn('⚠️ [GoogleAI] GOOGLE_AI_API_KEY not set.');
-    return;
-  }
-
-  try {
-    const model = getModel();
-    const result = await model.generateContent("Say 'Ready'");
-    const response = await result.response;
-    console.log(`✅ [GoogleAI] Connection Verified: "${response.text().trim()}"`);
-  } catch (err) {
-    console.error('❌ [GoogleAI] Connection Failed:', err.message);
-  }
-}
-
-testConnection();
-
-const FIELD_SCHEMA = `{
-  "order_info": {
-    "file_number": null, "property_address": null, "effective_date": null, "completed_date": null,
-    "county": null, "township": null, "parcel_id": null, "assessed_value": null,
-    "land_value": null, "improvement_value": null, "tax_id": null,
-    "tax_amount_1st": null, "tax_amount_2nd": null, "tax_due_1st": null, "tax_due_2nd": null,
-    "tax_delinquent": null, "tax_paid": null, "excise_tax": null, "search_depth": null,
-    "current_vesting_owner": null, "marital_status": null
-  },
+const V1_SCHEMA = `{
+  "order_info": { "file_number": null, "property_address": null, "effective_date": null, "completed_date": null, "county": null, "township": null, "parcel_id": null, "assessed_value": null, "land_value": null, "improvement_value": null, "tax_id": null, "tax_amount_1st": null, "tax_amount_2nd": null, "tax_due_1st": null, "tax_due_2nd": null, "tax_delinquent": null, "tax_paid": null, "excise_tax": null, "search_depth": null, "current_vesting_owner": null, "marital_status": null },
   "chain_of_title": [{ "document_title": null, "book_instrument": null, "page": null, "dated": null, "recorded": null, "consideration": null, "in_out_sale": null, "grantors": [], "grantees": [], "notes": null }],
   "mortgages": [{ "document_title": null, "book_instrument": null, "page": null, "dated": null, "recorded": null, "consideration": null, "maturity_date": null, "lender": null, "mers_number": null, "borrower": null, "trustee": null, "notes": null }],
   "associated_documents": [{ "document_title": null, "consideration": null, "dated": null, "book_instrument": null, "page": null, "recorded": null, "grantor_assignor": null, "grantee_assignee": null, "notes": null }],
@@ -53,80 +28,55 @@ const FIELD_SCHEMA = `{
   "legal_description": null, "additional_information": null, "names_searched": [], "alternatives": {}
 }`;
 
-const SYSTEM_PROMPT = `You are an expert title abstract processor with 20 years of experience.
-Your goal is to extract property data from the attached PDF into valid JSON.
+const V2_SCHEMA = `{
+  "property_info": { "order_no": null, "current_owner": null, "address": null, "apn_parcel_pin": null, "county": null, "completed_date": null, "index_date": null, "misc_info_to_examiner": null },
+  "vesting_info": { "grantee": null, "grantor": null, "deed_date": null, "recorded_date": null, "instrument_book_page": null, "vbook_num": null, "vpage_num": null, "consideration_amount": null, "sale_price": null, "deed_type": null, "probate_status": null, "divorce_status": null, "notes": null },
+  "chain_of_title": [{ "grantee": null, "grantor": null, "deed_date": null, "recorded_date": null, "instrument_book_page": null, "vbook_num": null, "vpage_num": null, "consideration_amount": null, "deed_type": null, "notes": null }],
+  "mortgages": [{ "borrower": null, "lender": null, "mortgage_amount": null, "mortgage_date": null, "recorded_date": null, "book": null, "page": null, "instrument": null, "maturity_date": null, "mortgage_type": null, "mers": "No", "vesting_status": null, "assignments": [{ "document_type": null, "instrument": null, "book": null, "page": null, "recorded_date": null, "assignor": null, "assignee": null }] }],
+  "tax_status": { "parcel_id": null, "tax_year": null, "total_amount": null, "status": null, "paid_date": null, "delinquent_amount": null },
+  "legal_description": null,
+  "alternatives": {}
+}`;
 
-### MANDATORY STYLE & FORMATTING:
-1. **ALL CAPS**: Return ALL text (names, titles, notes, searched names, labels) in ALL CAPS.
-2. **NAME FORMATTING**:
-   - Do NOT include marital status (e.g., "A MARRIED MAN", "HUSBAND AND WIFE").
-   - If parties are married spouses in the instrument: separate with an ampersand (&). Example: "JOHN SMITH & JANE SMITH".
-   - If parties are NOT married: separate with a comma (,). Example: "JOHN SMITH, JANE SMITH".
-   - ALWAYS use full names for both parties. Never shorten or omit a name.
-   - If a person is both a grantor and grantee in the same instrument, list them in BOTH places.
-3. **LIFE ESTATE SYNTAX**: If a grantor reserves a life estate, format the Grantee line as: "[GRANTOR NAME] RESERVES LIFE ESTATE, [REMAINDERMAN NAME] REMAINDERMENT".
-4. **TOWNSHIP**: Set the township field to the CITY found in the property address.
-5. **CONSIDERATION**: Only enter a numeric dollar amount (e.g., "11,500.00") or the exact phrase "LOVE AND AFFECTION". Otherwise, leave it blank.
+const SYSTEM_PROMPT_V2 = `You are an expert title abstract processor.
+Extract property data into the ProTitleUSA v2 JSON schema.
 
-### MANDATORY EXTRACTION SEQUENCE:
-1. Order Information
-2. Chain of Title (INSALES ONLY)
-3. Mortgages / Deeds of Trust
-4. Associated Documents (Assignments/Releases)
-5. Judgments / Liens
-6. Miscellaneous Documents
-7. Legal Description
-8. Additional Information (OUTSALES & ENCUMBRANCES)
-9. Names Searched
+### MANDATORY RULES:
+1. **ALL CAPS**: All text values must be UPPERCASE.
+2. **DEED TYPE MATCHING**: Match the discovered deed type against this list: [${DEED_TYPES.join(', ')}].
+   - If a near match is found, use the exact string from the list.
+   - If NO match is found, use the format: "OTHER - [DISCOVERED TYPE]".
+3. **MORTGAGE TYPE MATCHING**: Match against: [${MORTGAGE_TYPES.join(', ')}].
+4. **VESTING STATUS**: Match against: [${VESTING_STATUSES.join(', ')}].
+5. **ALTERNATIVES**: For any Names, Dates, or Legal Descriptions where OCR is blurry or ambiguous, provide the top 2 alternatives in the "alternatives" object using the field path as key.
 
-### CRITICAL RULES:
-- **INSALES vs OUTSALES**:
-  - Numbered "chain_of_title" entries are for INSALES only (where current owner acquires property). Set "in_out_sale" to true for these.
-  - OUTSALES (selling pieces off) and supporting docs (EASEMENTS, ROWs, LEASES, C&Rs) must NOT be in the numbered chain.
-  - List OUTSALES/ENCUMBRANCES in "additional_information" using format: "BOOK/PAGE [LABEL]". Example: "2016/6754 OUTSALE", "738/1035 EASEMENT".
-- **TRUSTEE'S DEED & FORECLOSURE**:
-  - Index the Trustee's Deed as a numbered chain entry.
-  - List related docs (ACCOUNT OF SALE, SUBSTITUTE TRUSTEES, etc.) as starred items (*) in the notes of that entry.
-  - Label the foreclosed DOT as: *FORECLOSED DOT [BOOK/PAGE].
-  - Label other DOTs as: *DOT OPEN AT THE TIME OF FORECLOSURE [BOOK/PAGE].
-- **NAMES SEARCHED**: 
-  - Include: Borrower(s) listed on request form (LIST FIRST in original order), all Grantors/Grantees, Owners, and Heirs (Wills/LOH/REA).
-  - EXCLUDE: Special Commissioners and Trustees on Trustee's Deeds.
-- **LEGAL DESCRIPTION**: Capture ENTIRE text word-for-word. No "..." or summaries.
+Return valid JSON:
+${V2_SCHEMA}`;
 
-### FILE NUMBER PRIORITY RULES:
-1. **Filename first**: If the provided filename contains a usable ID, use the full ID.
-2. **Company + ID**: Use "CompanyName FullID" (e.g., "TACS 512571-16683", "MORTILES 251113011").
-3. **ID Only**: Use the ID alone if no company is evident.
-4. **Company + Address**: If no ID, use "CompanyName FullPropertyAddress".
-5. **Address Only**: Use full Property Address as the File Number.
-6. **Never invent a File Number.**
-
-Return valid JSON matching this schema:
-${FIELD_SCHEMA}`;
-
-async function extractFromPDF(pdfPath, originalFilename = '') {
-  console.log(`[GoogleAI] Extracting native PDF: ${pdfPath} (Filename: ${originalFilename})`);
-  
+async function extractFromPDF(pdfPath, originalFilename = '', version = 'v1') {
   const model = getModel();
   const pdfBuffer = fs.readFileSync(pdfPath);
 
+  const prompt =
+    version === 'v2'
+      ? SYSTEM_PROMPT_V2
+      : `The original schema is: ${V1_SCHEMA}. Use All Caps. Use Schema: ${V1_SCHEMA}`;
+
   const promptParts = [
-    { text: `The original filename is: "${originalFilename}"` },
-    { text: SYSTEM_PROMPT },
+    { text: `Filename: "${originalFilename}"` },
+    { text: prompt },
     {
       inlineData: {
         data: pdfBuffer.toString('base64'),
-        mimeType: 'application/pdf'
-      }
-    }
+        mimeType: 'application/pdf',
+      },
+    },
   ];
 
   try {
     const result = await model.generateContent(promptParts);
     const response = await result.response;
-    const text = response.text();
-    return JSON.parse(text);
+    return JSON.parse(response.text());
   } catch (err) {
     console.error('❌ [GoogleAI] Error:', err.message);
     throw err;

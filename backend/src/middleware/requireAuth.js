@@ -8,16 +8,18 @@ async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: true, message: 'Missing or invalid authorization header' });
+      return res
+        .status(401)
+        .json({ error: true, message: 'Missing or invalid authorization header' });
     }
     const token = authHeader.split(' ')[1];
-    
+
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      
+
       // Optional: Verify user still exists in DB
       const [user] = await db.select().from(users).where(eq(users.id, decoded.id)).limit(1);
-      
+
       if (!user) {
         return res.status(401).json({ error: true, message: 'User not found' });
       }

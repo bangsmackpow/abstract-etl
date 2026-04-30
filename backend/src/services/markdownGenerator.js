@@ -5,7 +5,7 @@ function generateMarkdown(fields) {
   const f = fields;
   const oi = f.order_info || {};
 
-  const val = (v) => (v !== null && v !== undefined && v !== '') ? String(v).toUpperCase() : '';
+  const val = (v) => (v !== null && v !== undefined && v !== '' ? String(v).toUpperCase() : '');
   const dash = (v) => val(v) || '—';
 
   let md = '# PROPERTY ABSTRACT REPORT\n\n';
@@ -48,11 +48,11 @@ function generateMarkdown(fields) {
       md += `- **Dated/Recorded**: ${dash(e.dated)} / ${dash(e.recorded)}\n`;
       md += `- **Consideration**: ${dash(e.consideration)}\n`;
       md += `- **In/Out Sale**: ${e.in_out_sale === true ? 'YES' : e.in_out_sale === false ? 'NO' : '—'}\n`;
-      md += `- **Grantor(s)**: ${(e.grantors || []).map(g => g.toUpperCase()).join('; ') || '—'}\n`;
-      md += `- **Grantee(s)**: ${(e.grantees || []).map(g => g.toUpperCase()).join('; ') || '—'}\n`;
-      if (e.notes) md += `- **Notes**: ${e.notes.startsWith('*') ? val(e.notes) : `NOTES: ${val(e.notes)}`}\n`;
+      md += `- **Grantor(s)**: ${(e.grantors || []).map((g) => g.toUpperCase()).join('; ') || '—'}\n`;
+      md += `- **Grantee(s)**: ${(e.grantees || []).map((g) => g.toUpperCase()).join('; ') || '—'}\n`;
+      if (e.notes)
+        md += `- **Notes**: ${e.notes.startsWith('*') ? val(e.notes) : `NOTES: ${val(e.notes)}`}\n`;
       md += '\n';
-
     });
   }
 
@@ -126,7 +126,7 @@ function generateMarkdown(fields) {
 
   // Names Searched
   md += '## NAMES SEARCHED\n';
-  md += `${(f.names_searched || []).map(n => n.toUpperCase()).join('; ') || 'NONE PROVIDED.'}\n\n`;
+  md += `${(f.names_searched || []).map((n) => n.toUpperCase()).join('; ') || 'NONE PROVIDED.'}\n\n`;
 
   // Additional Info
   md += '## ADDITIONAL INFORMATION\n';

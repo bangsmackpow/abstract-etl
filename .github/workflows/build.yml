@@ -2,7 +2,7 @@ name: Build and Push Docker Images
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -86,4 +86,3 @@ jobs:
       - name: Trigger Portainer Webhook
         run: |
           curl -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}"
-

@@ -7,15 +7,16 @@ const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 
 
 export default function Dashboard() {
   const { isAdmin } = useAuth();
-  const [jobs, setJobs]     = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const fetchJobs = async () => {
-    setLoading(true); setError('');
+    setLoading(true);
+    setError('');
     try {
       const data = await getJobs({ search: search || undefined, status: status || undefined });
       setJobs(data.items || []);
@@ -28,30 +29,45 @@ export default function Dashboard() {
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this abstract? This cannot be undone.')) return;
+    if (!window.confirm('Are you sure you want to delete this abstract? This cannot be undone.'))
+      return;
     try {
       await deleteJob(id);
-      setJobs(jobs.filter(j => j.id !== id));
+      setJobs(jobs.filter((j) => j.id !== id));
     } catch (err) {
       alert('Failed to delete job.');
     }
   };
 
-  useEffect(() => { fetchJobs(); }, [search, status]);
+  useEffect(() => {
+    fetchJobs();
+  }, [search, status]);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--blue-dark)' }}>My Jobs</h1>
-        <Link to="/jobs/new" className="btn btn-primary">+ New Job</Link>
+        <Link to="/jobs/new" className="btn btn-primary">
+          + New Job
+        </Link>
       </div>
 
       {/* Filters */}
       <div className="card mb-4">
         <div className="card-body" style={{ display: 'flex', gap: 12 }}>
-          <input className="form-input" style={{ flex: 1 }} placeholder="Search by address, borrower, or county..."
-            value={search} onChange={e => setSearch(e.target.value)} />
-          <select className="form-select" style={{ width: 180 }} value={status} onChange={e => setStatus(e.target.value)}>
+          <input
+            className="form-input"
+            style={{ flex: 1 }}
+            placeholder="Search by address, borrower, or county..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            className="form-select"
+            style={{ width: 180 }}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
             <option value="">All Statuses</option>
             <option value="draft">Draft</option>
             <option value="needs_review">Needs Review</option>
@@ -68,8 +84,13 @@ export default function Dashboard() {
             <span className="spinner spinner-dark" /> Loading...
           </div>
         ) : jobs.length === 0 ? (
-          <div className="card-body" style={{ textAlign: 'center', padding: 40, color: 'var(--gray-mid)' }}>
-            {search || status ? 'No jobs match your filters.' : 'No jobs yet. Click "+ New Job" to get started.'}
+          <div
+            className="card-body"
+            style={{ textAlign: 'center', padding: 40, color: 'var(--gray-mid)' }}
+          >
+            {search || status
+              ? 'No jobs match your filters.'
+              : 'No jobs yet. Click "+ New Job" to get started.'}
           </div>
         ) : (
           <table className="data-table">
@@ -78,24 +99,46 @@ export default function Dashboard() {
                 <th>Property Address</th>
                 <th>Borrower(s)</th>
                 <th>County</th>
+                <th>Standard</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th style={{ width: 120 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {jobs.map(job => (
-                <tr key={job.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/jobs/${job.id}`)}>
+              {jobs.map((job) => (
+                <tr
+                  key={job.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => navigate(`/jobs/${job.id}`)}
+                >
                   <td style={{ fontWeight: 500 }}>{job.propertyAddress || '—'}</td>
                   <td>{job.borrowerNames || '—'}</td>
                   <td>{job.county || '—'}</td>
-                  <td><span className={`status-badge status-${job.status}`}>{STATUS_LABELS[job.status] || job.status}</span></td>
+                  <td>
+                    <span
+                      className={`status-badge status-${job.templateVersion === 'v2' ? 'v2' : 'v1'}`}
+                    >
+                      {job.templateVersion || 'v1'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`status-badge status-${job.status}`}>
+                      {STATUS_LABELS[job.status] || job.status}
+                    </span>
+                  </td>
                   <td>{new Date(job.createdAt).toLocaleDateString()}</td>
-                  <td onClick={e => e.stopPropagation()}>
+                  <td onClick={(e) => e.stopPropagation()}>
                     <div className="flex gap-2">
-                      <Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">Edit</Link>
+                      <Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">
+                        Edit
+                      </Link>
                       {isAdmin && (
-                        <button className="btn btn-ghost btn-sm text-error" onClick={(e) => handleDelete(job.id, e)} title="Delete Job">
+                        <button
+                          className="btn btn-ghost btn-sm text-error"
+                          onClick={(e) => handleDelete(job.id, e)}
+                          title="Delete Job"
+                        >
                           🗑️
                         </button>
                       )}

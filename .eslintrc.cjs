@@ -20,16 +20,16 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': [
       'error',
       {
-        'argsIgnorePattern': '^_',
-        'varsIgnorePattern': '^_',
-        'caughtErrorsIgnorePattern': '^_'
-      }
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      },
     ],
     '@typescript-eslint/no-var-requires': 'off',
     'no-console': ['warn', { allow: ['info', 'warn', 'error'] }],
     'prefer-const': 'error',
-    'quotes': ['error', 'single', { 'avoidEscape': true }],
-    'semi': ['error', 'always'],
+    quotes: ['error', 'single', { avoidEscape: true }],
+    semi: ['error', 'always'],
     'react/prop-types': 'off',
     'no-inner-declarations': 'off',
   },

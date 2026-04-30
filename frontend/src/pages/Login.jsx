@@ -4,11 +4,11 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function Login() {
   const { login } = useAuth();
-  const navigate  = useNavigate();
-  const [email, setEmail]       = useState('');
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,17 +33,38 @@ export default function Login() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Email Address</label>
-            <input className="form-input" type="email" value={email}
-              onChange={e => setEmail(e.target.value)} required autoFocus />
+            <input
+              className="form-input"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoFocus
+            />
           </div>
           <div className="form-group" style={{ marginBottom: 24 }}>
             <label className="form-label">Password</label>
-            <input className="form-input" type="password" value={password}
-              onChange={e => setPassword(e.target.value)} required />
+            <input
+              className="form-input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
           </div>
-          <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
-            type="submit" disabled={loading}>
-            {loading ? <><span className="spinner" /> Signing in...</> : 'Sign In'}
+          <button
+            className="btn btn-primary"
+            style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <span className="spinner" /> Signing in...
+              </>
+            ) : (
+              'Sign In'
+            )}
           </button>
         </form>
         <p style={{ marginTop: 16, fontSize: 12, color: '#aaa', textAlign: 'center' }}>

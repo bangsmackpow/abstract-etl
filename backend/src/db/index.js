@@ -7,7 +7,7 @@ const fs = require('fs');
 const dbPath = process.env.DB_PATH || path.join(__dirname, '..', '..', 'data', 'sqlite.db');
 const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
-  console.log(`[DB] Creating directory: ${dbDir}`);
+  // console.log(`[DB] Creating directory: ${dbDir}`);
   fs.mkdirSync(dbDir, { recursive: true, mode: 0o777 });
 }
 
