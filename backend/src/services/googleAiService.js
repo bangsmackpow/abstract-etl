@@ -12,9 +12,9 @@ function getModel() {
   if (!apiKey) throw new Error('GOOGLE_AI_API_KEY is missing from environment.');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash', // Updated to 2.0 Flash for best performance/accuracy balance
-    generationConfig: { responseMimeType: 'application/json' },
+  return genAI.getGenerativeModel({ 
+    model: 'gemini-1.5-flash',
+    generationConfig: { responseMimeType: 'application/json' }
   });
 }
 
