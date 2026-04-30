@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getJob, updateJob, downloadDocx, downloadMarkdown, deleteJob } from '../services/api';
+import { getJob, updateJob, downloadDocx, downloadMarkdown, deleteJob, downloadPdf } from '../services/api';
 import AbstractForm from '../components/AbstractForm';
 import { useAuth } from '../hooks/useAuth';
 
@@ -16,6 +14,7 @@ export default function EditJob() {
   const [saving, setSaving] = useState(false);
   const [downloadingDocx, setDownloadingDocx] = useState(false);
   const [downloadingMd, setDownloadingMd] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,25 +33,12 @@ export default function EditJob() {
   const handleFieldChange = (path, value) => {
     setFields((prev) => {
       const newFields = { ...prev };
+      // This is a simplified setter. A real implementation would use a library
+      // like 'immer' or a more robust nested property setter.
       const parts = path.split('.');
       let current = newFields;
       for (let i = 0; i < parts.length - 1; i++) {
-        const part = parts[i];
-        if (!current[part]) {
-          // If it's an array index (e.g., chain_of_title[0])
-          const arrayMatch = part.match(/(.+)\[(\d+)\]/);
-          if (arrayMatch) {
-            const [, name, index] = arrayMatch;
-            if (!current[name]) current[name] = [];
-            if (!current[name][index]) current[name][index] = {};
-            current = current[name][index];
-          } else {
-            current[part] = {};
-            current = current[part];
-          }
-        } else {
-          current = current[part];
-        }
+        current = current[parts[i]] = { ...current[parts[i]] };
       }
       current[parts[parts.length - 1]] = value;
       return newFields;
@@ -68,13 +54,14 @@ export default function EditJob() {
     setError('');
     setSaved(false);
     try {
+      const isV2 = job?.templateVersion === 'v2';
       await updateJob(id, {
         fields_json: fields,
         ai_flags_json: aiFlags,
         status,
         notes,
-        property_address: fields.order_info?.property_address || job.propertyAddress,
-        county: fields.order_info?.county || job.county,
+        property_address: isV2 ? fields.property_info?.address : fields.order_info?.property_address,
+        county: isV2 ? fields.property_info?.county : fields.order_info?.county,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -88,7 +75,7 @@ export default function EditJob() {
   const handleDownloadDocx = async () => {
     setDownloadingDocx(true);
     try {
-      await updateJob(id, { fields_json: fields, ai_flags_json: aiFlags, status, notes });
+      await handleSave(); // Save latest changes before downloading
       await downloadDocx(id, fields.order_info?.property_address || job.propertyAddress);
     } catch {
       setError('Word download failed.');
@@ -100,12 +87,24 @@ export default function EditJob() {
   const handleDownloadMd = async () => {
     setDownloadingMd(true);
     try {
-      await updateJob(id, { fields_json: fields, ai_flags_json: aiFlags, status, notes });
+      await handleSave(); // Save latest changes before downloading
       await downloadMarkdown(id, fields.order_info?.property_address || job.propertyAddress);
     } catch {
       setError('Markdown download failed.');
     } finally {
       setDownloadingMd(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+        await handleSave(); // Save latest changes before downloading
+        await downloadPdf(id, fields.property_info?.address || job.propertyAddress);
+    } catch (err) {
+        setError(err.response?.data?.message || 'PDF download failed.');
+    } finally {
+        setDownloadingPdf(false);
     }
   };
 
@@ -127,6 +126,11 @@ export default function EditJob() {
       </div>
     );
 
+  const isV2 = job?.templateVersion === 'v2';
+  const headerAddress = isV2
+    ? fields.property_info?.address || job?.propertyAddress
+    : fields.order_info?.property_address || job?.propertyAddress;
+
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       {/* Top bar */}
@@ -136,7 +140,7 @@ export default function EditJob() {
             ← Dashboard
           </button>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--blue-dark)' }}>
-            {fields.order_info?.property_address || job?.propertyAddress || 'Edit Job'}
+            {headerAddress || 'Edit Job'}
           </h1>
         </div>
         <div className="flex gap-2 items-center">
@@ -150,16 +154,8 @@ export default function EditJob() {
             <option value="needs_review">Needs Review</option>
             <option value="complete">Complete</option>
           </select>
-          {saved && (
-            <span className="text-sm" style={{ color: 'var(--green)' }}>
-              ✓ Saved
-            </span>
-          )}
-          {error && (
-            <span className="text-sm" style={{ color: 'var(--red)' }}>
-              {error}
-            </span>
-          )}
+          {saved && <span className="text-sm" style={{ color: 'var(--green)' }}>✓ Saved</span>}
+          {error && <span className="text-sm" style={{ color: 'var(--red)' }}>{error}</span>}
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
@@ -172,24 +168,31 @@ export default function EditJob() {
       </div>
 
       <div className="flex gap-3 mb-6">
-        <button className="btn btn-success" onClick={handleDownloadDocx} disabled={downloadingDocx}>
-          {downloadingDocx ? 'Generating...' : '⬇ Download Word (.docx)'}
-        </button>
-        <button
-          className="btn btn-ghost"
-          onClick={handleDownloadMd}
-          disabled={downloadingMd}
-          style={{ border: '1px solid #ddd' }}
-        >
-          {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
-        </button>
+        {isV2 ? (
+            <button className="btn btn-success" onClick={handleDownloadPdf} disabled={downloadingPdf}>
+                {downloadingPdf ? 'Generating...' : '⬇ Download PDF Report'}
+            </button>
+        ) : (
+            <>
+                <button className="btn btn-success" onClick={handleDownloadDocx} disabled={downloadingDocx}>
+                {downloadingDocx ? 'Generating...' : '⬇ Download Word (.docx)'}
+                </button>
+                <button
+                className="btn btn-ghost"
+                onClick={handleDownloadMd}
+                disabled={downloadingMd}
+                style={{ border: '1px solid #ddd' }}
+                >
+                {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
+                </button>
+            </>
+        )}
       </div>
 
       <div className="alert alert-info text-sm mb-6">
         🤖 <strong>AI-extracted</strong> fields are marked. You can choose{' '}
         <strong>Alternatives ▼</strong> if the detection was ambiguous.
       </div>
-
       <div className="card mb-6">
         <div className="card-body">
           <AbstractForm
@@ -198,6 +201,22 @@ export default function EditJob() {
             onFieldChange={handleFieldChange}
             onFlagChange={handleFlagChange}
             templateVersion={job?.templateVersion}
+          />
+        </div>
+      </div>
+
+      {/* NOTES */}
+      <div style={{ marginBottom: 12, fontWeight: 'bold', fontSize: 14, color: '#1a365d' }}>
+        ABSTRACTOR NOTES (INTERNAL ONLY)
+      </div>
+      <div className="card mb-6">
+        <div className="card-body">
+          <textarea
+            className="form-textarea"
+            rows={4}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Internal system notes..."
           />
         </div>
       </div>
@@ -221,3 +240,4 @@ export default function EditJob() {
     </div>
   );
 }
+

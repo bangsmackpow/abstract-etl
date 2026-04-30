@@ -22,17 +22,15 @@ export default function AbstractForm({
 
 function V2Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
   const fieldProps = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+  const mortgages = fields?.mortgages || [];
+  const chain = fields?.chain_of_title || [];
+
   return (
     <div>
       <Section title="Property and Ownership Information">
         <div style={s.grid2}>
           <Field label="ProTitle Order#" path="property_info.order_no" {...fieldProps} />
-          <Field
-            label="Completed Date"
-            path="property_info.completed_date"
-            placeholder="MM/DD/YYYY"
-            {...fieldProps}
-          />
+          <Field label="Completed Date" path="property_info.completed_date" placeholder="MM/DD/YYYY" {...fieldProps} />
         </div>
         <Field label="Property Address" path="property_info.address" {...fieldProps} />
         <div style={s.grid3}>
@@ -40,40 +38,130 @@ function V2Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) 
           <Field label="County" path="property_info.county" {...fieldProps} />
           <Field label="APN / Parcel #" path="property_info.apn_parcel_pin" {...fieldProps} />
         </div>
-        <Field
-          label="Misc Info for Examiner"
-          path="property_info.misc_info_to_examiner"
-          multiline
-          {...fieldProps}
-        />
+        <Field label="Misc Info for Examiner" path="property_info.misc_info_to_examiner" multiline {...fieldProps} />
       </Section>
+
       <Section title="Vesting Information">
         <div style={s.grid2}>
           <Field label="Grantee" path="vesting_info.grantee" {...fieldProps} />
           <Field label="Grantor" path="vesting_info.grantor" {...fieldProps} />
         </div>
         <div style={s.grid3}>
-          <Field label="Deed Date" path="vesting_info.deed_date" {...fieldProps} />
-          <Field label="Recorded Date" path="vesting_info.recorded_date" {...fieldProps} />
-          <Field
-            label="Deed Type"
-            path="vesting_info.deed_type"
-            {...fieldProps}
-            masterList={DEED_TYPES}
-          />
+            <Field label="Deed Date" path="vesting_info.deed_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+            <Field label="Recorded Date" path="vesting_info.recorded_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+            <Field label="Deed Type" path="vesting_info.deed_type" {...fieldProps} masterList={DEED_TYPES} />
         </div>
-        <div style={s.grid2}>
+        <div style={s.grid3}>
+            <Field label="Instrument/Book/Page" path="vesting_info.instrument_book_page" {...fieldProps} />
+            <Field label="Consideration" path="vesting_info.consideration_amount" {...fieldProps} />
+            <Field label="Sale Price" path="vesting_info.sale_price" {...fieldProps} />
+        </div>
+         <div style={s.grid2}>
           <Field label="Probate Status" path="vesting_info.probate_status" {...fieldProps} />
           <Field label="Divorce Status" path="vesting_info.divorce_status" {...fieldProps} />
         </div>
         <Field label="Notes" path="vesting_info.notes" multiline {...fieldProps} />
       </Section>
+
+      <Section title={`Chain of Title (${chain.length})`}>
+        {chain.map((_, i) => (
+          <V2ChainEntry key={i} index={i} {...fieldProps} />
+        ))}
+      </Section>
+
+      <Section title={`Open Mortgages (${mortgages.length})`}>
+        {mortgages.map((_, i) => (
+          <V2MortgageEntry key={i} index={i} {...fieldProps} />
+        ))}
+      </Section>
+
+      <Section title="Tax Status">
+        <div style={s.grid3}>
+            <Field label="Parcel ID" path="tax_status.parcel_id" {...fieldProps} />
+            <Field label="Tax Year" path="tax_status.tax_year" {...fieldProps} />
+            <Field label="Total Amount" path="tax_status.total_amount" {...fieldProps} />
+        </div>
+        <div style={s.grid3}>
+            <Field label="Status" path="tax_status.status" {...fieldProps} />
+            <Field label="Paid Date" path="tax_status.paid_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+            <Field label="Delinquent Amount" path="tax_status.delinquent_amount" {...fieldProps} />
+        </div>
+      </Section>
+
       <Section title="Legal Description">
         <Field label="Legal Description" path="legal_description" multiline {...fieldProps} />
       </Section>
     </div>
   );
 }
+
+function V2ChainEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `chain_of_title.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>Chain Entry {index + 1}</div>
+            <div style={s.grid2}>
+                <Field label="Grantee" path={`${base}.grantee`} {...fp} />
+                <Field label="Grantor" path={`${base}.grantor`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="Deed Date" path={`${base}.deed_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="Recorded Date" path={`${base}.recorded_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="Deed Type" path={`${base}.deed_type`} {...fp} masterList={DEED_TYPES} />
+            </div>
+            <div style={s.grid2}>
+                <Field label="Instrument/Book/Page" path={`${base}.instrument_book_page`} {...fp} />
+                <Field label="Consideration" path={`${base}.consideration_amount`} {...fp} />
+            </div>
+            <Field label="Notes" path={`${base}.notes`} multiline {...fp} />
+        </div>
+    );
+}
+
+function V2MortgageEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `mortgages.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    const assignments = fields?.mortgages?.[index]?.assignments || [];
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>Mortgage {index + 1}</div>
+            <div style={s.grid2}>
+                <Field label="Borrower" path={`${base}.borrower`} {...fp} />
+                <Field label="Lender" path={`${base}.lender`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="Mortgage Date" path={`${base}.mortgage_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="Recorded Date" path={`${base}.recorded_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="Mortgage Amount" path={`${base}.mortgage_amount`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="Mortgage Type" path={`${base}.mortgage_type`} {...fp} masterList={MORTGAGE_TYPES} />
+                <Field label="Vesting Status" path={`${base}.vesting_status`} {...fp} masterList={VESTING_STATUSES} />
+                <Field label="Maturity Date" path={`${base}.maturity_date`} placeholder="MM/DD/YYYY" {...fp} />
+            </div>
+            <div style={{ marginTop: '1rem' }}>
+              <div style={s.entryNum}>Assignments</div>
+              {assignments.map((_, a_idx) => {
+                const a_base = `${base}.assignments.${a_idx}`;
+                return (
+                  <div key={a_idx} style={{...s.entryCard, background: '#fff', border: '1px solid #d1d5db'}}>
+                    <div style={s.grid2}>
+                      <Field label="Assignor" path={`${a_base}.assignor`} {...fp} />
+                      <Field label="Assignee" path={`${a_base}.assignee`} {...fp} />
+                    </div>
+                     <div style={s.grid3}>
+                        <Field label="Recorded Date" path={`${a_base}.recorded_date`} placeholder="MM/DD/YYYY" {...fp} />
+                        <Field label="Instrument #" path={`${a_base}.instrument`} {...fp} />
+                     </div>
+                  </div>
+                )
+              })}
+            </div>
+        </div>
+    );
+}
+
 
 function V1Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
   // ... (existing V1 form structure) ...

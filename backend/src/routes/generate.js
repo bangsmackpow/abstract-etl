@@ -6,9 +6,36 @@ const { eq } = require('drizzle-orm');
 const { requireAuth } = require('../middleware/requireAuth');
 const { generateDocx } = require('../services/docxGenerator');
 const { generateMarkdown } = require('../services/markdownGenerator');
+const { generateV2Report } = require('../services/pdfGenerator');
 const { createError } = require('../middleware/errorHandler');
 
 router.use(requireAuth);
+
+/**
+ * GET /api/generate/:jobId/pdf
+ * Generates and downloads a .pdf for a v2 job.
+ */
+router.get('/:jobId/pdf', async (req, res, next) => {
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
+
+    if (!job) return next(createError('Not found', 404));
+    if (req.user.role !== 'admin' && job.createdBy !== req.user.id) return next(createError('Not found', 404));
+
+    // This route is for V2 jobs only
+    if (job.templateVersion !== 'v2') {
+        return next(createError('PDF export is only available for V2 jobs.', 400));
+    }
+
+    const tempPath = `/tmp/report-${job.id}.pdf`;
+    await generateV2Report(job, tempPath);
+    
+    res.download(tempPath, `report_${job.id}.pdf`, (err) => {
+        // Cleanup temp file
+        if (require('fs').existsSync(tempPath)) {
+            require('fs').unlinkSync(tempPath);
+        }
+    });
+});
 
 /**
  * GET /api/generate/:jobId

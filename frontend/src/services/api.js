@@ -89,3 +89,19 @@ export const downloadMarkdown = async (jobId, propertyAddress) => {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
+
+export const downloadPdf = async (jobId, propertyAddress) => {
+  const response = await api.get(`/generate/${jobId}/pdf`, { responseType: 'blob' });
+  const url = URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  const addr = (propertyAddress || 'abstract')
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .replace(/\s+/g, '_')
+    .toLowerCase();
+  a.download = `abstract_report_${addr}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
