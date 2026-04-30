@@ -1,6 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
+const APP_VERSION = 'v1.2.0'; // Placeholder for current application version
+
 export default function Navbar() {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -12,10 +14,12 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <span className="navbar-brand">📋 Abstract ETL</span>
+      <span className="navbar-brand">
+        📋 Abstract ETL <span className="version-badge">{APP_VERSION}</span>
+      </span>
       <Link to="/" className="navbar-link">
         Dashboard
-      </Link>
+      </button>
       <Link to="/jobs/new" className="navbar-link">
         + New Job
       </Link>
