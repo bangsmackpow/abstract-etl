@@ -1,7 +1,58 @@
 import FieldInput from './FieldInput';
-import { DEED_TYPES, VESTING_STATUSES, MORTGAGE_TYPES } from '../services/proTitleConstants'; // Assuming constants are exposed
+import { DEED_TYPES, VESTING_STATUSES, MORTGAGE_TYPES } from '../services/proTitleConstants';
 
-// ... (styles and helper components remain the same) ...
+// Styles object
+const s = {
+  grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' },
+  grid3: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' },
+  grid4: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' },
+  entryCard: { background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1rem', marginBottom: '1rem' },
+  entryNum: { fontSize: '12px', fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', marginBottom: '12px' },
+  checkbox: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#374151', cursor: 'pointer' },
+};
+
+// Section helper component
+function Section({ title, children }) {
+  return (
+    <div style={{ marginBottom: '2rem' }}>
+      <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1a365d', marginBottom: '1rem', borderBottom: '2px solid #e2e8f0', paddingBottom: '8px' }}>
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
+// Field helper component
+function Field({ label, path, placeholder, multiline, masterList, ...rest }) {
+  const { fields, aiFlags, alternatives, onChange, onFlagChange } = rest;
+  const value = getNestedValue(fields, path);
+  
+  return (
+    <FieldInput
+      label={label}
+      fieldKey={path}
+      value={value}
+      onChange={onChange}
+      onFlagChange={onFlagChange}
+      aiFlags={aiFlags}
+      alternatives={alternatives}
+      textarea={multiline}
+      masterList={masterList}
+    />
+  );
+}
+
+function getNestedValue(obj, path) {
+  if (!obj || !path) return '';
+  const parts = path.split('.');
+  let current = obj;
+  for (const part of parts) {
+    if (current === null || current === undefined) return '';
+    current = current[part];
+  }
+  return current ?? '';
+}
 
 export default function AbstractForm({
   fields,
@@ -471,15 +522,4 @@ function MiscEntry({ index, misc, fields, aiFlags, alternatives, onFieldChange, 
       </div>
     </div>
   );
-}
-
-function getNestedValue(obj, path) {
-  if (!obj || !path) return '';
-  const parts = path.split('.');
-  let current = obj;
-  for (const part of parts) {
-    if (current === null || current === undefined) return '';
-    current = current[part];
-  }
-  return current ?? '';
 }
