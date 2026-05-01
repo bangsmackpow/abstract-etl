@@ -14,7 +14,7 @@ AI-powered title abstract management system.
 - **Backend**: Node.js Express (Industrial-grade TypeScript foundations)
 - **Database**: SQLite with **WAL Mode** for high concurrency.
 - **ORM**: Drizzle ORM
-- **AI**: Google Gemini 1.5 Flash (Native PDF Pass-Through)
+- **AI**: Google Gemini 2.5 Flash (Native PDF Pass-Through)
 - **Validation**: Zod-powered runtime environment validation
 
 ## Workflow

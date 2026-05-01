@@ -9,9 +9,10 @@
 
 ## Phase 2: User Experience & Accuracy (FINISHED ✅)
 - [x] **Native PDF Pass-Through**: Switch to direct Google SDK to eliminate image conversion bottlenecks.
-- [x] **Gemini 1.5 Upgrade**: Standardized on the latest stable model for 2026.
+- [x] **Gemini 2.5 Upgrade**: Standardized on the stable `gemini-2.5-flash` model after resolving API/environment issues.
 - [x] **V2 Job System**: Implemented a parallel workflow for the ProTitleUSA schema.
-- [x] **V2 PDF Generation**: Added a high-fidelity PDF generator for v2 jobs.
+- [x] **V2 PDF Generation**: Added a high-fidelity PDF generator and download endpoint.
+- [x] **V2 UI Rendering**: Fully implemented the v2 form and fixed all rendering issues.
 - [x] **AI Alternatives & Smart Suggestions**: Implement dropdowns for ambiguous data points and fuzzy matching against master lists.
 - [x] **Markdown Export**: Add high-fidelity .md generation.
 - [x] **Customer Priority Rules**: Implement File Number logic and extraction sequencing.

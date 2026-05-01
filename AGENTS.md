@@ -8,7 +8,7 @@ This project is a high-performance ETL system for property abstracts. Agents wor
 - **Hygiene**: ESLint 8 (Flat-ish), Prettier, Husky.
 - **Validation**: Zod (Runtime environment checks).
 - **Database**: SQLite (managed via Drizzle ORM).
-- **AI**: Gemini 1.5 Flash (via direct `@google/generative-ai` SDK).
+- **AI**: Gemini 2.5 Flash (via direct `@google/generative-ai` SDK).
 
 ## Core Services
 - `googleAiService.js`: **Primary AI Engine.** Handles native PDF pass-through for both v1 (Legacy) and v2 (ProTitleUSA) schemas.
