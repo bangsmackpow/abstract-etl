@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getJob, updateJob, downloadDocx, downloadMarkdown, deleteJob, downloadPdf } from '../services/api';
 import AbstractForm from '../components/AbstractForm';
 import { useAuth } from '../hooks/useAuth';
