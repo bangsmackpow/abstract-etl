@@ -29,7 +29,7 @@ router.get('/:jobId/pdf', async (req, res, next) => {
     const tempPath = `/tmp/report-${job.id}.pdf`;
     await generateV2Report(job, tempPath);
     
-    res.download(tempPath, `report_${job.id}.pdf`, (err) => {
+    res.download(tempPath, `report_${job.id}.pdf`, (_err) => {
         // Cleanup temp file
         if (require('fs').existsSync(tempPath)) {
             require('fs').unlinkSync(tempPath);
