@@ -12,8 +12,15 @@ import {
 
 const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 'Complete' };
 
+const s = {
+  tableWrapper: { overflowX: 'auto', WebkitOverflowScrolling: 'touch' },
+  statCard: { padding: '1.5rem', textAlign: 'center' },
+  statLabel: { fontSize: '12px', fontWeight: 700, color: 'var(--gray-mid)', textTransform: 'uppercase', marginBottom: '8px' },
+  statValue: { fontSize: '32px', fontWeight: 800, color: 'var(--blue-dark)' },
+};
+
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState('jobs'); // jobs | users | metrics
+  const [activeTab, setActiveTab] = useState('jobs');
   const [jobs, setJobs] = useState([]);
   const [users, setUsers] = useState([]);
   const [metrics, setMetrics] = useState(null);
@@ -191,47 +198,49 @@ export default function Admin() {
                 No jobs found.
               </div>
             ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Property Address</th>
-                    <th>Borrower(s)</th>
-                    <th>Abstractor</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {jobs.map((job) => (
-                    <tr key={job.id}>
-                      <td style={{ fontWeight: 500 }}>{job.propertyAddress || '—'}</td>
-                      <td>{job.borrowerNames || '—'}</td>
-                      <td>{users.find((u) => u.id === job.createdBy)?.name || '—'}</td>
-                      <td>
-                        <span className={`status-badge status-${job.status}`}>
-                          {STATUS_LABELS[job.status]}
-                        </span>
-                      </td>
-                      <td>{new Date(job.createdAt).toLocaleDateString()}</td>
-                      <td>
-                        <div className="flex gap-2">
-                          <Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">
-                            View
-                          </Link>
-                          <button
-                            className="btn btn-ghost btn-sm text-error"
-                            onClick={() => handleDeleteJob(job.id)}
-                            title="Delete Job"
-                          >
-                            🗑️
-                          </button>
-                        </div>
-                      </td>
+              <div style={s.tableWrapper}>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ whiteSpace: 'nowrap' }}>Property Address</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Borrower(s)</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Abstractor</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Status</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Created</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {jobs.map((job) => (
+                      <tr key={job.id}>
+                        <td style={{ fontWeight: 500 }}>{job.propertyAddress || '—'}</td>
+                        <td>{job.borrowerNames || '—'}</td>
+                        <td>{users.find((u) => u.id === job.createdBy)?.name || '—'}</td>
+                        <td>
+                          <span className={`status-badge status-${job.status}`}>
+                            {STATUS_LABELS[job.status]}
+                          </span>
+                        </td>
+                        <td>{new Date(job.createdAt).toLocaleDateString()}</td>
+                        <td>
+                          <div className="flex gap-2">
+                            <Link to={`/jobs/${job.id}`} className="btn btn-ghost btn-sm">
+                              View
+                            </Link>
+                            <button
+                              className="btn btn-ghost btn-sm text-error"
+                              onClick={() => handleDeleteJob(job.id)}
+                              title="Delete Job"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </>
@@ -242,14 +251,14 @@ export default function Admin() {
           <div className="md:col-span-2">
             <div className="card">
               <div className="card-header">Existing Users</div>
-              <div className="card-body p-0">
+              <div style={s.tableWrapper}>
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Role</th>
-                      <th>Actions</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Name</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Email</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Role</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -257,7 +266,7 @@ export default function Admin() {
                       <tr key={u.id}>
                         <td>{u.name}</td>
                         <td>{u.email}</td>
-                        <td style={{ textTransform: 'capitalize' }}>{u.role}</td>
+                        <td style={{ textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{u.role}</td>
                         <td>
                           <div className="flex gap-2">
                             <button
@@ -353,21 +362,17 @@ export default function Admin() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="card">
-                  <div className="card-body text-center">
-                    <div className="text-muted text-sm uppercase font-bold mb-1">
-                      Total Abstracts
-                    </div>
-                    <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--blue-dark)' }}>
+                  <div style={s.statCard}>
+                    <div style={s.statLabel}>Total Abstracts</div>
+                    <div style={{ ...s.statValue, color: 'var(--blue-dark)' }}>
                       {metrics.overall?.totalJobs || 0}
                     </div>
                   </div>
                 </div>
                 <div className="card">
-                  <div className="card-body text-center">
-                    <div className="text-muted text-sm uppercase font-bold mb-1">
-                      Avg. AI Processing Time
-                    </div>
-                    <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--green)' }}>
+                  <div style={s.statCard}>
+                    <div style={s.statLabel}>Avg. AI Processing Time</div>
+                    <div style={{ ...s.statValue, color: 'var(--green)' }}>
                       {formatMs(metrics.overall?.avgProcessingTime)}
                     </div>
                   </div>
@@ -376,19 +381,19 @@ export default function Admin() {
 
               <div className="card">
                 <div className="card-header">Performance by Person</div>
-                <div className="card-body p-0">
+                <div style={s.tableWrapper}>
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Name</th>
-                        <th>Total Completed</th>
-                        <th>Avg. Time / Abstract</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>Name</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>Total Completed</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>Avg. Time / Abstract</th>
                       </tr>
                     </thead>
                     <tbody>
                       {metrics.perUser?.map((u) => (
                         <tr key={u.userId}>
-                          <td style={{ fontWeight: 600 }}>{u.userName}</td>
+                          <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{u.userName}</td>
                           <td>{u.jobCount}</td>
                           <td>{formatMs(u.avgProcessingTime)}</td>
                         </tr>
