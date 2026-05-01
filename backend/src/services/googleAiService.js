@@ -53,6 +53,19 @@ Extract property data into the ProTitleUSA v2 JSON schema.
 Return valid JSON:
 ${V2_SCHEMA}`;
 
+function sanitizeJsonResponse(text) {
+  let cleaned = text.trim();
+  const codeFenceRegex = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
+  const match = cleaned.match(codeFenceRegex);
+  if (match) cleaned = match[1].trim();
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
+}
+
 async function extractFromPDF(pdfPath, originalFilename = '', version = 'v1') {
   const model = getModel();
   const pdfBuffer = fs.readFileSync(pdfPath);
@@ -76,7 +89,7 @@ async function extractFromPDF(pdfPath, originalFilename = '', version = 'v1') {
   try {
     const result = await model.generateContent(promptParts);
     const response = await result.response;
-    return JSON.parse(response.text());
+    return JSON.parse(sanitizeJsonResponse(response.text()));
   } catch (err) {
     console.error('❌ [GoogleAI] Error:', err.message);
     throw err;
