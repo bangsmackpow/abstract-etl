@@ -7,6 +7,8 @@ RUN npm install
 
 COPY . .
 
+# Force a clean Vite build
+ENV VITE_FORCE_BUILD=true
 RUN npm run build
 
 FROM nginx:alpine AS production
