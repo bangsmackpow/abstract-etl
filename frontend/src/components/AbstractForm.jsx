@@ -164,7 +164,100 @@ function V2MortgageEntry({ index, fields, aiFlags, alternatives, onFieldChange, 
 
 
 function V1Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
-  // ... (existing V1 form structure) ...
+  const chain = fields?.chain_of_title || [];
+  const mortgages = fields?.mortgages || [];
+  const assocDocs = fields?.associated_documents || [];
+  const judgments = fields?.judgments_liens || [];
+  const miscDocs = fields?.misc_documents || [];
+  const fieldProps = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+
+  return (
+    <div>
+      <Section title="Order Information">
+        <div style={s.grid3}>
+          <Field label="File Number" path="order_info.file_number" {...fieldProps} />
+          <Field label="Effective Date" path="order_info.effective_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+          <Field label="Completed Date" path="order_info.completed_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+        </div>
+        <Field label="Property Address" path="order_info.property_address" {...fieldProps} />
+        <div style={s.grid3}>
+          <Field label="County" path="order_info.county" {...fieldProps} />
+          <Field label="Township" path="order_info.township" {...fieldProps} />
+          <Field label="Parcel ID" path="order_info.parcel_id" {...fieldProps} />
+        </div>
+        <div style={s.grid4}>
+          <Field label="Assessed Value" path="order_info.assessed_value" placeholder="0.00" {...fieldProps} />
+          <Field label="Land Value" path="order_info.land_value" placeholder="0.00" {...fieldProps} />
+          <Field label="Improvement Value" path="order_info.improvement_value" placeholder="0.00" {...fieldProps} />
+          <Field label="Tax ID" path="order_info.tax_id" {...fieldProps} />
+        </div>
+        
+        <div className="alert alert-info" style={{ marginBottom: 16, fontSize: 13 }}>
+          <strong>Tax Installments:</strong> Capture both 1st and 2nd installments if present.
+        </div>
+
+        <div style={s.grid4}>
+          <Field label="Tax Amount (1st)" path="order_info.tax_amount_1st" placeholder="0.00" {...fieldProps} />
+          <Field label="Due Date (1st)" path="order_info.tax_due_1st" placeholder="MM/DD/YYYY" {...fieldProps} />
+          <Field label="Tax Amount (2nd)" path="order_info.tax_amount_2nd" placeholder="0.00" {...fieldProps} />
+          <Field label="Due Date (2nd)" path="order_info.tax_due_2nd" placeholder="MM/DD/YYYY" {...fieldProps} />
+        </div>
+
+        <div style={s.grid3}>
+          <Field label="Tax Delinquent" path="order_info.tax_delinquent" {...fieldProps} />
+          <Field label="Tax Paid" path="order_info.tax_paid" {...fieldProps} />
+          <Field label="Marital Status" path="order_info.marital_status" {...fieldProps} />
+        </div>
+
+        <div style={s.grid2}>
+          <Field label="Excise Tax" path="order_info.excise_tax" {...fieldProps} />
+          <Field label="Search Depth" path="order_info.search_depth" {...fieldProps} />
+        </div>
+        
+        <Field label="Current Vesting Owner" path="order_info.current_vesting_owner" {...fieldProps} />
+      </Section>
+
+      <Section title={`Chain of Title (${chain.length} entries)`}>
+        {chain.map((_, i) => (
+          <ChainEntry key={i} index={i} chain={chain} {...fieldProps} />
+        ))}
+      </Section>
+
+      <Section title={`Mortgages / Deeds of Trust (${mortgages.length})`}>
+        {mortgages.map((_, i) => (
+          <MortgageEntry key={i} index={i} mortgages={mortgages} {...fieldProps} />
+        ))}
+      </Section>
+
+      <Section title={`Associated Documents (${assocDocs.length})`}>
+        {assocDocs.map((_, i) => (
+          <AssocDocEntry key={i} index={i} docs={assocDocs} {...fieldProps} />
+        ))}
+      </Section>
+
+      <Section title={`Judgments / Liens (${judgments.length})`}>
+        {judgments.map((_, i) => (
+          <JudgmentEntry key={i} index={i} judgments={judgments} {...fieldProps} />
+        ))}
+      </Section>
+
+      <Section title={`Miscellaneous Documents (${miscDocs.length})`}>
+        {miscDocs.map((_, i) => (
+          <MiscEntry key={i} index={i} misc={miscDocs} {...fieldProps} />
+        ))}
+      </Section>
+
+      <Section title="Final Details">
+        <Field label="Legal Description" path="legal_description" multiline {...fieldProps} />
+        <Field label="Names Searched" path="names_searched" multiline placeholder="Separate names with semicolons" 
+          onChange={(k, v) => onFieldChange(k, v.split(';').map(x => x.trim()).filter(Boolean))} 
+          {...fieldProps} 
+          value={Array.isArray(fields?.names_searched) ? fields.names_searched.join('; ') : fields?.names_searched}
+        />
+        <Field label="Additional Information" path="additional_information" multiline {...fieldProps} />
+      </Section>
+    </div>
+  );
 }
 
 // ... (rest of the file remains the same) ...
