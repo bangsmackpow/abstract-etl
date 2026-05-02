@@ -39,19 +39,24 @@ const V2_SCHEMA = `{
 }`;
 
 const SYSTEM_PROMPT_V2 = `You are an expert title abstract processor.
-Extract property data into the ProTitleUSA v2 JSON schema.
+Extract ALL property data from the PDF into the ProTitleUSA v2 JSON schema.
 
-### MANDATORY RULES:
-1. **ALL CAPS**: All text values must be UPPERCASE.
-2. **DEED TYPE MATCHING**: Match the discovered deed type against this list: [${DEED_TYPES.join(', ')}].
+### CRITICAL INSTRUCTIONS:
+1. **EXTRACT EVERY FIELD**: Do NOT leave fields null unless they truly don't exist in the document.
+2. **ALL CAPS**: All text values must be UPPERCASE.
+3. **DEED TYPE MATCHING**: Match the discovered deed type against this list: [${DEED_TYPES.join(', ')}].
    - If a near match is found, use the exact string from the list.
    - If NO match is found, use the format: "OTHER - [DISCOVERED TYPE]".
-3. **MORTGAGE TYPE MATCHING**: Match against: [${MORTGAGE_TYPES.join(', ')}].
-4. **VESTING STATUS**: Match against: [${VESTING_STATUSES.join(', ')}].
-5. **ALTERNATIVES**: For any Names, Dates, or Legal Descriptions where OCR is blurry or ambiguous, provide the top 2 alternatives in the "alternatives" object using the field path as key.
+4. **MORTGAGE TYPE MATCHING**: Match against: [${MORTGAGE_TYPES.join(', ')}].
+5. **VESTING STATUS**: Match against: [${VESTING_STATUSES.join(', ')}].
+6. **CHAIN OF TITLE**: Extract ALL entries from the chain, not just the first one.
+7. **MORTGAGES**: Extract ALL mortgages/deeds of trust with complete details.
+8. **ALTERNATIVES**: For any Names, Dates, or Legal Descriptions where OCR is blurry or ambiguous, provide the top 2 alternatives in the "alternatives" object using the field path as key.
 
-Return valid JSON:
-${V2_SCHEMA}`;
+### SCHEMA REFERENCE:
+${V2_SCHEMA}
+
+Return ONLY valid JSON matching the schema above. Every field must have a value if it exists in the document.`;
 
 function sanitizeJsonResponse(text) {
   let cleaned = text.trim();
@@ -89,7 +94,20 @@ async function extractFromPDF(pdfPath, originalFilename = '', version = 'v1') {
   try {
     const result = await model.generateContent(promptParts);
     const response = await result.response;
-    return JSON.parse(sanitizeJsonResponse(response.text()));
+    const rawText = response.text();
+    const parsed = JSON.parse(sanitizeJsonResponse(rawText));
+    
+    // Debug logging for v2 extraction
+    if (version === 'v2') {
+      console.log('🔍 [V2 Extraction] Raw response length:', rawText.length);
+      console.log('🔍 [V2 Extraction] Parsed keys:', Object.keys(parsed));
+      console.log('🔍 [V2 Extraction] property_info:', parsed.property_info);
+      console.log('🔍 [V2 Extraction] vesting_info:', parsed.vesting_info);
+      console.log('🔍 [V2 Extraction] chain_of_title count:', parsed.chain_of_title?.length || 0);
+      console.log('🔍 [V2 Extraction] mortgages count:', parsed.mortgages?.length || 0);
+    }
+    
+    return parsed;
   } catch (err) {
     console.error('❌ [GoogleAI] Error:', err.message);
     throw err;
