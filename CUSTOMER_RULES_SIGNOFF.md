@@ -59,7 +59,10 @@ To maintain alignment with the Hazelwood run-sheet standard, information is extr
 ## 6. V2 System (ProTitleUSA) Rules
 The following rules apply exclusively to jobs created using the "v2" standard:
 *   **Schema**: Data is extracted into the ProTitleUSA-compliant schema.
-*   **Output Format**: The primary output is a high-fidelity PDF report, not a `.docx` file.
+*   **Output Formats**: V2 jobs support three export formats:
+    *   **PDF**: A branded multi-page report with all sections: Property Information, Vesting Information, Chain of Title, Open Mortgages/Deeds of Trust, Tax Status, Examiner Instructions, Legal Description, Names Searched, and Additional Information.
+    *   **DOCX**: A professional Word document with all V2 sections in table format.
+    *   **Markdown**: A structured .md file with all V2 sections.
 *   **Deed Type Logic**: 
     *   The system will attempt to match the extracted deed type against a master list of 24 standard ProTitleUSA types.
     *   If no direct match is found, the value will be formatted as `OTHER - [DISCOVERED TYPE]`.

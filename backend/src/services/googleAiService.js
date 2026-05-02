@@ -60,15 +60,56 @@ Return ONLY valid JSON matching the schema above. Every field must have a value 
 
 function sanitizeJsonResponse(text) {
   let cleaned = text.trim();
-  const codeFenceRegex = /^```(?:json)?\s*\n?([\s\S]*?)\n?```\s*$/;
-  const match = cleaned.match(codeFenceRegex);
-  if (match) cleaned = match[1].trim();
+
+  // Strip markdown code fences if present
+  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/, '').trim();
+
+  // Find the outermost { ... } pair by tracking brace depth
   const firstBrace = cleaned.indexOf('{');
-  const lastBrace = cleaned.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  if (firstBrace === -1) return cleaned;
+
+  let depth = 0;
+  let endIndex = -1;
+  for (let i = firstBrace; i < cleaned.length; i++) {
+    if (cleaned[i] === '{') depth++;
+    if (cleaned[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        endIndex = i;
+        break;
+      }
+    }
   }
+
+  if (endIndex > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, endIndex + 1);
+  }
+
   return cleaned;
+}
+
+function parseJsonResponse(rawText, pdfFilename) {
+  const sanitized = sanitizeJsonResponse(rawText);
+
+  try {
+    return JSON.parse(sanitized);
+  } catch (firstError) {
+    // If parsing fails, try stripping trailing commas and single quotes
+    try {
+      const fixed = sanitized
+        .replace(/,\s*}/g, '}')
+        .replace(/,\s*]/g, ']')
+        .replace(/\\'/g, "'")
+        .replace(/'/g, '"');
+      return JSON.parse(fixed);
+    } catch (secondError) {
+      // Log details and re-throw the original error
+      console.error(`❌ [JSON Parse] Failed for ${pdfFilename}`);
+      console.error(`❌ [JSON Parse] Raw length: ${rawText.length}, sanitized length: ${sanitized.length}`);
+      console.error('❌ [JSON Parse] Last 200 chars of sanitized:', sanitized.slice(-200));
+      throw firstError;
+    }
+  }
 }
 
 async function extractFromPDF(pdfPath, originalFilename = '', version = 'v1') {
@@ -95,7 +136,7 @@ async function extractFromPDF(pdfPath, originalFilename = '', version = 'v1') {
     const result = await model.generateContent(promptParts);
     const response = await result.response;
     const rawText = response.text();
-    const parsed = JSON.parse(sanitizeJsonResponse(rawText));
+    const parsed = parseJsonResponse(rawText, originalFilename);
     
     // Debug logging for v2 extraction
     if (version === 'v2') {
