@@ -53,7 +53,7 @@ router.get('/:jobId', async (req, res) => {
   }
 
   const fields = job.fieldsJson || {};
-  const buffer = await generateDocx(fields);
+  const buffer = await generateDocx(fields, job.templateVersion);
 
   // Sanitize address for filename
   const addr = (job.propertyAddress || 'abstract')
@@ -87,7 +87,7 @@ router.get('/:jobId/markdown', async (req, res) => {
   }
 
   const fields = job.fieldsJson || {};
-  const mdContent = generateMarkdown(fields);
+  const mdContent = generateMarkdown(fields, job.templateVersion);
 
   const addr = (job.propertyAddress || 'abstract')
     .replace(/[^a-zA-Z0-9 ]/g, '')

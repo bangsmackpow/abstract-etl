@@ -104,6 +104,7 @@ router.post('/', async (req, res) => {
     fields_json,
     ai_flags_json,
     processing_time_ms,
+    template_version,
   } = req.body;
 
   // Allow empty address on creation, default to PENDING so job can still be saved
@@ -120,7 +121,7 @@ router.post('/', async (req, res) => {
       orderDate: order_date || null,
       fieldsJson: fields_json || {},
       aiFlagsJson: ai_flags_json || {},
-      templateVersion: 'v1',
+      templateVersion: template_version || 'v1',
       emailSent: false,
       notes: '',
       processingTimeMs: processing_time_ms || null,

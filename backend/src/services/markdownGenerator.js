@@ -1,10 +1,14 @@
 /**
  * Given a filled fields object, produce a Markdown string.
+ * Supports both V1 (Legacy) and V2 (ProTitleUSA) schemas.
  */
-function generateMarkdown(fields) {
-  const f = fields;
-  const oi = f.order_info || {};
+function generateMarkdown(fields, templateVersion = 'v1') {
+  const isV2 = templateVersion === 'v2';
+  return isV2 ? generateV2Markdown(fields) : generateV1Markdown(fields);
+}
 
+function generateV1Markdown(f) {
+  const oi = f.order_info || {};
   const val = (v) => (v !== null && v !== undefined && v !== '' ? String(v).toUpperCase() : '');
   const dash = (v) => val(v) || '—';
 
@@ -131,6 +135,113 @@ function generateMarkdown(fields) {
   // Additional Info
   md += '## ADDITIONAL INFORMATION\n';
   md += `${dash(f.additional_information)}\n`;
+
+  return md;
+}
+
+function generateV2Markdown(f) {
+  const val = (v) => (v !== null && v !== undefined && v !== '' ? String(v).toUpperCase() : '');
+  const dash = (v) => val(v) || '—';
+
+  let md = '# PROPERTY ABSTRACT REPORT (ProTitleUSA V2)\n\n';
+
+  // Property Information
+  const prop = f.property_info || {};
+  md += '## PROPERTY INFORMATION\n';
+  md += '| Field | Value |\n';
+  md += '| :--- | :--- |\n';
+  md += `| ProTitle Order# | ${dash(prop.order_no)} |\n`;
+  md += `| Property Address | **${dash(prop.address)}** |\n`;
+  md += `| County | ${dash(prop.county)} |\n`;
+  md += `| APN / Parcel # | ${dash(prop.apn_parcel_pin)} |\n`;
+  md += `| Current Owner | ${dash(prop.current_owner)} |\n`;
+  md += `| Completed Date | ${dash(prop.completed_date)} |\n`;
+  md += `| Index Date | ${dash(prop.index_date)} |\n\n`;
+
+  // Vesting Information
+  const vest = f.vesting_info || {};
+  md += '## VESTING INFORMATION\n';
+  md += '| Field | Value |\n';
+  md += '| :--- | :--- |\n';
+  md += `| Grantee | ${dash(vest.grantee)} |\n`;
+  md += `| Grantor | ${dash(vest.grantor)} |\n`;
+  md += `| Deed Date | ${dash(vest.deed_date)} |\n`;
+  md += `| Recorded Date | ${dash(vest.recorded_date)} |\n`;
+  md += `| Instrument/Book/Page | ${dash(vest.instrument_book_page)} |\n`;
+  md += `| Consideration | ${dash(vest.consideration_amount)} |\n`;
+  md += `| Sale Price | ${dash(vest.sale_price)} |\n`;
+  md += `| Deed Type | ${dash(vest.deed_type)} |\n`;
+  md += `| Probate Status | ${dash(vest.probate_status)} |\n`;
+  md += `| Divorce Status | ${dash(vest.divorce_status)} |\n`;
+  if (vest.notes) md += `| Notes | ${val(vest.notes)} |\n`;
+  md += '\n';
+
+  // Chain of Title
+  md += '## CHAIN OF TITLE\n';
+  const chain = f.chain_of_title || [];
+  if (chain.length === 0) {
+    md += '*No chain entries found.*\n\n';
+  } else {
+    chain.forEach((e, i) => {
+      md += `### Entry ${i + 1}\n`;
+      md += `- **Grantee**: ${dash(e.grantee)}\n`;
+      md += `- **Grantor**: ${dash(e.grantor)}\n`;
+      md += `- **Deed Date**: ${dash(e.deed_date)}\n`;
+      md += `- **Recorded Date**: ${dash(e.recorded_date)}\n`;
+      md += `- **Instrument/Book/Page**: ${dash(e.instrument_book_page)}\n`;
+      md += `- **Consideration**: ${dash(e.consideration_amount)}\n`;
+      md += `- **Deed Type**: ${dash(e.deed_type)}\n`;
+      if (e.notes) md += `- **Notes**: ${val(e.notes)}\n`;
+      md += '\n';
+    });
+  }
+
+  // Mortgages
+  md += '## MORTGAGES\n';
+  const mortgages = f.mortgages || [];
+  if (mortgages.length === 0) {
+    md += '*No mortgages found.*\n\n';
+  } else {
+    mortgages.forEach((m, i) => {
+      md += `### Mortgage ${i + 1}\n`;
+      md += `- **Borrower**: ${dash(m.borrower)}\n`;
+      md += `- **Lender**: ${dash(m.lender)}\n`;
+      md += `- **Mortgage Amount**: ${dash(m.mortgage_amount)}\n`;
+      md += `- **Mortgage Date**: ${dash(m.mortgage_date)}\n`;
+      md += `- **Recorded Date**: ${dash(m.recorded_date)}\n`;
+      md += `- **Book/Page/Instrument**: ${dash(m.book)} / ${dash(m.page)} / ${dash(m.instrument)}\n`;
+      md += `- **Maturity Date**: ${dash(m.maturity_date)}\n`;
+      md += `- **Mortgage Type**: ${dash(m.mortgage_type)}\n`;
+      md += `- **Vesting Status**: ${dash(m.vesting_status)}\n`;
+      md += `- **MERS**: ${m.mers === 'Yes' ? 'YES' : 'NO'}\n`;
+      
+      // Assignments
+      const assignments = m.assignments || [];
+      if (assignments.length > 0) {
+        md += `#### Assignments (${assignments.length})\n`;
+        assignments.forEach((a, ai) => {
+          md += `- **Assignment ${ai + 1}**: ${dash(a.assignor)} → ${dash(a.assignee)} | Recorded: ${dash(a.recorded_date)} | Instrument: ${dash(a.instrument)}\n`;
+        });
+      }
+      md += '\n';
+    });
+  }
+
+  // Tax Status
+  const tax = f.tax_status || {};
+  md += '## TAX STATUS\n';
+  md += '| Field | Value |\n';
+  md += '| :--- | :--- |\n';
+  md += `| Parcel ID | ${dash(tax.parcel_id)} |\n`;
+  md += `| Tax Year | ${dash(tax.tax_year)} |\n`;
+  md += `| Total Amount | ${dash(tax.total_amount)} |\n`;
+  md += `| Status | ${dash(tax.status)} |\n`;
+  md += `| Paid Date | ${dash(tax.paid_date)} |\n`;
+  md += `| Delinquent Amount | ${dash(tax.delinquent_amount)} |\n\n`;
+
+  // Legal Description
+  md += '## LEGAL DESCRIPTION\n';
+  md += `${dash(f.legal_description)}\n\n`;
 
   return md;
 }
