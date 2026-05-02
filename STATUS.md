@@ -3,7 +3,7 @@
 ## Current State
 - **Architecture**: Monorepo with industrial-grade foundations (ESLint, Prettier, Husky).
 - **AI Engine**: **Gemini 2.5 Flash (Native)**. Finalized after resolving environment and API key issues.
-- **V2 Workflow**: Fully implemented. Includes v2 schema, PDF generation, and a complete UI rendering form.
+- **V2 Workflow**: Fully implemented and production-ready. Includes v2 schema extraction, 12-section PDF/DOCX/MD report generation, and complete UI rendering.
 - **Accuracy**: High-quality extraction restored with the stable `gemini-2.5-flash` model.
 - **Reliability**: All known API connection, build, and UI rendering issues have been resolved.
 - **Admin**: Full deletion capabilities and Zod-validated environment startup.
@@ -14,11 +14,14 @@
 - [x] **V2 Implementation Complete**:
   - [x] All UI rendering issues ("white screen") resolved.
   - [x] All PDF download and backend generation routes are complete.
-  - [x] PDF reports are now multi-page with all 9 sections (Property, Vesting, Chain of Title, Mortgages, Tax Status, Examiner Instructions, Legal Description, Names Searched, Additional Info).
+  - [x] PDF reports are now multi-page with all 12 sections (Property, Vesting, Chain of Title, Mortgages, Associated Documents, Judgments/Liens, Miscellaneous Documents, Tax Status, Examiner Instructions, Legal Description, Names Searched, Additional Info).
+  - [x] V2 DOCX and V2 Markdown generators include all 12 sections matching the PDF output.
   - [x] All form components (`V1Form`, `V2Form`) are fully implemented.
   - [x] DOCX and Markdown generators support both v1 and v2 schemas with automatic routing.
 - [x] **templateVersion Bug Fixed**: POST /api/jobs no longer hardcodes `templateVersion: 'v1'`. Frontend's version selection is now respected, fixing the root cause of v2 reports showing blank fields.
 - [x] **JSON Parsing Hardened**: Replaced simple `JSON.parse` with brace-depth tracking and fallback parsing to handle AI edge cases (extra text after JSON, trailing commas, code fences).
+- [x] **PDF Page Break Fix**: Replaced hardcoded `BOTTOM` constant with dynamic `doc.page.height` calculations. Removed `bufferPages` to fix blank page issues. Added proactive `ensureSpace()` checks before each section for reliable multi-page output.
+- [x] **V2 Schema Expanded**: Added `associated_documents`, `judgments_liens`, `misc_documents`, `names_searched`, and `additional_information` to the V2 AI extraction prompt so the AI populates all report sections.
 - [x] **API Stability Resolved**: Corrected environment, API key, and dependency issues to establish a stable connection to the Google AI service.
 - [x] **Customer Rules**: Priority-based File Number extraction and mandatory sequence enforced.
 - [x] **Foreclosure Logic**: Trustee's Deed grouping and starred reference item formatting.
@@ -30,8 +33,8 @@
 
 ## Active Blockers / Issues
 - **Cleanup Needed**: Legacy dependencies like `sharp`, `pdf2pic`, and `pocketbase` still exist in `package.json` but are no longer used by the native AI pipeline.
-- **JSON Parsing**: AI occasionally returns malformed JSON with extra content. Brace-depth tracking and fallback parsing added to mitigate.
 
 ## Roadmap
 - [ ] **Cleanup Run**: Execute `npx knip` recommendations to prune the codebase.
+- [ ] **Email Integration**: Finalize SMTP triggers for job completion notifications.
 - [ ] **Cloudflare Transition**: Finalize Hono + D1 adapter for serverless deployment.

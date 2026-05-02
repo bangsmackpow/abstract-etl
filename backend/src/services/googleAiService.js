@@ -33,8 +33,13 @@ const V2_SCHEMA = `{
   "vesting_info": { "grantee": null, "grantor": null, "deed_date": null, "recorded_date": null, "instrument_book_page": null, "vbook_num": null, "vpage_num": null, "consideration_amount": null, "sale_price": null, "deed_type": null, "probate_status": null, "divorce_status": null, "notes": null },
   "chain_of_title": [{ "grantee": null, "grantor": null, "deed_date": null, "recorded_date": null, "instrument_book_page": null, "vbook_num": null, "vpage_num": null, "consideration_amount": null, "deed_type": null, "notes": null }],
   "mortgages": [{ "borrower": null, "lender": null, "mortgage_amount": null, "mortgage_date": null, "recorded_date": null, "book": null, "page": null, "instrument": null, "maturity_date": null, "mortgage_type": null, "mers": "No", "vesting_status": null, "assignments": [{ "document_type": null, "instrument": null, "book": null, "page": null, "recorded_date": null, "assignor": null, "assignee": null }] }],
+  "associated_documents": [{ "document_title": null, "consideration": null, "dated": null, "book_instrument": null, "page": null, "recorded": null, "grantor_assignor": null, "grantee_assignee": null, "notes": null }],
+  "judgments_liens": [{ "document_title": null, "book_instrument": null, "page": null, "dated": null, "recorded": null, "case_number": null, "amount": null, "plaintiff": null, "defendant": null, "notes": null }],
+  "misc_documents": [{ "document_title": null, "book_instrument": null, "page": null, "dated": null, "recorded": null, "consideration": null, "grantor_assignor": null, "grantee_assignee": null, "notes": null }],
   "tax_status": { "parcel_id": null, "tax_year": null, "total_amount": null, "status": null, "paid_date": null, "delinquent_amount": null },
   "legal_description": null,
+  "names_searched": [],
+  "additional_information": null,
   "alternatives": {}
 }`;
 

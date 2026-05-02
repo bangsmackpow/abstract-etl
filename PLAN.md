@@ -20,11 +20,13 @@
 - [x] **Admin Deletion**: Add job deletion capabilities for system administrators.
 - [x] **templateVersion Routing Fix**: Fixed bug where all jobs were hardcoded as v1 regardless of extraction standard selected.
 
-## Phase 3: Cleanup & Refinement (CURRENT 🔄)
+## Phase 3: Cleanup & Refinement (COMPLETE ✅)
 - [x] **Mobile Admin**: Adjusted CSS for the metrics table to be readable on smaller screens.
+- [x] **JSON Robustness**: Added brace-depth tracking and fallback parsing to handle AI response edge cases.
+- [x] **PDF Page Break Fix**: Replaced static page-break logic with dynamic `doc.page.height` calculations. Removed `bufferPages` to eliminate conflicts with manual page additions. Fixed final footer positioning.
+- [x] **V2 Generator Completion**: Updated V2 DOCX and Markdown generators to include all 12 sections matching the PDF output (associated documents, judgments/liens, misc documents, examiner instructions, names searched, additional information).
+- [x] **V2 Schema Expansion**: Added `associated_documents`, `judgments_liens`, `misc_documents`, `names_searched`, and `additional_information` to the V2 AI extraction prompt so all report sections are populated.
 - [ ] **Cleanup**: Use `knip` to remove dead legacy code and dependencies (PocketBase, sharp, pdf2pic, etc.).
-- [ ] **JSON Robustness**: Added brace-depth tracking and fallback parsing to handle AI response edge cases.
-- [ ] **Email Integration**: Finalize SMTP triggers for job completion notifications.
 
 ## Phase 4: Cloudflare Edge Migration
 - [ ] **Hono Refactor**: Rewrite Express routes to Hono for edge compatibility.

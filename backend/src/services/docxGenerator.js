@@ -942,11 +942,175 @@ async function generateV2Docx(fields) {
     ],
   });
 
+  // Associated Documents
+  const assocRows = (f.associated_documents || []).flatMap((a, i) => [
+    new TableRow({
+      children: [
+        labelCell(`(${i + 1}) Document Title:`, 2000),
+        valueCell(dash(a.document_title), 3360),
+        labelCell('Book/Inst:', 1200),
+        valueCell(dash(a.book_instrument), 1200),
+        labelCell('Page:', 600),
+        valueCell(dash(a.page), 1000),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Dated:', 800),
+        valueCell(dash(a.dated), 1400),
+        labelCell('Recorded:', 900),
+        valueCell(dash(a.recorded), 1400),
+        labelCell('Consideration:', 1200),
+        valueCell(dash(a.consideration), 1200),
+        cell('', { span: 2 }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Grantor/Assignor:', 1400),
+        valueCell(dash(a.grantor_assignor), 3000),
+        labelCell('Grantee/Assignee:', 1400),
+        valueCell(dash(a.grantee_assignee), 3560),
+      ],
+    }),
+    ...(a.notes
+      ? [
+          new TableRow({
+            children: [
+              labelCell('Notes:', 1400),
+              new TableCell({
+                borders,
+                columnSpan: 7,
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: val(a.notes), size: 16, italics: true })],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ]
+      : []),
+  ]);
+
+  const assocTable = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    rows: assocRows.length
+      ? assocRows
+      : [
+          new TableRow({
+            children: [cell('NO ASSOCIATED DOCUMENTS FOUND.', { span: 8, italics: true })],
+          }),
+        ],
+  });
+
+  // Judgments/Liens
+  const lienRows = (f.judgments_liens || []).flatMap((l, i) => [
+    new TableRow({
+      children: [
+        labelCell(`(${i + 1}) Document Title:`, 2000),
+        valueCell(dash(l.document_title), 3360),
+        labelCell('Case #:', 1200),
+        valueCell(dash(l.case_number), 2800),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Dated:', 800),
+        valueCell(dash(l.dated), 1400),
+        labelCell('Amount:', 1200),
+        valueCell(dash(l.amount), 1200),
+        labelCell('Recorded:', 1000),
+        valueCell(dash(l.recorded), 3760),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Plaintiff:', 1200),
+        valueCell(dash(l.plaintiff), 3400),
+        labelCell('Defendant:', 1200),
+        valueCell(dash(l.defendant), 3560),
+      ],
+    }),
+  ]);
+
+  const lienTable = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    rows: lienRows.length
+      ? lienRows
+      : [
+          new TableRow({
+            children: [cell('NO JUDGMENTS OR LIENS FOUND.', { span: 4, italics: true })],
+          }),
+        ],
+  });
+
+  // Miscellaneous Documents
+  const miscRows = (f.misc_documents || []).flatMap((m, i) => [
+    new TableRow({
+      children: [
+        labelCell(`(${i + 1}) Document Title:`, 2000),
+        valueCell(dash(m.document_title), 3360),
+        labelCell('Book/Inst:', 1200),
+        valueCell(dash(m.book_instrument), 1200),
+        labelCell('Page:', 600),
+        valueCell(dash(m.page), 1000),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Dated:', 800),
+        valueCell(dash(m.dated), 1400),
+        labelCell('Recorded:', 900),
+        valueCell(dash(m.recorded), 1400),
+        labelCell('Consideration:', 1200),
+        valueCell(dash(m.consideration), 1200),
+        cell('', { span: 2 }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Grantor/Assignor:', 1400),
+        valueCell(dash(m.grantor_assignor), 3000),
+        labelCell('Grantee/Assignee:', 1400),
+        valueCell(dash(m.grantee_assignee), 3560),
+      ],
+    }),
+  ]);
+
+  const miscTable = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    rows: miscRows.length
+      ? miscRows
+      : [
+          new TableRow({
+            children: [cell('NO MISCELLANEOUS DOCUMENTS FOUND.', { span: 4, italics: true })],
+          }),
+        ],
+  });
+
   // Legal Description
   const legalPara = new Paragraph({
     children: [new TextRun({ text: dash(f.legal_description), size: 18, font: 'Arial' })],
     spacing: { before: 60 },
   });
+
+  // Names Searched
+  const namesPara = new Paragraph({
+    children: [
+      new TextRun({
+        text:
+          (f.names_searched || []).map((n) => n.toUpperCase()).join('; ') ||
+          'NONE PROVIDED.',
+        size: 18,
+        font: 'Arial',
+      }),
+    ],
+    spacing: { before: 60 },
+  });
+
+  // Additional Information
+  const addInfo = f.additional_information || f.additional_info;
 
   const doc = new Document({
     creator: 'Hazelwood & Associates, LLC',
@@ -987,8 +1151,38 @@ async function generateV2Docx(fields) {
           sectionHeader('TAX STATUS'),
           taxTable,
           new Paragraph({ spacing: { before: 120 } }),
+          ...(prop.misc_info_to_examiner ? [
+            sectionHeader('EXAMINER INSTRUCTIONS'),
+            new Paragraph({
+              children: [new TextRun({ text: val(prop.misc_info_to_examiner), size: 18, font: 'Arial' })],
+              spacing: { before: 60 },
+            }),
+            new Paragraph({ spacing: { before: 120 } }),
+          ] : []),
+          sectionHeader('ASSOCIATED DOCUMENTS'),
+          assocTable,
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('JUDGMENTS / LIENS'),
+          lienTable,
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('MISCELLANEOUS DOCUMENTS'),
+          miscTable,
+          new Paragraph({ spacing: { before: 120 } }),
           sectionHeader('LEGAL DESCRIPTION'),
           legalPara,
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('NAMES SEARCHED'),
+          namesPara,
+          ...(addInfo
+            ? [
+                new Paragraph({ spacing: { before: 120 } }),
+                sectionHeader('ADDITIONAL INFORMATION'),
+                new Paragraph({
+                  children: [new TextRun({ text: dash(addInfo), size: 18, font: 'Arial', italics: true })],
+                  spacing: { before: 60 },
+                }),
+              ]
+            : []),
         ],
       },
     ],

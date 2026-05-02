@@ -35,14 +35,16 @@ AI-powered title abstract management system.
 ## Key Features
 - **Dual-Version System**:
   - **v1 (Legacy)**: The original system for existing workflows.
-  - **v2 (ProTitleUSA)**: A new, parallel system designed for the ProTitleUSA schema, featuring enhanced "Smart Suggestions" and a high-fidelity PDF output.
-- **Native PDF Extraction**: Direct pass-through to Gemini 1.5 Flash. No image conversion required.
+  - **v2 (ProTitleUSA)**: A new, parallel system designed for the ProTitleUSA schema, featuring enhanced "Smart Suggestions" and high-fidelity multi-format output.
+- **Native PDF Extraction**: Direct pass-through to Gemini 2.5 Flash. No image conversion required.
 - **Professional Style Logic**: Semantic spouse formatting (`&` vs `,`), life estate syntax, and automated township city-inference.
 - **Smart Chain Filtering**: Intelligent separation of numbered Insales and formatted Additional Information for Outsales/Encumbrances.
 - **Intelligent Alternatives**: UI dropdowns allowing users to pick from multiple AI guesses and fuzzy-matched master lists.
 - **Multi-Format Export**: 
   - **v1**: Generate professional Word (.docx) and Markdown (.md) reports.
-  - **v2**: Generate high-fidelity PDF, Word (.docx), and Markdown (.md) reports. PDFs include all sections: property info, vesting, chain of title, mortgages, tax status, examiner instructions, legal description, and names searched.
+  - **v2**: Generate high-fidelity PDF, Word (.docx), and Markdown (.md) reports. All formats include 12 sections: property info, vesting, chain of title, mortgages, associated documents, judgments/liens, misc documents, tax status, examiner instructions, legal description, names searched, and additional information.
+- **PDF Features**: Dynamic multi-page generation with proactive page-break logic, per-page footers, and no `bufferPages` (avoids conflicts with manual page additions).
+- **JSON Robustness**: Brace-depth tracking and fallback parsing handles AI edge cases (trailing commas, extra text, code fences, mismatched quotes).
 - **Customer Priority Rules**: Specialized extraction logic for File Numbers based on filename, company, and address.
 - **Strict Hygiene**: ESLint, Prettier, and Husky safety gates enforced across the monorepo.
 - **Admin Suite**:

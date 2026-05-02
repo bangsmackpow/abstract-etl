@@ -11,10 +11,10 @@ This project is a high-performance ETL system for property abstracts. Agents wor
 - **AI**: Gemini 2.5 Flash (via direct `@google/generative-ai` SDK).
 
 ## Core Services
-- `googleAiService.js`: **Primary AI Engine.** Handles native PDF pass-through for both v1 (Legacy) and v2 (ProTitleUSA) schemas. Uses Gemini 2.5 Flash with structured JSON output. Includes robust JSON sanitization with brace-depth tracking and fallback parsing.
-- `pdfGenerator.js`: Builds high-fidelity multi-page PDF reports for v2 jobs. Includes property info, vesting, chain of title, mortgages, tax status, examiner instructions, legal description, and names searched.
-- `docxGenerator.js`: Builds .docx files for both v1 and v2 jobs. Routes to schema-specific generators via `templateVersion` parameter.
-- `markdownGenerator.js`: Builds .md files for both v1 and v2 jobs. Routes to schema-specific generators via `templateVersion` parameter.
+- `googleAiService.js`: **Primary AI Engine.** Handles native PDF pass-through for both v1 (Legacy) and v2 (ProTitleUSA) schemas. Uses Gemini 2.5 Flash with structured JSON output. Includes robust JSON sanitization with brace-depth tracking and fallback parsing. V2 schema now includes all 12 report sections: property_info, vesting_info, chain_of_title, mortgages, associated_documents, judgments_liens, misc_documents, tax_status, legal_description, names_searched, additional_information, and alternatives.
+- `pdfGenerator.js`: Builds high-fidelity multi-page PDF reports (A4, Hazelwood branding) for v2 jobs. Covers all 12 sections: property info, vesting, chain of title, mortgages, associated documents, judgments/liens, misc documents, tax status, examiner instructions, legal description, names searched, and additional info. Features dynamic page-break logic with proactive `ensureSpace()` checks and per-page footers. Does NOT use `bufferPages` (causes conflict with manual page management).
+- `docxGenerator.js`: Builds .docx files for both v1 and v2 jobs. Routes to schema-specific generators via `templateVersion` parameter. V2 DOCX includes all 12 sections matching the PDF output.
+- `markdownGenerator.js`: Builds .md files for both v1 and v2 jobs. Routes to schema-specific generators via `templateVersion` parameter. V2 Markdown includes all 12 sections matching the PDF output.
 - `env.js / env.ts`: Centralized Zod validation for process.env.
 
 ## Key Rules

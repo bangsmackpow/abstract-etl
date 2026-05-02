@@ -239,9 +239,78 @@ function generateV2Markdown(f) {
   md += `| Paid Date | ${dash(tax.paid_date)} |\n`;
   md += `| Delinquent Amount | ${dash(tax.delinquent_amount)} |\n\n`;
 
+  // Associated Documents
+  md += '## ASSOCIATED DOCUMENTS\n';
+  const assoc = f.associated_documents || [];
+  if (assoc.length === 0) {
+    md += '*No associated documents found.*\n\n';
+  } else {
+    assoc.forEach((a, i) => {
+      md += `### Document ${i + 1}: ${dash(a.document_title)}\n`;
+      md += `- **Book/Inst/Page**: ${dash(a.book_instrument)} / ${dash(a.page)}\n`;
+      md += `- **Dated/Recorded**: ${dash(a.dated)} / ${dash(a.recorded)}\n`;
+      md += `- **Consideration**: ${dash(a.consideration)}\n`;
+      md += `- **Grantor/Assignor**: ${dash(a.grantor_assignor)}\n`;
+      md += `- **Grantee/Assignee**: ${dash(a.grantee_assignee)}\n`;
+      if (a.notes) md += `- **Notes**: ${val(a.notes)}\n`;
+      md += '\n';
+    });
+  }
+
+  // Judgments/Liens
+  md += '## JUDGMENTS / LIENS\n';
+  const liens = f.judgments_liens || [];
+  if (liens.length === 0) {
+    md += '*No judgments or liens found.*\n\n';
+  } else {
+    liens.forEach((l, i) => {
+      md += `### Judgment/Lien ${i + 1}: ${dash(l.document_title)}\n`;
+      md += `- **Case #**: ${dash(l.case_number)}\n`;
+      md += `- **Dated/Recorded**: ${dash(l.dated)} / ${dash(l.recorded)}\n`;
+      md += `- **Amount**: ${dash(l.amount)}\n`;
+      md += `- **Plaintiff**: ${dash(l.plaintiff)}\n`;
+      md += `- **Defendant**: ${dash(l.defendant)}\n`;
+      md += '\n';
+    });
+  }
+
+  // Miscellaneous Documents
+  md += '## MISCELLANEOUS DOCUMENTS\n';
+  const misc = f.misc_documents || [];
+  if (misc.length === 0) {
+    md += '*No miscellaneous documents found.*\n\n';
+  } else {
+    misc.forEach((m, i) => {
+      md += `### Document ${i + 1}: ${dash(m.document_title)}\n`;
+      md += `- **Book/Inst/Page**: ${dash(m.book_instrument)} / ${dash(m.page)}\n`;
+      md += `- **Dated/Recorded**: ${dash(m.dated)} / ${dash(m.recorded)}\n`;
+      md += `- **Consideration**: ${dash(m.consideration)}\n`;
+      md += `- **Grantor/Assignor**: ${dash(m.grantor_assignor)}\n`;
+      md += `- **Grantee/Assignee**: ${dash(m.grantee_assignee)}\n`;
+      md += '\n';
+    });
+  }
+
   // Legal Description
   md += '## LEGAL DESCRIPTION\n';
   md += `${dash(f.legal_description)}\n\n`;
+
+  // Examiner Instructions
+  if (prop.misc_info_to_examiner) {
+    md += '## EXAMINER INSTRUCTIONS\n';
+    md += `${val(prop.misc_info_to_examiner)}\n\n`;
+  }
+
+  // Names Searched
+  md += '## NAMES SEARCHED\n';
+  md += `${(f.names_searched || []).map((n) => n.toUpperCase()).join('; ') || 'NONE PROVIDED.'}\n\n`;
+
+  // Additional Information
+  const addInfo = f.additional_information || f.additional_info;
+  if (addInfo) {
+    md += '## ADDITIONAL INFORMATION\n';
+    md += `${dash(addInfo)}\n`;
+  }
 
   return md;
 }
