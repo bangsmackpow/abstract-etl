@@ -20,7 +20,9 @@
   - [x] DOCX and Markdown generators support both v1 and v2 schemas with automatic routing.
 - [x] **templateVersion Bug Fixed**: POST /api/jobs no longer hardcodes `templateVersion: 'v1'`. Frontend's version selection is now respected, fixing the root cause of v2 reports showing blank fields.
 - [x] **JSON Parsing Hardened**: Replaced simple `JSON.parse` with brace-depth tracking and fallback parsing to handle AI edge cases (extra text after JSON, trailing commas, code fences).
-- [x] **PDF Page Break Fix**: Replaced hardcoded `BOTTOM` constant with dynamic `doc.page.height` calculations. Removed `bufferPages` to fix blank page issues. Added proactive `ensureSpace()` checks before each section for reliable multi-page output.
+- [x] **PDF Blank Page Elimination**: Switched to `bufferPages: true` with deferred footer rendering via `bufferedPageRange()`. Eliminated phantom blank pages on even-numbered pages caused by `text()` at absolute Y positions interfering with manual page management.
+- [x] **Hazelwood Logo**: Added `HazelwoodLogoFinal.png` to PDF report header (100px wide, small file footprint).
+- [x] **V2 Markdown Export**: Restored Markdown (.md) download button for V2 jobs in the UI alongside PDF export. Fixed address field mapping for V2 schema.
 - [x] **V2 Schema Expanded**: Added `associated_documents`, `judgments_liens`, `misc_documents`, `names_searched`, and `additional_information` to the V2 AI extraction prompt so the AI populates all report sections.
 - [x] **API Stability Resolved**: Corrected environment, API key, and dependency issues to establish a stable connection to the Google AI service.
 - [x] **Customer Rules**: Priority-based File Number extraction and mandatory sequence enforced.

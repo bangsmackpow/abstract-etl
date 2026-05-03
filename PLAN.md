@@ -23,9 +23,10 @@
 ## Phase 3: Cleanup & Refinement (COMPLETE ✅)
 - [x] **Mobile Admin**: Adjusted CSS for the metrics table to be readable on smaller screens.
 - [x] **JSON Robustness**: Added brace-depth tracking and fallback parsing to handle AI response edge cases.
-- [x] **PDF Page Break Fix**: Replaced static page-break logic with dynamic `doc.page.height` calculations. Removed `bufferPages` to eliminate conflicts with manual page additions. Fixed final footer positioning.
+- [x] **PDF Blank Page Elimination**: Switched to `bufferPages: true` with deferred footer rendering to eliminate phantom blank pages. Added Hazelwood logo to report header.
 - [x] **V2 Generator Completion**: Updated V2 DOCX and Markdown generators to include all 12 sections matching the PDF output (associated documents, judgments/liens, misc documents, examiner instructions, names searched, additional information).
 - [x] **V2 Schema Expansion**: Added `associated_documents`, `judgments_liens`, `misc_documents`, `names_searched`, and `additional_information` to the V2 AI extraction prompt so all report sections are populated.
+- [x] **V2 Markdown Export**: Restored Markdown download button for V2 jobs in the frontend alongside PDF export.
 - [ ] **Cleanup**: Use `knip` to remove dead legacy code and dependencies (PocketBase, sharp, pdf2pic, etc.).
 
 ## Phase 4: Cloudflare Edge Migration

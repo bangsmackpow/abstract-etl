@@ -43,7 +43,7 @@ AI-powered title abstract management system.
 - **Multi-Format Export**: 
   - **v1**: Generate professional Word (.docx) and Markdown (.md) reports.
   - **v2**: Generate high-fidelity PDF, Word (.docx), and Markdown (.md) reports. All formats include 12 sections: property info, vesting, chain of title, mortgages, associated documents, judgments/liens, misc documents, tax status, examiner instructions, legal description, names searched, and additional information.
-- **PDF Features**: Dynamic multi-page generation with proactive page-break logic, per-page footers, and no `bufferPages` (avoids conflicts with manual page additions).
+- **PDF Features**: Dynamic multi-page generation with `bufferPages: true` and deferred footer rendering via `bufferedPageRange()` to eliminate phantom blank pages. Features Hazelwood branding (logo + header), 12-section report, and proactive page-break logic with `ensureSpace()` checks.
 - **JSON Robustness**: Brace-depth tracking and fallback parsing handles AI edge cases (trailing commas, extra text, code fences, mismatched quotes).
 - **Customer Priority Rules**: Specialized extraction logic for File Numbers based on filename, company, and address.
 - **Strict Hygiene**: ESLint, Prettier, and Husky safety gates enforced across the monorepo.

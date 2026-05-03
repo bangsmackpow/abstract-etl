@@ -60,7 +60,7 @@ To maintain alignment with the Hazelwood run-sheet standard, information is extr
 The following rules apply exclusively to jobs created using the "v2" standard:
 *   **Schema**: Data is extracted into the ProTitleUSA-compliant schema.
 *   **Output Formats**: V2 jobs support three export formats, each covering all 12 report sections:
-    *   **PDF**: A branded multi-page report with Hazelwood header, per-page footers, and dynamic page breaks. Sections: Property Information, Vesting Information, Chain of Title, Open Mortgages/Deeds of Trust, Associated Documents, Judgments/Liens, Miscellaneous Documents, Tax Status, Examiner Instructions, Legal Description, Names Searched, and Additional Information.
+    *   **PDF**: A branded multi-page report with Hazelwood logo, header, per-page footers, and dynamic page breaks. Sections: Property Information, Vesting Information, Chain of Title, Open Mortgages/Deeds of Trust, Associated Documents, Judgments/Liens, Miscellaneous Documents, Tax Status, Examiner Instructions, Legal Description, Names Searched, and Additional Information.
     *   **DOCX**: A professional Word document with all 12 sections in table format.
     *   **Markdown**: A structured .md file with all 12 sections in table/key-value format.
 *   **Empty Sections**: Any section without data displays a placeholder message (e.g., "No associated documents found.") rather than being omitted.
