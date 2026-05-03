@@ -1,8 +1,11 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
+const path = require('path');
 
 /**
  * High-fidelity multi-page PDF Generator for ProTitleUSA v2 Reports.
+ * Uses bufferPages to avoid phantom blank pages — footers are drawn
+ * after all content by iterating the buffered page range.
  */
 async function generateV2Report(jobData, outputPath) {
   const fields = jobData.fieldsJson || {};
@@ -15,29 +18,23 @@ async function generateV2Report(jobData, outputPath) {
   const DARK = '#003366';
   const MARGIN = 50;
   const CONTENT_W = 512;
-  const PAGE_H = 842; // A4
-  const BOTTOM = PAGE_H - 50;
+  const LOGO_W = 100;
+  const LOGO_PATH = path.resolve(__dirname, '../../docs/logo/HazelwoodLogoFinal.png');
 
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: MARGIN, size: 'A4' });
+    // bufferPages: true prevents phantom blank pages — we draw footers at the end
+    const doc = new PDFDocument({ margin: MARGIN, size: 'A4', bufferPages: true });
     const stream = fs.createWriteStream(outputPath);
     doc.pipe(stream);
 
-    // State
-    let pageNum = 1;
-
     // --- Helpers ---
     const ensureSpace = (needed) => {
-      const footerSpace = 50; // Reserve space for footer
+      const footerSpace = 50;
       if (doc.y + needed > doc.page.height - footerSpace) newPage();
     };
 
     const newPage = () => {
-      // Footer for current page - use dynamic page height
-      const footerY = doc.page.height - 40;
-      doc.fontSize(7).fillColor('#999999').text(`Page ${pageNum}`, MARGIN, footerY, { width: CONTENT_W, align: 'right' });
       doc.addPage({ margin: MARGIN });
-      pageNum++;
     };
 
     const sectionHeader = (title) => {
@@ -69,6 +66,9 @@ async function generateV2Report(jobData, outputPath) {
     // ========================================================================
     // COVER / HEADER
     // ========================================================================
+    if (fs.existsSync(LOGO_PATH)) {
+      doc.image(LOGO_PATH, MARGIN, 30, { width: LOGO_W });
+    }
     doc.fontSize(18).font('Helvetica-Bold').fillColor(DARK).text('Hazelwood & Associates, LLC', { align: 'center' });
     doc.fontSize(12).font('Helvetica').fillColor(DARK).text('PROPERTY ABSTRACT REPORT', { align: 'center' });
     doc.fontSize(9).fillColor('#666666').text('ProTitleUSA V2 Standard', { align: 'center' });
@@ -344,37 +344,7 @@ async function generateV2Report(jobData, outputPath) {
     // ========================================================================
     if (prop.misc_info_to_examiner) {
       sectionHeader('EXAMINER INSTRUCTIONS');
-
-      const instrText = prop.misc_info_to_examiner;
-      // Split into paragraphs for better page handling
-      const paragraphs = instrText.split(/\. (?=[A-Z])/g);
-      let currentParagraph = '';
-
-      paragraphs.forEach((sentence) => {
-        const candidate = currentParagraph ? `${currentParagraph}. ${sentence.trim()}` : sentence.trim();
-        // Estimate height needed (rough: 1 line per 85 chars at width 500, size 7.5, gap 1.5)
-        const charsPerLine = Math.floor((CONTENT_W - 12) / 3.2); // ~160 at size 7.5
-        const estimatedLines = Math.ceil(candidate.length / charsPerLine);
-        const estimatedHeight = estimatedLines * 12;
-
-        if (estimatedHeight > BOTTOM - doc.y - 20) {
-          // Flush current paragraph before page break
-          if (currentParagraph) {
-            bodyText(currentParagraph, 7.5, { lineGap: 1.2 });
-            currentParagraph = '';
-          }
-          newPage();
-        }
-
-        // If the sentence alone is too long for one page, split it
-        if (candidate.length > 500 && doc.y > BOTTOM - 60) {
-          newPage();
-        }
-
-        bodyText(candidate, 7.5, { lineGap: 1.2 });
-        doc.moveDown(0.2);
-      });
-
+      bodyText(prop.misc_info_to_examiner, 7.5, { lineGap: 1.2 });
       doc.moveDown(1);
     }
 
@@ -411,9 +381,19 @@ async function generateV2Report(jobData, outputPath) {
       bodyText(addInfo);
     }
 
-    // Final footer - draw at bottom of current page
-    const finalFooterY = doc.page.height - 40;
-    doc.fontSize(7).fillColor('#999999').text(`Page ${pageNum}`, MARGIN, finalFooterY, { width: CONTENT_W, align: 'right' });
+    // ========================================================================
+    // FOOTERS — applied after all content via bufferPages range
+    // ========================================================================
+    const range = doc.bufferedPageRange();
+    for (let i = 0; i < range.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(7).fillColor('#999999').text(
+        `Page ${i + 1}`,
+        MARGIN,
+        doc.page.height - 40,
+        { width: CONTENT_W, align: 'right' }
+      );
+    }
 
     doc.end();
     stream.on('finish', () => resolve(outputPath));

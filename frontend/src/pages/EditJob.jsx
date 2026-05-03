@@ -89,8 +89,11 @@ export default function EditJob() {
   const handleDownloadMd = async () => {
     setDownloadingMd(true);
     try {
-      await handleSave(); // Save latest changes before downloading
-      await downloadMarkdown(id, fields.order_info?.property_address || job.propertyAddress);
+      await handleSave();
+      const addr = isV2
+        ? fields.property_info?.address
+        : fields.order_info?.property_address || job.propertyAddress;
+      await downloadMarkdown(id, addr);
     } catch {
       setError('Markdown download failed.');
     } finally {
@@ -171,23 +174,33 @@ export default function EditJob() {
 
       <div className="flex gap-3 mb-6">
         {isV2 ? (
+          <>
             <button className="btn btn-success" onClick={handleDownloadPdf} disabled={downloadingPdf}>
-                {downloadingPdf ? 'Generating...' : '⬇ Download PDF Report'}
+              {downloadingPdf ? 'Generating...' : '⬇ Download PDF Report'}
             </button>
+            <button
+              className="btn btn-ghost"
+              onClick={handleDownloadMd}
+              disabled={downloadingMd}
+              style={{ border: '1px solid #ddd' }}
+            >
+              {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
+            </button>
+          </>
         ) : (
-            <>
-                <button className="btn btn-success" onClick={handleDownloadDocx} disabled={downloadingDocx}>
-                {downloadingDocx ? 'Generating...' : '⬇ Download Word (.docx)'}
-                </button>
-                <button
-                className="btn btn-ghost"
-                onClick={handleDownloadMd}
-                disabled={downloadingMd}
-                style={{ border: '1px solid #ddd' }}
-                >
-                {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
-                </button>
-            </>
+          <>
+            <button className="btn btn-success" onClick={handleDownloadDocx} disabled={downloadingDocx}>
+              {downloadingDocx ? 'Generating...' : '⬇ Download Word (.docx)'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              onClick={handleDownloadMd}
+              disabled={downloadingMd}
+              style={{ border: '1px solid #ddd' }}
+            >
+              {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
+            </button>
+          </>
         )}
       </div>
 
