@@ -4,8 +4,8 @@ const path = require('path');
 
 /**
  * High-fidelity multi-page PDF Generator for ProTitleUSA v2 Reports.
- * Uses bufferPages to avoid phantom blank pages — footers are drawn
- * after all content by iterating the buffered page range.
+ * Uses pure linear rendering — no bufferPages, no custom page breaks.
+ * pdfkit handles all page breaks internally via text wrapping overflow.
  */
 async function generateV2Report(jobData, outputPath) {
   const fields = jobData.fieldsJson || {};
@@ -22,23 +22,15 @@ async function generateV2Report(jobData, outputPath) {
   const LOGO_PATH = path.resolve(__dirname, '../../docs/logo/HazelwoodLogoFinal.png');
 
   return new Promise((resolve, reject) => {
-    // bufferPages: true prevents phantom blank pages — we draw footers at the end
-    const doc = new PDFDocument({ margin: MARGIN, size: 'A4', bufferPages: true });
+    const doc = new PDFDocument({ margin: MARGIN, size: 'A4' });
     const stream = fs.createWriteStream(outputPath);
     doc.pipe(stream);
 
+    let pageTotal = 1;
+    doc.on('pageAdded', () => { pageTotal++; });
+
     // --- Helpers ---
-    const ensureSpace = (needed) => {
-      const footerSpace = 50;
-      if (doc.y + needed > doc.page.height - footerSpace) newPage();
-    };
-
-    const newPage = () => {
-      doc.addPage({ margin: MARGIN });
-    };
-
     const sectionHeader = (title) => {
-      ensureSpace(28);
       const y = doc.y + 6;
       doc.rect(MARGIN, y, CONTENT_W, 20).fill(DARK);
       doc.fillColor('white').font('Helvetica-Bold').fontSize(10).text(title, MARGIN + 6, y + 4);
@@ -56,11 +48,11 @@ async function generateV2Report(jobData, outputPath) {
     };
 
     const bodyText = (text, size = 9, opts = {}) => {
-      doc.font('Helvetica').fontSize(size).fillColor('black').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12, lineGap: 1.5, pageBreak: false, ...opts });
+      doc.font('Helvetica').fontSize(size).fillColor('black').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12, lineGap: 1.5, ...opts });
     };
 
     const italicText = (text, size = 9) => {
-      doc.font('Helvetica-Oblique').fontSize(size).fillColor('#666666').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12, pageBreak: false });
+      doc.font('Helvetica-Oblique').fontSize(size).fillColor('#666666').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12 });
     };
 
     // ========================================================================
@@ -132,8 +124,6 @@ async function generateV2Report(jobData, outputPath) {
       italicText('No chain of title entries found.');
     } else {
       chain.forEach((entry, i) => {
-        ensureSpace(140);
-
         doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Entry ${i + 1} of ${chain.length}`, MARGIN + 6, doc.y + 2);
         doc.fillColor('black').moveDown(0.5);
 
@@ -157,9 +147,8 @@ async function generateV2Report(jobData, outputPath) {
         doc.moveDown(0.3);
 
         if (entry.notes) {
-          ensureSpace(30);
           doc.font('Helvetica-Bold').fontSize(8).fillColor('#444444').text('Notes: ', MARGIN + 12, doc.y, { continued: true });
-          doc.font('Helvetica-Oblique').fontSize(8).fillColor('#555555').text(entry.notes, { width: CONTENT_W - 60, pageBreak: false });
+          doc.font('Helvetica-Oblique').fontSize(8).fillColor('#555555').text(entry.notes, { width: CONTENT_W - 60 });
           doc.fillColor('black');
         }
 
@@ -179,8 +168,6 @@ async function generateV2Report(jobData, outputPath) {
       italicText('No open mortgages found.');
     } else {
       mortgages.forEach((m, i) => {
-        ensureSpace(120);
-
         doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Mortgage ${i + 1} of ${mortgages.length}`, MARGIN + 6, doc.y + 2);
         doc.fillColor('black').moveDown(0.5);
 
@@ -206,12 +193,11 @@ async function generateV2Report(jobData, outputPath) {
 
         const assignments = m.assignments || [];
         if (assignments.length > 0) {
-          ensureSpace(20 + assignments.length * 14);
           doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK).text('Assignments:', MARGIN + 12, doc.y + 4);
           assignments.forEach((a, ai) => {
             doc.font('Helvetica').fontSize(8).fillColor('#444444').text(
               `  ${ai + 1}. ${a.assignor || 'N/A'} \u2192 ${a.assignee || 'N/A'}  |  Recorded: ${a.recorded_date || 'N/A'}  |  Inst: ${a.instrument || 'N/A'}`,
-              MARGIN + 18, doc.y + 2, { width: CONTENT_W - 40, pageBreak: false }
+              MARGIN + 18, doc.y + 2, { width: CONTENT_W - 40 }
             );
           });
           doc.fillColor('black');
@@ -233,7 +219,6 @@ async function generateV2Report(jobData, outputPath) {
       italicText('No associated documents found.');
     } else {
       associated.forEach((a, i) => {
-        ensureSpace(80);
         doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Document ${i + 1} of ${associated.length}`, MARGIN + 6, doc.y + 2);
         doc.fillColor('black').moveDown(0.5);
         kv('Title', a.document_title, MARGIN + 12, doc.y);
@@ -264,7 +249,6 @@ async function generateV2Report(jobData, outputPath) {
       italicText('No judgments or liens found.');
     } else {
       liens.forEach((l, i) => {
-        ensureSpace(80);
         doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Judgment / Lien ${i + 1} of ${liens.length}`, MARGIN + 6, doc.y + 2);
         doc.fillColor('black').moveDown(0.5);
         kv('Title', l.document_title, MARGIN + 12, doc.y);
@@ -293,7 +277,6 @@ async function generateV2Report(jobData, outputPath) {
       italicText('No miscellaneous documents found.');
     } else {
       misc.forEach((d, i) => {
-        ensureSpace(80);
         doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Document ${i + 1} of ${misc.length}`, MARGIN + 6, doc.y + 2);
         doc.fillColor('black').moveDown(0.5);
         kv('Title', d.document_title, MARGIN + 12, doc.y);
@@ -327,12 +310,11 @@ async function generateV2Report(jobData, outputPath) {
 
     const taxHistory = tax.tax_history || [];
     if (taxHistory.length > 0) {
-      ensureSpace(20 + taxHistory.length * 12);
       doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK).text('Tax History:', MARGIN + 6, doc.y + 2);
       taxHistory.forEach((th) => {
         doc.font('Helvetica').fontSize(8).fillColor('#444444').text(
           `  ${th.tax_year || th.year}: $${th.amount || '0.00'} \u2014 ${th.status || 'N/A'}${th.paid_date ? ` (Paid: ${th.paid_date})` : ''}`,
-          MARGIN + 12, doc.y + 2, { width: CONTENT_W - 30, pageBreak: false }
+          MARGIN + 12, doc.y + 2, { width: CONTENT_W - 30 }
         );
       });
       doc.fillColor('black');
@@ -352,11 +334,10 @@ async function generateV2Report(jobData, outputPath) {
     // 10. LEGAL DESCRIPTION
     // ========================================================================
     sectionHeader('LEGAL DESCRIPTION');
-    ensureSpace(40);
     doc.font('Helvetica').fontSize(8.5).fillColor('black').text(
       fields.legal_description || 'SEE ATTACHED',
       MARGIN + 6, doc.y,
-      { width: CONTENT_W - 12, lineGap: 2, pageBreak: false }
+      { width: CONTENT_W - 12, lineGap: 2 }
     );
     doc.moveDown(1.2);
 
@@ -382,18 +363,14 @@ async function generateV2Report(jobData, outputPath) {
     }
 
     // ========================================================================
-    // FOOTERS — applied after all content via bufferPages range
+    // FOOTER — on last page only (no bufferPages = can't retroactively add)
     // ========================================================================
-    const range = doc.bufferedPageRange();
-    for (let i = 0; i < range.count; i++) {
-      doc.switchToPage(i);
-      doc.fontSize(7).fillColor('#999999').text(
-        `Page ${i + 1}`,
-        MARGIN,
-        doc.page.height - 40,
-        { width: CONTENT_W, align: 'right' }
-      );
-    }
+    doc.fontSize(7).fillColor('#999999').text(
+      `Page ${pageTotal}`,
+      MARGIN,
+      doc.page.height - 40,
+      { width: CONTENT_W, align: 'right' }
+    );
 
     doc.end();
     stream.on('finish', () => resolve(outputPath));
