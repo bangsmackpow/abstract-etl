@@ -56,11 +56,11 @@ async function generateV2Report(jobData, outputPath) {
     };
 
     const bodyText = (text, size = 9, opts = {}) => {
-      doc.font('Helvetica').fontSize(size).fillColor('black').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12, lineGap: 1.5, ...opts });
+      doc.font('Helvetica').fontSize(size).fillColor('black').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12, lineGap: 1.5, pageBreak: false, ...opts });
     };
 
     const italicText = (text, size = 9) => {
-      doc.font('Helvetica-Oblique').fontSize(size).fillColor('#666666').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12 });
+      doc.font('Helvetica-Oblique').fontSize(size).fillColor('#666666').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12, pageBreak: false });
     };
 
     // ========================================================================
@@ -159,7 +159,7 @@ async function generateV2Report(jobData, outputPath) {
         if (entry.notes) {
           ensureSpace(30);
           doc.font('Helvetica-Bold').fontSize(8).fillColor('#444444').text('Notes: ', MARGIN + 12, doc.y, { continued: true });
-          doc.font('Helvetica-Oblique').fontSize(8).fillColor('#555555').text(entry.notes, { width: CONTENT_W - 60 });
+          doc.font('Helvetica-Oblique').fontSize(8).fillColor('#555555').text(entry.notes, { width: CONTENT_W - 60, pageBreak: false });
           doc.fillColor('black');
         }
 
@@ -211,7 +211,7 @@ async function generateV2Report(jobData, outputPath) {
           assignments.forEach((a, ai) => {
             doc.font('Helvetica').fontSize(8).fillColor('#444444').text(
               `  ${ai + 1}. ${a.assignor || 'N/A'} \u2192 ${a.assignee || 'N/A'}  |  Recorded: ${a.recorded_date || 'N/A'}  |  Inst: ${a.instrument || 'N/A'}`,
-              MARGIN + 18, doc.y + 2, { width: CONTENT_W - 40 }
+              MARGIN + 18, doc.y + 2, { width: CONTENT_W - 40, pageBreak: false }
             );
           });
           doc.fillColor('black');
@@ -332,7 +332,7 @@ async function generateV2Report(jobData, outputPath) {
       taxHistory.forEach((th) => {
         doc.font('Helvetica').fontSize(8).fillColor('#444444').text(
           `  ${th.tax_year || th.year}: $${th.amount || '0.00'} \u2014 ${th.status || 'N/A'}${th.paid_date ? ` (Paid: ${th.paid_date})` : ''}`,
-          MARGIN + 12, doc.y + 2, { width: CONTENT_W - 30 }
+          MARGIN + 12, doc.y + 2, { width: CONTENT_W - 30, pageBreak: false }
         );
       });
       doc.fillColor('black');
@@ -356,7 +356,7 @@ async function generateV2Report(jobData, outputPath) {
     doc.font('Helvetica').fontSize(8.5).fillColor('black').text(
       fields.legal_description || 'SEE ATTACHED',
       MARGIN + 6, doc.y,
-      { width: CONTENT_W - 12, lineGap: 2 }
+      { width: CONTENT_W - 12, lineGap: 2, pageBreak: false }
     );
     doc.moveDown(1.2);
 

@@ -248,7 +248,7 @@ export default function EditJob() {
             </button>
           )}
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save and Exit'}
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
