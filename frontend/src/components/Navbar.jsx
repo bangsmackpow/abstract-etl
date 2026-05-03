@@ -23,6 +23,9 @@ export default function Navbar() {
       <Link to="/jobs/new" className="navbar-link">
         + New Job
       </Link>
+      <Link to="/jobs/bulk" className="navbar-link">
+        Bulk Import
+      </Link>
       {isAdmin && (
         <Link to="/admin" className="navbar-link">
           Admin

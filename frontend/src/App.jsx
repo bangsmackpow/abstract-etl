@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import NewJob from './pages/NewJob';
+import BulkImport from './pages/BulkImport';
 import EditJob from './pages/EditJob';
 import Admin from './pages/Admin';
 import Navbar from './components/Navbar';
@@ -45,6 +46,16 @@ export default function App() {
               <ProtectedRoute>
                 <AppLayout>
                   <NewJob />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/jobs/bulk"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <BulkImport />
                 </AppLayout>
               </ProtectedRoute>
             }

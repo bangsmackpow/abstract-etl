@@ -46,7 +46,25 @@ const jobs = sqliteTable(
   })
 );
 
+const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});
+
+const backups = sqliteTable('backups', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => uuidv4()),
+  filename: text('filename').notNull(),
+  sizeBytes: integer('size_bytes'),
+  status: text('status').notNull().default('completed'), // completed, failed
+  errorMessage: text('error_message'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+});
+
 module.exports = {
   users,
   jobs,
+  settings,
+  backups,
 };

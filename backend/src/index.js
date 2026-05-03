@@ -98,6 +98,27 @@ async function seedAdmin() {
   }
 }
 
+async function ensureSystemTables() {
+  // Create settings + backups tables if they don't exist (bypasses drizzle-kit migration)
+  const { sqlite } = require('./db');
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS backups (
+      id TEXT PRIMARY KEY,
+      filename TEXT NOT NULL,
+      size_bytes INTEGER,
+      status TEXT NOT NULL DEFAULT 'completed',
+      error_message TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )
+  `);
+}
+
 async function start() {
   try {
     // Note: In a real production app, you'd run migrations here.
@@ -107,6 +128,7 @@ async function start() {
     // console.log('🔄 Running database migrations...');
     await migrate(db, { migrationsFolder: './drizzle' });
 
+    await ensureSystemTables();
     await seedAdmin();
 
     const server = app.listen(PORT, () => {
@@ -114,6 +136,10 @@ async function start() {
       // console.log('    Database: SQLite (WAL mode enabled)');
       // console.log('    AI Provider: Google Native (Gemini 2.5 Flash)');
     });
+
+    // Start automated backup scheduler
+    const { startBackupScheduler } = require('./services/backupService');
+    startBackupScheduler();
 
     // Increase timeout for long AI extractions (10 mins)
     server.timeout = 600000;

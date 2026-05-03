@@ -1,21 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
-const { users, jobs } = require('../db/schema');
+const { users, jobs, settings } = require('../db/schema');
 const { eq, sql, avg, count } = require('drizzle-orm');
 const { requireAuth, requireAdmin } = require('../middleware/requireAuth');
 const { hashPassword } = require('../services/authService');
 const { createError } = require('../middleware/errorHandler');
+const { manualBackup, listBackups, restartScheduler } = require('../services/backupService');
+const { resetTransporter } = require('../services/emailService');
 
 router.use(requireAuth);
 router.use(requireAdmin);
 
-/**
- * GET /api/admin/metrics
- * Returns aggregated metrics for the dashboard.
- */
 router.get('/metrics', async (req, res) => {
-  // Total jobs per user
   const jobsPerUser = await db
     .select({
       userId: users.id,
@@ -27,7 +24,6 @@ router.get('/metrics', async (req, res) => {
     .leftJoin(jobs, eq(users.id, jobs.createdBy))
     .groupBy(users.id);
 
-  // Overall stats
   const [overall] = await db
     .select({
       totalJobs: count(jobs.id),
@@ -41,10 +37,6 @@ router.get('/metrics', async (req, res) => {
   });
 });
 
-/**
- * GET /api/admin/users
- * List all users.
- */
 router.get('/users', async (req, res) => {
   const allUsers = await db
     .select({
@@ -58,10 +50,6 @@ router.get('/users', async (req, res) => {
   res.json(allUsers);
 });
 
-/**
- * POST /api/admin/users
- * Create a new user.
- */
 router.post('/users', async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -96,10 +84,6 @@ router.post('/users', async (req, res) => {
   }
 });
 
-/**
- * PATCH /api/admin/users/:id/password
- * Change a user's password.
- */
 router.patch('/users/:id/password', async (req, res) => {
   const { password } = req.body;
 
@@ -120,18 +104,72 @@ router.patch('/users/:id/password', async (req, res) => {
   res.json({ success: true, message: 'Password updated successfully' });
 });
 
-/**
- * DELETE /api/admin/users/:id
- * Delete a user.
- */
 router.delete('/users/:id', async (req, res) => {
-  // Prevent deleting self
   if (req.params.id === req.user.id) {
     throw createError('Cannot delete your own account', 400);
   }
 
   await db.delete(users).where(eq(users.id, req.params.id));
   res.json({ success: true });
+});
+
+// ── Backup Routes ─────────────────────────────────────────────────────────────
+
+router.post('/backup', async (req, res) => {
+  const record = await manualBackup();
+  res.status(201).json(record);
+});
+
+router.get('/backups', async (req, res) => {
+  const list = await listBackups();
+  res.json(list);
+});
+
+// ── Settings Routes ───────────────────────────────────────────────────────────
+
+const SETTING_KEYS = [
+  'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from',
+  'admin_email',
+  'backup_enabled', 'backup_interval_minutes', 'backup_retention_days',
+];
+
+router.get('/settings', async (req, res) => {
+  const rows = await db.select().from(settings);
+  const map = {};
+  for (const r of rows) map[r.key] = r.value;
+  res.json(map);
+});
+
+router.patch('/settings', async (req, res) => {
+  const allowedKeys = new Set(SETTING_KEYS);
+  const changedKeys = [];
+
+  for (const [key, value] of Object.entries(req.body)) {
+    if (!allowedKeys.has(key)) continue;
+    if (value === null || value === '') {
+      await db.delete(settings).where(eq(settings.key, key));
+    } else {
+      await db.delete(settings).where(eq(settings.key, key));
+      await db.insert(settings).values({ key, value: String(value) });
+    }
+    changedKeys.push(key);
+  }
+
+  // Reinitialize services if SMTP settings changed
+  const smtpKeys = ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from'];
+  if (smtpKeys.some((k) => changedKeys.includes(k))) {
+    resetTransporter();
+  }
+
+  // Restart backup scheduler if backup settings changed
+  if (['backup_enabled', 'backup_interval_minutes'].some((k) => changedKeys.includes(k))) {
+    restartScheduler();
+  }
+
+  const rows = await db.select().from(settings);
+  const map = {};
+  for (const r of rows) map[r.key] = r.value;
+  res.json(map);
 });
 
 module.exports = router;

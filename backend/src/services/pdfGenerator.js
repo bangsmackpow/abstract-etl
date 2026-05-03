@@ -19,7 +19,7 @@ async function generateV2Report(jobData, outputPath) {
   const MARGIN = 50;
   const CONTENT_W = 512;
   const LOGO_W = 100;
-  const LOGO_PATH = path.resolve(__dirname, '../../docs/logo/HazelwoodLogoFinal.png');
+  const LOGO_PATH = path.resolve(__dirname, '../../../docs/logo/HazelwoodLogoFinal.png');
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: MARGIN, size: 'A4' });

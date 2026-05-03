@@ -57,6 +57,18 @@ export const extractPDF = (file, onUploadProgress, version = 'v1') => {
     .then((r) => r.data);
 };
 
+export const extractBulkPDFs = (files, version = 'v2', onUploadProgress) => {
+  const form = new FormData();
+  files.forEach((f) => form.append('pdfs', f));
+  form.append('version', version);
+  return api
+    .post('/extract/bulk', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress,
+    })
+    .then((r) => r.data);
+};
+
 // ── Generate ──────────────────────────────────────────────────────────────────
 export const downloadDocx = async (jobId, propertyAddress) => {
   const response = await api.get(`/generate/${jobId}`, { responseType: 'blob' });
@@ -89,6 +101,14 @@ export const downloadMarkdown = async (jobId, propertyAddress) => {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
+
+// ── Admin: Backups ────────────────────────────────────────────────────────────
+export const triggerBackup = () => api.post('/admin/backup').then((r) => r.data);
+export const getBackups = () => api.get('/admin/backups').then((r) => r.data);
+
+// ── Admin: Settings ───────────────────────────────────────────────────────────
+export const getSettings = () => api.get('/admin/settings').then((r) => r.data);
+export const updateSettings = (data) => api.patch('/admin/settings', data).then((r) => r.data);
 
 export const downloadPdf = async (jobId, propertyAddress) => {
   const response = await api.get(`/generate/${jobId}/pdf`, { responseType: 'blob' });
