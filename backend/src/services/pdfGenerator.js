@@ -363,12 +363,14 @@ async function generateV2Report(jobData, outputPath) {
     }
 
     // ========================================================================
-    // FOOTER — on last page only (no bufferPages = can't retroactively add)
+    // FOOTER — placed at current cursor or near page bottom, whichever is closer
+    // Must stay above the bottom margin (50pt) to avoid pdfkit auto-adding a blank page.
     // ========================================================================
+    const footerY = Math.min(doc.y + 8, doc.page.height - 65);
     doc.fontSize(7).fillColor('#999999').text(
       `Page ${pageTotal}`,
       MARGIN,
-      doc.page.height - 40,
+      footerY,
       { width: CONTENT_W, align: 'right' }
     );
 
