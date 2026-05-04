@@ -16,6 +16,7 @@ const adminRoutes = require('./routes/admin');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
+app.disable('etag'); // Dynamic API — no conditional GET caching
 const PORT = env.PORT || 3001;
 
 // ── Uploads directory ────────────────────────────────────────────────────────
