@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const router = express.Router();
 const { db } = require('../db');
 const { users, jobs, settings } = require('../db/schema');
@@ -6,7 +7,7 @@ const { eq, sql, avg, count } = require('drizzle-orm');
 const { requireAuth, requireAdmin } = require('../middleware/requireAuth');
 const { hashPassword } = require('../services/authService');
 const { createError } = require('../middleware/errorHandler');
-const { manualBackup, listBackups, restartScheduler } = require('../services/backupService');
+const { manualBackup, listBackups, restoreBackup, getBackupPath, restartScheduler } = require('../services/backupService');
 const { resetTransporter } = require('../services/emailService');
 
 router.use(requireAuth);
@@ -116,13 +117,25 @@ router.delete('/users/:id', async (req, res) => {
 // ── Backup Routes ─────────────────────────────────────────────────────────────
 
 router.post('/backup', async (req, res) => {
-  const record = await manualBackup();
+  const { notes } = req.body || {};
+  const record = await manualBackup(notes);
   res.status(201).json(record);
 });
 
 router.get('/backups', async (req, res) => {
   const list = await listBackups();
   res.json(list);
+});
+
+router.get('/backups/:id/download', async (req, res) => {
+  const filePath = await getBackupPath(req.params.id);
+  const filename = path.basename(filePath);
+  res.download(filePath, filename);
+});
+
+router.post('/backups/:id/restore', async (req, res) => {
+  await restoreBackup(req.params.id);
+  res.json({ success: true, message: 'Database restored successfully' });
 });
 
 // ── Settings Routes ───────────────────────────────────────────────────────────

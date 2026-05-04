@@ -103,8 +103,10 @@ export const downloadMarkdown = async (jobId, propertyAddress) => {
 };
 
 // ── Admin: Backups ────────────────────────────────────────────────────────────
-export const triggerBackup = () => api.post('/admin/backup').then((r) => r.data);
+export const triggerBackup = (notes) => api.post('/admin/backup', { notes }).then((r) => r.data);
 export const getBackups = () => api.get('/admin/backups').then((r) => r.data);
+export const downloadBackup = (id) => api.get(`/admin/backups/${id}/download`, { responseType: 'blob' }).then((r) => r.data);
+export const restoreBackup = (id) => api.post(`/admin/backups/${id}/restore`).then((r) => r.data);
 
 // ── Admin: Settings ───────────────────────────────────────────────────────────
 export const getSettings = () => api.get('/admin/settings').then((r) => r.data);

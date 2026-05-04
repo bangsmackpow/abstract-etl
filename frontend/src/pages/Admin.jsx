@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   getJobs, getUsers, getAdminMetrics,
   createUser, changePassword, deleteUser, deleteJob,
-  triggerBackup, getBackups,
+  triggerBackup, getBackups, downloadBackup, restoreBackup,
   getSettings, updateSettings,
 } from '../services/api';
 
@@ -29,8 +29,10 @@ export default function Admin() {
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'abstractor' });
   const [userMsg, setUserMsg] = useState('');
   const [backupMsg, setBackupMsg] = useState('');
+  const [backupNotes, setBackupNotes] = useState('');
   const [settingsMsg, setSettingsMsg] = useState('');
   const [backingUp, setBackingUp] = useState(false);
+  const [restoringId, setRestoringId] = useState(null);
 
   useEffect(() => { refreshData(); }, [activeTab]);
 
@@ -98,13 +100,49 @@ export default function Admin() {
     setBackingUp(true);
     setBackupMsg('');
     try {
-      const record = await triggerBackup();
+      const record = await triggerBackup(backupNotes || undefined);
       setBackupMsg(`Backup created: ${record.filename}`);
+      setBackupNotes('');
       refreshData();
     } catch (err) {
       setBackupMsg(`Backup failed: ${err.response?.data?.message || err.message}`);
     } finally {
       setBackingUp(false);
+    }
+  };
+
+  const handleDownloadBackup = async (id, filename) => {
+    try {
+      const blob = await downloadBackup(id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Download failed: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handleRestoreBackup = async (id) => {
+    if (!window.confirm(
+      '⚠️ RESTORE DATABASE\n\n' +
+      'This will replace the current database with the selected backup.\n' +
+      'A safety snapshot will be taken before restoring.\n\n' +
+      'Are you sure you want to continue?'
+    )) return;
+    setRestoringId(id);
+    try {
+      await restoreBackup(id);
+      alert('Database restored successfully. The backup has been applied.');
+      refreshData();
+    } catch (err) {
+      alert('Restore failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setRestoringId(null);
     }
   };
 
@@ -343,20 +381,37 @@ export default function Admin() {
       {activeTab === 'backups' && (
         <div>
           <div className="card mb-4">
-            <div className="card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontWeight: 600 }}>Manual Backup</div>
-                <div className="text-muted text-sm">Creates a snapshot of the database immediately.</div>
+            <div className="card-body">
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>Manual Backup</div>
+              <div className="text-muted text-sm" style={{ marginBottom: 12 }}>
+                Creates a snapshot of the database immediately.
               </div>
-              <button className="btn btn-primary" onClick={handleManualBackup} disabled={backingUp}>
-                {backingUp ? 'Backing up...' : 'Create Backup Now'}
-              </button>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <input
+                  className="form-input"
+                  style={{ flex: 1 }}
+                  placeholder="Add a note (e.g. reason for backup)..."
+                  value={backupNotes}
+                  onChange={(e) => setBackupNotes(e.target.value)}
+                />
+                <button className="btn btn-primary" onClick={handleManualBackup} disabled={backingUp}
+                  style={{ whiteSpace: 'nowrap' }}>
+                  {backingUp ? 'Backing up...' : 'Create Backup'}
+                </button>
+              </div>
             </div>
-            {backupMsg && <div className="card-body pt-0"><div className={`alert ${backupMsg.includes('failed') ? 'alert-error' : 'alert-info'}`}>{backupMsg}</div></div>}
+            {backupMsg && <div className="card-body pt-0">
+              <div className={`alert ${backupMsg.includes('failed') ? 'alert-error' : 'alert-info'}`}>{backupMsg}</div>
+            </div>}
           </div>
 
           <div className="card">
-            <div className="card-header">Backup History</div>
+            <div className="card-header">
+              <span>Backup History</span>
+              <span className="text-muted text-sm" style={{ marginLeft: 8 }}>
+                ({backupList.length} total)
+              </span>
+            </div>
             {loading ? (
               <div className="card-body" style={{ textAlign: 'center', padding: 40 }}>
                 <span className="spinner spinner-dark" />
@@ -373,20 +428,49 @@ export default function Admin() {
                       <th>Filename</th>
                       <th>Size</th>
                       <th>Status</th>
+                      <th>Notes</th>
                       <th>Date</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {backupList.map((b) => (
                       <tr key={b.id}>
-                        <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{b.filename}</td>
-                        <td>{formatBytes(b.sizeBytes)}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: 12, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {b.filename}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{formatBytes(b.sizeBytes)}</td>
                         <td>
-                          <span className={`status-badge ${b.status === 'completed' ? 'status-complete' : 'status-draft'}`}>
+                          <span className={`status-badge ${b.status === 'completed' ? 'status-complete' : 'status-draft'}`}
+                            style={{ textTransform: 'capitalize' }}>
                             {b.status}
                           </span>
                         </td>
-                        <td>{b.createdAt ? new Date(b.createdAt).toLocaleString() : '—'}</td>
+                        <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', color: b.notes === 'auto' ? 'var(--gray-mid)' : 'inherit' }}>
+                          {b.notes || '—'}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          {b.createdAt ? new Date(b.createdAt).toLocaleString() : '—'}
+                        </td>
+                        <td>
+                          <div className="flex gap-2" style={{ whiteSpace: 'nowrap' }}>
+                            {b.status === 'completed' && (
+                              <>
+                                <button className="btn btn-ghost btn-sm"
+                                  onClick={() => handleDownloadBackup(b.id, b.filename)}
+                                  title="Download Backup">
+                                  ⬇️
+                                </button>
+                                <button className="btn btn-ghost btn-sm text-error"
+                                  onClick={() => handleRestoreBackup(b.id)}
+                                  disabled={restoringId === b.id}
+                                  title="Restore Database from this backup">
+                                  {restoringId === b.id ? '...' : '↩️'}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

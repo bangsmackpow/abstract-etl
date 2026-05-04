@@ -44,6 +44,8 @@
 - [x] **PDF Blank Page Fixed (Final)**: Footer Y-position now clamped above bottom margin, preventing PDFKit from auto-creating trailing blank pages. Pure linear rendering retained.
 - [x] **PDF Logo Fixed**: Corrected logo path resolution (`../../../docs/logo/` instead of `../../docs/logo/`) so `HazelwoodLogoFinal.png` actually renders in PDF reports.
 - [x] **Bulk Import Feature**: `POST /api/extract/bulk` accepts up to 50 PDFs, processes each through Gemini AI, saves as draft jobs, and emails a summary to the user. Frontend bulk upload page at `/jobs/bulk` with multi-file selection and result breakdown.
-- [x] **Database Backup System**: `backupService.js` handles manual + scheduled SQLite backups. Auto-cleanup by retention policy. Email notification on failure. Configured via Admin UI.
+- [x] **Database Backup System**: `backupService.js` handles manual + scheduled SQLite backups. Auto-cleanup by retention policy. Email notification on failure. Configured via Admin UI. Manual backups support notes/comments. All backups (manual + auto) listed in history with download + restore buttons.
+- [x] **Backup Restore**: `POST /api/admin/backups/:id/restore` uses better-sqlite3 built-in backup API for live restore without server restart. Safety pre-restore snapshot automatically created. Admin UI restore button with confirmation dialog.
+- [x] **Backup Download**: `GET /api/admin/backups/:id/download` streams the backup file. Download button per row in admin UI.
 - [x] **Admin Settings UI**: New Backups and Settings tabs in admin panel. SMTP config (host, port, user, pass, from) stored in `settings` table, overrides env vars at runtime. Backup schedule (interval, retention, enabled/disabled) configurable without restart.
 - [x] **Email Broadcast Extended**: `emailService.js` now supports `sendBulkImportNotification()` and `sendBackupNotification()` in addition to existing `sendCompletionEmail()`.

@@ -59,6 +59,7 @@ const backups = sqliteTable('backups', {
   sizeBytes: integer('size_bytes'),
   status: text('status').notNull().default('completed'), // completed, failed
   errorMessage: text('error_message'),
+  notes: text('notes'),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 

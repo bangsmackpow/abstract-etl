@@ -114,6 +114,7 @@ async function ensureSystemTables() {
       size_bytes INTEGER,
       status TEXT NOT NULL DEFAULT 'completed',
       error_message TEXT,
+      notes TEXT,
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )
   `);

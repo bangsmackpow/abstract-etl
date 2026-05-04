@@ -1,8 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const { db } = require('../db');
+const Database = require('better-sqlite3');
+const { db, sqlite } = require('../db');
 const { backups, settings } = require('../db/schema');
-const { eq } = require('drizzle-orm');
+const { eq, desc } = require('drizzle-orm');
 const { sendBackupNotification } = require('./emailService');
 
 const BACKUP_DIR = path.resolve(__dirname, '../../backups');
@@ -11,7 +12,7 @@ function ensureBackupDir() {
   if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
 
-async function manualBackup() {
+async function manualBackup(notes) {
   ensureBackupDir();
   const dbPath = process.env.DB_PATH || path.resolve(__dirname, '../../data/sqlite.db');
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -27,6 +28,7 @@ async function manualBackup() {
         filename,
         sizeBytes: stats.size,
         status: 'completed',
+        notes: notes || null,
       })
       .returning();
     await cleanupOldBackups();
@@ -36,6 +38,7 @@ async function manualBackup() {
       filename,
       status: 'failed',
       errorMessage: err.message,
+      notes: notes || null,
     });
     const adminEmail = await getSetting('admin_email');
     if (adminEmail) {
@@ -43,6 +46,39 @@ async function manualBackup() {
     }
     throw err;
   }
+}
+
+async function restoreBackup(id) {
+  const [record] = await db.select().from(backups).where(eq(backups.id, id)).limit(1);
+  if (!record) throw new Error('Backup not found');
+  if (record.status !== 'completed') throw new Error('Cannot restore a failed backup');
+
+  const backupPath = path.join(BACKUP_DIR, record.filename);
+  if (!fs.existsSync(backupPath)) throw new Error('Backup file not found on disk');
+
+  const dbPath = process.env.DB_PATH || path.resolve(__dirname, '../../data/sqlite.db');
+
+  // Safety: pre-restore snapshot
+  const safetyFile = path.join(BACKUP_DIR, `pre-restore-${Date.now()}.db`);
+  fs.copyFileSync(dbPath, safetyFile);
+
+  // Restore using better-sqlite3's built-in backup API — no restart needed
+  const backupDb = new Database(backupPath, { readonly: true });
+  try {
+    backupDb.backup(sqlite);
+  } finally {
+    backupDb.close();
+  }
+
+  return true;
+}
+
+async function getBackupPath(id) {
+  const [record] = await db.select().from(backups).where(eq(backups.id, id)).limit(1);
+  if (!record) throw new Error('Backup not found');
+  const p = path.join(BACKUP_DIR, record.filename);
+  if (!fs.existsSync(p)) throw new Error('Backup file not found on disk');
+  return p;
 }
 
 async function cleanupOldBackups() {
@@ -66,7 +102,7 @@ async function getSetting(key) {
 
 async function scheduledBackup() {
   try {
-    await manualBackup();
+    await manualBackup('auto');
     console.log(`[Backup] Auto-backup completed at ${new Date().toISOString()}`);
   } catch (err) {
     console.error('[Backup] Auto-backup failed:', err.message);
@@ -102,7 +138,9 @@ async function restartScheduler() {
 
 module.exports = {
   manualBackup,
-  listBackups: () => db.select().from(backups).orderBy(backups.createdAt),
+  restoreBackup,
+  getBackupPath,
+  listBackups: () => db.select().from(backups).orderBy(desc(backups.createdAt)),
   getSetting,
   startBackupScheduler,
   stopBackupScheduler,
