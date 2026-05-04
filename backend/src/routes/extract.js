@@ -123,8 +123,9 @@ router.post('/bulk', upload.array('pdfs', 50), async (req, res) => {
     }
   }
 
+  const adminEmail = process.env.ADMIN_EMAIL || process.env.POCKETBASE_ADMIN_EMAIL;
   const mailSent = await sendBulkImportNotification({
-    to: req.user.email,
+    to: req.user.email || adminEmail,
     results,
   });
 

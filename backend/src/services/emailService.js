@@ -18,7 +18,7 @@ async function getTransporter() {
   if (transporter) return transporter;
 
   const host = await getDbSetting('smtp_host') || process.env.SMTP_HOST;
-  const port = await getDbSetting('smtp_port') || process.env.SMTP_PORT || '587';
+  const port = parseInt(await getDbSetting('smtp_port') || process.env.SMTP_PORT || '587', 10);
   const user = await getDbSetting('smtp_user') || process.env.SMTP_USER;
   const pass = await getDbSetting('smtp_pass') || process.env.SMTP_PASS;
 
@@ -26,8 +26,8 @@ async function getTransporter() {
 
   transporter = nodemailer.createTransport({
     host,
-    port: parseInt(port),
-    secure: port === '465',
+    port,
+    secure: port === 465,
     auth: { user, pass },
   });
   return transporter;

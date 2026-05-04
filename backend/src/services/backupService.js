@@ -42,7 +42,7 @@ async function manualBackup(notes) {
     });
     const adminEmail = await getSetting('admin_email');
     if (adminEmail) {
-      sendBackupNotification({ to: adminEmail, success: false, error: err.message });
+      await sendBackupNotification({ to: adminEmail, success: false, error: err.message });
     }
     throw err;
   }
