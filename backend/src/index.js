@@ -134,14 +134,14 @@ async function ensureSystemTables() {
   }
 
   // ── Verify schema matches expectations ─────────────────────────────────
-  const [backupCols] = sqlite.prepare('PRAGMA table_info(\'backups\')').all();
+  const backupCols = sqlite.prepare('PRAGMA table_info(\'backups\')').all();
   const expectedBackupCols = ['id', 'filename', 'size_bytes', 'status', 'error_message', 'notes', 'created_at'];
   const missingBackupCols = expectedBackupCols.filter((c) => !backupCols.find((r) => r.name === c));
   if (missingBackupCols.length > 0) {
     console.warn(`⚠️  backups table missing columns: ${missingBackupCols.join(', ')}`);
   }
 
-  const [settingCols] = sqlite.prepare('PRAGMA table_info(\'settings\')').all();
+  const settingCols = sqlite.prepare('PRAGMA table_info(\'settings\')').all();
   const expectedSettingCols = ['key', 'value'];
   const missingSettingCols = expectedSettingCols.filter((c) => !settingCols.find((r) => r.name === c));
   if (missingSettingCols.length > 0) {
