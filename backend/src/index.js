@@ -99,8 +99,9 @@ async function seedAdmin() {
 }
 
 async function ensureSystemTables() {
-  // Create settings + backups tables if they don't exist (bypasses drizzle-kit migration)
   const { sqlite } = require('./db');
+
+  // Create tables — IF NOT EXISTS handles first-run. ALTER TABLE handles schema drift.
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -118,6 +119,34 @@ async function ensureSystemTables() {
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )
   `);
+
+  // ── Schema drift: add missing columns to existing tables ────────────────
+  // SQLite throws "duplicate column" if column already exists, so try/catch.
+  const migrations = [
+    'ALTER TABLE backups ADD COLUMN notes TEXT',
+    // Future: add new column ALTERs here as the schema evolves
+  ];
+
+  for (const stmt of migrations) {
+    try { sqlite.exec(stmt); } catch (e) {
+      // Column already exists or not applicable — expected on subsequent runs
+    }
+  }
+
+  // ── Verify schema matches expectations ─────────────────────────────────
+  const [backupCols] = sqlite.prepare('PRAGMA table_info(\'backups\')').all();
+  const expectedBackupCols = ['id', 'filename', 'size_bytes', 'status', 'error_message', 'notes', 'created_at'];
+  const missingBackupCols = expectedBackupCols.filter((c) => !backupCols.find((r) => r.name === c));
+  if (missingBackupCols.length > 0) {
+    console.warn(`⚠️  backups table missing columns: ${missingBackupCols.join(', ')}`);
+  }
+
+  const [settingCols] = sqlite.prepare('PRAGMA table_info(\'settings\')').all();
+  const expectedSettingCols = ['key', 'value'];
+  const missingSettingCols = expectedSettingCols.filter((c) => !settingCols.find((r) => r.name === c));
+  if (missingSettingCols.length > 0) {
+    console.warn(`⚠️  settings table missing columns: ${missingSettingCols.join(', ')}`);
+  }
 }
 
 async function start() {
