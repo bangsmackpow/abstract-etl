@@ -84,6 +84,7 @@ router.post('/bulk', upload.array('pdfs', 50), async (req, res) => {
     try {
       const extractedFields = await googleAiService.extractFromPDF(pdfPath, file.originalname, version);
       const isV2 = version === 'v2';
+      const isV4 = version === 'v4';
       const propertyAddress = isV2
         ? extractedFields.property_info?.address
         : extractedFields.order_info?.property_address || '';
@@ -96,6 +97,8 @@ router.post('/bulk', upload.array('pdfs', 50), async (req, res) => {
           propertyAddress: propertyAddress || 'PENDING ADDRESS',
           borrowerNames: isV2
             ? extractedFields.property_info?.current_owner || ''
+            : isV4
+            ? extractedFields.order_info?.current_owner || ''
             : extractedFields.order_info?.current_vesting_owner || '',
           county: isV2 ? extractedFields.property_info?.county || '' : extractedFields.order_info?.county || '',
           fieldsJson: extractedFields,
