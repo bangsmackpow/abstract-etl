@@ -56,14 +56,26 @@ export default function EditJob() {
     setError('');
     setSaved(false);
     try {
-      const isV2 = job?.templateVersion === 'v2';
+      const tv = job?.templateVersion;
+      const isV2 = tv === 'v2';
+      const isV4 = tv === 'v4';
+      const addr = isV2
+        ? fields.property_info?.address
+        : isV4
+        ? fields.order_info?.property_address
+        : fields.order_info?.property_address;
+      const cnty = isV2
+        ? fields.property_info?.county
+        : isV4
+        ? fields.order_info?.county
+        : fields.order_info?.county;
       await updateJob(id, {
         fields_json: fields,
         ai_flags_json: aiFlags,
         status,
         notes,
-        property_address: isV2 ? fields.property_info?.address : fields.order_info?.property_address,
-        county: isV2 ? fields.property_info?.county : fields.order_info?.county,
+        property_address: addr,
+        county: cnty,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -90,8 +102,13 @@ export default function EditJob() {
     setDownloadingMd(true);
     try {
       await handleSave();
+      const tv = job?.templateVersion;
+      const isV2 = tv === 'v2';
+      const isV4 = tv === 'v4';
       const addr = isV2
         ? fields.property_info?.address
+        : isV4
+        ? fields.order_info?.property_address
         : fields.order_info?.property_address || job.propertyAddress;
       await downloadMarkdown(id, addr);
     } catch {
@@ -131,7 +148,9 @@ export default function EditJob() {
       </div>
     );
 
-  const isV2 = job?.templateVersion === 'v2';
+  const tv = job?.templateVersion;
+  const isV2 = tv === 'v2';
+  const isV4 = tv === 'v4';
   const headerAddress = isV2
     ? fields.property_info?.address || job?.propertyAddress
     : fields.order_info?.property_address || job?.propertyAddress;
@@ -173,7 +192,7 @@ export default function EditJob() {
       </div>
 
       <div className="flex gap-3 mb-6">
-        {isV2 ? (
+        {isV2 || isV4 ? (
           <>
             <button className="btn btn-success" onClick={handleDownloadPdf} disabled={downloadingPdf}>
               {downloadingPdf ? 'Generating...' : '⬇ Download PDF Report'}

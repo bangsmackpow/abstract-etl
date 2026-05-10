@@ -62,13 +62,166 @@ export default function AbstractForm({
   templateVersion = 'v1',
 }) {
   const isV2 = templateVersion === 'v2';
+  const isV4 = templateVersion === 'v4';
   const alternatives = fields?.alternatives || {};
   const fieldProps = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
 
+  if (isV4) {
+    return <V4Form {...fieldProps} />;
+  }
   if (isV2) {
     return <V2Form {...fieldProps} />;
   }
   return <V1Form {...fieldProps} />;
+}
+
+function V4Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const fieldProps = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    const chain = fields?.chain_of_title || [];
+    const mortgages = fields?.mortgages || [];
+
+    return (
+        <div>
+            <Section title="ORDER INFORMATION">
+                <div style={s.grid2}>
+                    <Field label="ORDER NUMBER" path="order_info.order_number" {...fieldProps} />
+                    <Field label="COMPLETED DATE" path="order_info.completed_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+                </div>
+                <Field label="PROPERTY ADDRESS" path="order_info.property_address" {...fieldProps} />
+                <div style={s.grid3}>
+                    <Field label="COUNTY" path="order_info.county" {...fieldProps} />
+                    <Field label="PARCEL ID" path="order_info.parcel_id" {...fieldProps} />
+                    <Field label="APN/PIN" path="order_info.apn_pin" {...fieldProps} />
+                </div>
+                <div style={s.grid2}>
+                    <Field label="CURRENT OWNER" path="order_info.current_owner" {...fieldProps} />
+                    <Field label="MISCELLANEOUS INFORMATION" path="order_info.misc_info" multiline {...fieldProps} />
+                </div>
+            </Section>
+
+            <Section title="VESTING INFORMATION">
+                <div style={s.grid2}>
+                    <Field label="GRANTEE" path="vesting_info.grantee" {...fieldProps} />
+                    <Field label="GRANTOR" path="vesting_info.grantor" {...fieldProps} />
+                </div>
+                <div style={s.grid3}>
+                    <Field label="DEED DATE" path="vesting_info.deed_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+                    <Field label="RECORDED DATE" path="vesting_info.recorded_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+                    <Field label="DEED TYPE" path="vesting_info.deed_type" {...fieldProps} masterList={DEED_TYPES} />
+                </div>
+                <div style={s.grid3}>
+                    <Field label="INSTRUMENT/BOOK/PAGE" path="vesting_info.instrument_book_page" {...fieldProps} />
+                    <Field label="CONSIDERATION" path="vesting_info.consideration" {...fieldProps} />
+                    <Field label="SALE PRICE" path="vesting_info.sale_price" {...fieldProps} />
+                </div>
+                <div style={s.grid2}>
+                    <Field label="PROBATE STATUS" path="vesting_info.probate_status" {...fieldProps} />
+                    <Field label="DIVORCE STATUS" path="vesting_info.divorce_status" {...fieldProps} />
+                </div>
+                <Field label="NOTES" path="vesting_info.notes" multiline {...fieldProps} />
+            </Section>
+
+            <Section title={`CHAIN OF TITLE (${chain.length})`}>
+                {chain.map((_, i) => (
+                    <V4ChainEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {chain.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No chain of title entries found.</div>}
+            </Section>
+
+            <Section title={`MORTGAGES / DEEDS OF TRUST (${mortgages.length})`}>
+                {mortgages.map((_, i) => (
+                    <V4MortgageEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {mortgages.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No mortgages found.</div>}
+            </Section>
+
+            <Section title="TAX INFORMATION">
+                <div style={s.grid3}>
+                    <Field label="TAX YEAR" path="tax_info.tax_year" {...fieldProps} />
+                    <Field label="TOTAL TAX AMOUNT" path="tax_info.total_amount" {...fieldProps} />
+                    <Field label="STATUS" path="tax_info.status" {...fieldProps} />
+                </div>
+                <div style={s.grid3}>
+                    <Field label="PAID DATE" path="tax_info.paid_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+                    <Field label="DELINQUENT AMOUNT" path="tax_info.delinquent_amount" {...fieldProps} />
+                    <Field label="TAX PARCEL ID" path="tax_info.parcel_id" {...fieldProps} />
+                </div>
+            </Section>
+
+            <Section title="LEGAL DESCRIPTION">
+                <Field label="LEGAL DESCRIPTION" path="legal_description" multiline {...fieldProps} />
+            </Section>
+        </div>
+    );
+}
+
+function V4ChainEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `chain_of_title.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>ENTRY {index + 1}</div>
+            <div style={s.grid2}>
+                <Field label="GRANTEE" path={`${base}.grantee`} {...fp} />
+                <Field label="GRANTOR" path={`${base}.grantor`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="DEED DATE" path={`${base}.deed_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="RECORDED DATE" path={`${base}.recorded_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="DEED TYPE" path={`${base}.deed_type`} {...fp} masterList={DEED_TYPES} />
+            </div>
+            <div style={s.grid2}>
+                <Field label="INSTRUMENT/BOOK/PAGE" path={`${base}.instrument_book_page`} {...fp} />
+                <Field label="CONSIDERATION" path={`${base}.consideration`} {...fp} />
+            </div>
+            <Field label="NOTES" path={`${base}.notes`} multiline {...fp} />
+        </div>
+    );
+}
+
+function V4MortgageEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `mortgages.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    const assignments = fields?.mortgages?.[index]?.assignments || [];
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>MORTGAGE {index + 1}</div>
+            <div style={s.grid2}>
+                <Field label="BORROWER" path={`${base}.borrower`} {...fp} />
+                <Field label="LENDER" path={`${base}.lender`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="MORTGAGE DATE" path={`${base}.mortgage_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="RECORDED DATE" path={`${base}.recorded_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="MORTGAGE AMOUNT" path={`${base}.mortgage_amount`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="MORTGAGE TYPE" path={`${base}.mortgage_type`} {...fp} masterList={MORTGAGE_TYPES} />
+                <Field label="VESTING STATUS" path={`${base}.vesting_status`} {...fp} masterList={VESTING_STATUSES} />
+                <Field label="MATURITY DATE" path={`${base}.maturity_date`} placeholder="MM/DD/YYYY" {...fp} />
+            </div>
+            {assignments.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                    <div style={s.entryNum}>ASSIGNMENTS</div>
+                    {assignments.map((_, a_idx) => {
+                        const a_base = `${base}.assignments.${a_idx}`;
+                        return (
+                            <div key={a_idx} style={{...s.entryCard, background: '#fff', border: '1px solid #d1d5db'}}>
+                                <div style={s.grid2}>
+                                    <Field label="ASSIGNOR" path={`${a_base}.assignor`} {...fp} />
+                                    <Field label="ASSIGNEE" path={`${a_base}.assignee`} {...fp} />
+                                </div>
+                                <div style={s.grid3}>
+                                    <Field label="RECORDED DATE" path={`${a_base}.recorded_date`} placeholder="MM/DD/YYYY" {...fp} />
+                                    <Field label="INSTRUMENT #" path={`${a_base}.instrument`} {...fp} />
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
 }
 
 function V2Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {

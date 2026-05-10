@@ -117,7 +117,7 @@ export default function Dashboard() {
                   <td>{job.county || '—'}</td>
                   <td>
                     <span
-                      className={`status-badge status-${job.templateVersion === 'v2' ? 'v2' : 'v1'}`}
+                      className={`status-badge status-${job.templateVersion === 'v2' ? 'v2' : job.templateVersion === 'v4' ? 'v4' : 'v1'}`}
                     >
                       {job.templateVersion || 'v1'}
                     </span>
