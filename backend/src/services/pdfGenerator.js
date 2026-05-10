@@ -3,17 +3,22 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * High-fidelity multi-page PDF Generator for ProTitleUSA v2 Reports.
- * Uses pure linear rendering — no bufferPages, no custom page breaks.
- * pdfkit handles all page breaks internally via text wrapping overflow.
+ * Hazelwood V4 PDF Generator
+ * Section page breaks, Times font, ALL CAPS, editable fields, Hazelwood layout.
  */
-async function generateV2Report(jobData, outputPath) {
+async function generateV4Report(jobData, outputPath) {
   const fields = jobData.fieldsJson || {};
-  const prop = fields.property_info || {};
+  const order = fields.order_info || {};
   const vest = fields.vesting_info || {};
   const chain = fields.chain_of_title || [];
   const mortgages = fields.mortgages || [];
+  const assoc = fields.associated_documents || [];
+  const liens = fields.judgments_liens || [];
+  const misc = fields.misc_documents || [];
   const tax = fields.tax_status || {};
+  const legal = fields.legal_description;
+  const names = fields.names_searched || [];
+  const addInfo = fields.additional_information;
 
   const DARK = '#003366';
   const MARGIN = 50;
@@ -22,181 +27,186 @@ async function generateV2Report(jobData, outputPath) {
   const LOGO_PATH = path.resolve(__dirname, '../../../docs/logo/HazelwoodLogoFinal.png');
 
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: MARGIN, size: 'A4' });
+    const doc = new PDFDocument({ margin: MARGIN, size: 'A4', autoFirstPage: false });
     const stream = fs.createWriteStream(outputPath);
     doc.pipe(stream);
 
-    let pageTotal = 1;
+    let pageTotal = 0;
     doc.on('pageAdded', () => { pageTotal++; });
 
     // --- Helpers ---
+    const addPage = () => {
+      doc.addPage();
+      pageTotal++;
+      renderFooter();
+    };
+
+    const renderFooter = () => {
+      const footerY = doc.page.height - 30;
+      doc.save();
+      doc.fontSize(7).fillColor('#999999').font('Helvetica').text(
+        `Page ${pageTotal}`,
+        MARGIN, footerY, { width: CONTENT_W, align: 'right' }
+      );
+      doc.restore();
+    };
+
     const sectionHeader = (title) => {
-      const y = doc.y + 6;
+      const y = doc.y + 4;
       doc.rect(MARGIN, y, CONTENT_W, 20).fill(DARK);
-      doc.fillColor('white').font('Helvetica-Bold').fontSize(10).text(title, MARGIN + 6, y + 4);
+      doc.fillColor('white').font('Times-Bold').fontSize(10).text(title.toUpperCase(), MARGIN + 6, y + 4);
       doc.fillColor('black');
       doc.moveDown(1.5);
     };
 
-    const kv = (label, value, x, y) => {
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#333333').text(label, x, y, { continued: true });
-      doc.font('Helvetica').fontSize(9).fillColor('black').text(` ${value || '\u2014'}`);
+    const kv = (label, value) => {
+      const labelText = (label || '').toUpperCase();
+      const valText = (value || '\u2014').toString().toUpperCase();
+      doc.font('Times-Bold').fontSize(9).fillColor('#333333').text(`${labelText}: `, { continued: true });
+      doc.font('Times-Roman').fontSize(9).fillColor('black').text(valText);
+    };
+
+    const kvTwoCol = (label1, value1, label2, value2) => {
+      const x1 = MARGIN + 6;
+      const x2 = 290;
+      const y = doc.y;
+      doc.font('Times-Bold').fontSize(9).fillColor('#333333').text((label1 || '').toUpperCase() + ': ', x1, y, { continued: true });
+      doc.font('Times-Roman').fontSize(9).fillColor('black').text((value1 || '\u2014').toString().toUpperCase(), { continued: false });
+      doc.font('Times-Bold').fontSize(9).fillColor('#333333').text((label2 || '').toUpperCase() + ': ', x2, y, { continued: true });
+      doc.font('Times-Roman').fontSize(9).fillColor('black').text((value2 || '\u2014').toString().toUpperCase());
     };
 
     const hr = () => {
-      doc.strokeColor('#DDDDDD').lineWidth(0.5).moveTo(MARGIN, doc.y + 2).lineTo(MARGIN + CONTENT_W, doc.y + 2).stroke();
+      const yy = doc.y + 2;
+      doc.strokeColor('#DDDDDD').lineWidth(0.5).moveTo(MARGIN, yy).lineTo(MARGIN + CONTENT_W, yy).stroke();
+      doc.moveDown(0.5);
     };
 
-    const bodyText = (text, size = 9, opts = {}) => {
-      doc.font('Helvetica').fontSize(size).fillColor('black').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12, lineGap: 1.5, ...opts });
+    const bodyText = (text, size = 9) => {
+      doc.font('Times-Roman').fontSize(size).fillColor('black').text(
+        (text || '').toUpperCase(),
+        MARGIN + 6, doc.y, { width: CONTENT_W - 12, lineGap: 1.5 }
+      );
     };
 
     const italicText = (text, size = 9) => {
-      doc.font('Helvetica-Oblique').fontSize(size).fillColor('#666666').text(text, MARGIN + 6, doc.y, { width: CONTENT_W - 12 });
+      doc.font('Times-Italic').fontSize(size).fillColor('#666666').text(
+        text, MARGIN + 6, doc.y, { width: CONTENT_W - 12 }
+      );
+    };
+
+    const _addTextField = (label, value, yOverride) => {
+      const yy = yOverride || doc.y;
+      doc.formTextField({
+        name: `field_${label.replace(/\s+/g, '_').toLowerCase()}`,
+        value: (value || '').toString().toUpperCase(),
+        x: MARGIN + 6,
+        y: yy,
+        width: CONTENT_W - 12,
+        height: 16,
+        fontSize: 9,
+        font: 'Times-Roman',
+        borderColor: '#CCCCCC',
+        borderWidth: 0.5,
+      });
     };
 
     // ========================================================================
-    // COVER / HEADER
+    // COVER PAGE — Hazelwood Header
     // ========================================================================
+    addPage();
+
     if (fs.existsSync(LOGO_PATH)) {
       doc.image(LOGO_PATH, MARGIN, 30, { width: LOGO_W });
     }
-    doc.fontSize(18).font('Helvetica-Bold').fillColor(DARK).text('Hazelwood & Associates, LLC', { align: 'center' });
-    doc.fontSize(12).font('Helvetica').fillColor(DARK).text('PROPERTY ABSTRACT REPORT', { align: 'center' });
-    doc.fontSize(9).fillColor('#666666').text('ProTitleUSA V2 Standard', { align: 'center' });
+    doc.fontSize(18).font('Times-Bold').fillColor(DARK).text('HAZELWOOD & ASSOCIATES, LLC', { align: 'center' });
+    doc.fontSize(12).font('Times-Roman').fillColor(DARK).text('PROPERTY ABSTRACT REPORT', { align: 'center' });
+    doc.fontSize(9).fillColor('#666666').text('V4 Standard', { align: 'center' });
     doc.moveDown(0.5);
     doc.rect(MARGIN, doc.y, CONTENT_W, 2).fill(DARK);
-    doc.moveDown(1.2);
+    doc.moveDown(1.5);
 
-    // ========================================================================
-    // 1. PROPERTY INFORMATION
-    // ========================================================================
-    sectionHeader('PROPERTY INFORMATION');
-    const piY = doc.y;
-    kv('ProTitle Order#', prop.order_no, MARGIN + 6, piY);
-    kv('Completed Date', prop.completed_date, 300, piY);
+    // Order info on cover
+    kvTwoCol('FILE NUMBER', order.file_number, 'COMPLETED DATE', order.completed_date);
     doc.moveDown(0.3);
-    kv('Index Date', prop.index_date, MARGIN + 6, doc.y);
-    kv('APN / Parcel #', prop.apn_parcel_pin, 300, doc.y);
-    doc.moveDown(0.8);
-    kv('Property Address', prop.address, MARGIN + 6, doc.y);
-    doc.moveDown(0.8);
-    kv('Current Owner', prop.current_owner, MARGIN + 6, doc.y);
-    kv('County', prop.county, 300, doc.y);
-    doc.moveDown(1.2);
+    kvTwoCol('COMPANY', order.company_name, 'EFFECTIVE DATE', order.effective_date);
+    doc.moveDown(0.3);
+    kv('PROPERTY ADDRESS', order.property_address);
+    doc.moveDown(0.3);
+    kvTwoCol('COUNTY', order.county, 'TOWNSHIP', order.township);
+    doc.moveDown(0.3);
+    kv('CURRENT VESTING OWNER', order.current_vesting_owner);
+    doc.moveDown(0.3);
 
-    // ========================================================================
-    // 2. VESTING INFORMATION
-    // ========================================================================
-    sectionHeader('VESTING INFORMATION');
-    const vY = doc.y;
-    kv('Grantee', vest.grantee, MARGIN + 6, vY);
-    kv('Grantor', vest.grantor, 300, vY);
-    doc.moveDown(0.3);
-    kv('Deed Date', vest.deed_date, MARGIN + 6, doc.y);
-    kv('Recorded Date', vest.recorded_date, 300, doc.y);
-    doc.moveDown(0.3);
-    kv('Instrument / Book / Page', vest.instrument_book_page, MARGIN + 6, doc.y);
-    doc.moveDown(0.3);
-    kv('Deed Type', vest.deed_type, MARGIN + 6, doc.y);
-    kv('Consideration', vest.consideration_amount, 300, doc.y);
-    doc.moveDown(0.3);
-    kv('Sale Price', vest.sale_price, MARGIN + 6, doc.y);
-    if (vest.probate_status) {
-      kv('Probate Status', vest.probate_status, 300, doc.y);
-    }
-    if (vest.divorce_status) {
+    if (order.parcel_ids && order.parcel_ids.length > 0) {
+      kv('PARCEL IDS', order.parcel_ids.join('; '));
       doc.moveDown(0.3);
-      kv('Divorce Status', vest.divorce_status, MARGIN + 6, doc.y);
     }
+    kvTwoCol('ASSESSED VALUE', order.assessed_value, 'LAND VALUE', order.land_value);
+    doc.moveDown(0.3);
+    kvTwoCol('IMPROVEMENT VALUE', order.improvement_value, 'TAX ID', order.tax_id);
+    doc.moveDown(1);
+
+    // ========================================================================
+    // 1. VESTING INFORMATION
+    // ========================================================================
+    addPage();
+    sectionHeader('VESTING INFORMATION');
+
+    kvTwoCol('GRANTEE', vest.grantee, 'GRANTOR', vest.grantor);
+    doc.moveDown(0.3);
+    kvTwoCol('DEED DATE', vest.deed_date, 'RECORDED DATE', vest.recorded_date);
+    doc.moveDown(0.3);
+    kv('INSTRUMENT / BOOK / PAGE', vest.instrument_book_page);
+    doc.moveDown(0.3);
+    kvTwoCol('DEED TYPE', vest.deed_type, 'CONSIDERATION', vest.consideration);
+    doc.moveDown(0.3);
+    kv('IN / OUT SALE', vest.in_out_sale ? 'YES' : 'NO');
     if (vest.notes) {
       doc.moveDown(0.3);
-      kv('Notes', vest.notes, MARGIN + 6, doc.y);
+      kv('NOTES', vest.notes);
     }
-    doc.moveDown(1.2);
+    doc.moveDown(1);
 
     // ========================================================================
-    // 3. CHAIN OF TITLE
+    // 2. CHAIN OF TITLE
     // ========================================================================
+    addPage();
     sectionHeader('CHAIN OF TITLE');
 
     if (chain.length === 0) {
-      italicText('No chain of title entries found.');
+      italicText('No chain-of-title entries found in the record.');
     } else {
       chain.forEach((entry, i) => {
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Entry ${i + 1} of ${chain.length}`, MARGIN + 6, doc.y + 2);
+        doc.font('Times-Bold').fontSize(10).fillColor(DARK).text(`ENTRY ${i + 1} OF ${chain.length}`, MARGIN + 6, doc.y + 2);
         doc.fillColor('black').moveDown(0.5);
 
-        const eY = doc.y;
-        kv('Grantee', entry.grantee, MARGIN + 12, eY);
-        kv('Grantor', entry.grantor, 280, eY);
+        kv('DEED TYPE', entry.deed_type);
         doc.moveDown(0.3);
-
-        kv('Deed Date', entry.deed_date, MARGIN + 12, doc.y);
-        kv('Recorded Date', entry.recorded_date, 280, doc.y);
+        kv('GRANTORS', (entry.grantors || []).join(', '));
         doc.moveDown(0.3);
-
-        kv('Book / Page / Inst', entry.instrument_book_page, MARGIN + 12, doc.y);
-        if (entry.vbook_num || entry.vpage_num) {
-          kv('Vol Book / Page', `${entry.vbook_num || '\u2014'} / ${entry.vpage_num || '\u2014'}`, 280, doc.y);
-        }
+        kv('GRANTEES', (entry.grantees || []).join(', '));
         doc.moveDown(0.3);
-
-        kv('Deed Type', entry.deed_type, MARGIN + 12, doc.y);
-        kv('Consideration', entry.consideration_amount, 280, doc.y);
+        kvTwoCol('DEED DATE', entry.deed_date, 'RECORDED DATE', entry.recorded_date);
         doc.moveDown(0.3);
+        kv('INSTRUMENT / BOOK / PAGE', entry.instrument_book_page);
+        doc.moveDown(0.3);
+        kv('CONSIDERATION', entry.consideration);
 
         if (entry.notes) {
-          doc.font('Helvetica-Bold').fontSize(8).fillColor('#444444').text('Notes: ', MARGIN + 12, doc.y, { continued: true });
-          doc.font('Helvetica-Oblique').fontSize(8).fillColor('#555555').text(entry.notes, { width: CONTENT_W - 60 });
+          doc.moveDown(0.3);
+          doc.font('Times-Bold').fontSize(8).fillColor('#444444').text('NOTES: ', MARGIN + 12, doc.y, { continued: true });
+          doc.font('Times-Italic').fontSize(8).fillColor('#555555').text(entry.notes, { width: CONTENT_W - 60 });
           doc.fillColor('black');
         }
 
-        doc.moveDown(0.3);
-        hr();
-        doc.moveDown(0.3);
-      });
-    }
-    doc.moveDown(0.5);
-
-    // ========================================================================
-    // 4. OPEN MORTGAGES / DEEDS OF TRUST
-    // ========================================================================
-    sectionHeader('OPEN MORTGAGES / DEEDS OF TRUST');
-
-    if (mortgages.length === 0) {
-      italicText('No open mortgages found.');
-    } else {
-      mortgages.forEach((m, i) => {
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Mortgage ${i + 1} of ${mortgages.length}`, MARGIN + 6, doc.y + 2);
-        doc.fillColor('black').moveDown(0.5);
-
-        const mY = doc.y;
-        kv('Borrower', m.borrower, MARGIN + 12, mY);
-        kv('Lender', m.lender, 280, mY);
-        doc.moveDown(0.3);
-
-        kv('Mortgage Amount', m.mortgage_amount, MARGIN + 12, doc.y);
-        kv('Type', m.mortgage_type, 200, doc.y);
-        kv('Vesting', m.vesting_status, 380, doc.y);
-        doc.moveDown(0.3);
-
-        kv('Mortgage Date', m.mortgage_date, MARGIN + 12, doc.y);
-        kv('Recorded Date', m.recorded_date, 200, doc.y);
-        kv('Maturity', m.maturity_date, 380, doc.y);
-        doc.moveDown(0.3);
-
-        kv('Book / Page / Instrument', `${m.book || '\u2014'} / ${m.page || '\u2014'} / ${m.instrument || '\u2014'}`, MARGIN + 12, doc.y);
-        doc.moveDown(0.3);
-
-        kv('MERS', m.mers || 'No', MARGIN + 12, doc.y);
-
-        const assignments = m.assignments || [];
-        if (assignments.length > 0) {
-          doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK).text('Assignments:', MARGIN + 12, doc.y + 4);
-          assignments.forEach((a, ai) => {
-            doc.font('Helvetica').fontSize(8).fillColor('#444444').text(
-              `  ${ai + 1}. ${a.assignor || 'N/A'} \u2192 ${a.assignee || 'N/A'}  |  Recorded: ${a.recorded_date || 'N/A'}  |  Inst: ${a.instrument || 'N/A'}`,
+        const related = entry.related_documents || [];
+        if (related.length > 0) {
+          doc.moveDown(0.3);
+          doc.font('Times-Bold').fontSize(8).fillColor(DARK).text('RELATED DOCUMENTS:', MARGIN + 12, doc.y);
+          related.forEach((rd, ri) => {
+            doc.font('Times-Roman').fontSize(8).fillColor('#444444').text(
+              `  ${ri + 1}. ${rd.document_type || rd.title || 'N/A'} | ${rd.book_instrument || rd.instrument || 'N/A'} | ${rd.dated || rd.recorded_date || 'N/A'}`,
               MARGIN + 18, doc.y + 2, { width: CONTENT_W - 40 }
             );
           });
@@ -211,27 +221,74 @@ async function generateV2Report(jobData, outputPath) {
     doc.moveDown(0.5);
 
     // ========================================================================
-    // 5. ASSOCIATED DOCUMENTS
+    // 3. MORTGAGES / LIENS
     // ========================================================================
-    const associated = fields.associated_documents || [];
-    sectionHeader('ASSOCIATED DOCUMENTS');
-    if (associated.length === 0) {
-      italicText('No associated documents found.');
+    addPage();
+    sectionHeader('MORTGAGES / LIENS');
+
+    if (mortgages.length === 0) {
+      italicText('No mortgages or deeds of trust found in the record.');
     } else {
-      associated.forEach((a, i) => {
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Document ${i + 1} of ${associated.length}`, MARGIN + 6, doc.y + 2);
+      mortgages.forEach((m, i) => {
+        doc.font('Times-Bold').fontSize(10).fillColor(DARK).text(`MORTGAGE ${i + 1} OF ${mortgages.length}`, MARGIN + 6, doc.y + 2);
         doc.fillColor('black').moveDown(0.5);
-        kv('Title', a.document_title, MARGIN + 12, doc.y);
-        kv('Book / Inst / Page', `${a.book_instrument || '\u2014'} / ${a.page || '\u2014'}`, 280, doc.y);
+
+        kvTwoCol('BORROWER', m.borrower, 'LENDER', m.lender);
         doc.moveDown(0.3);
-        kv('Dated', a.dated, MARGIN + 12, doc.y);
-        kv('Recorded', a.recorded, 280, doc.y);
+        kvTwoCol('AMOUNT', m.mortgage_amount, 'TYPE', m.mortgage_type);
+        kvTwoCol('VESTING STATUS', m.vesting_status, 'MERS', m.mers || 'No');
         doc.moveDown(0.3);
-        kv('Grantor / Assignor', a.grantor_assignor, MARGIN + 12, doc.y);
-        kv('Grantee / Assignee', a.grantee_assignee, 280, doc.y);
+        kvTwoCol('MORTGAGE DATE', m.mortgage_date, 'RECORDED DATE', m.recorded_date);
+        kvTwoCol('MATURITY DATE', m.maturity_date, 'BOOK / PAGE / INSTR', `${m.book || '\u2014'} / ${m.page || '\u2014'} / ${m.instrument || '\u2014'}`);
+        doc.moveDown(0.3);
+
+        if (m.subordination_notes) {
+          kv('SUBORDINATION NOTES', m.subordination_notes);
+          doc.moveDown(0.3);
+        }
+
+        const assignments = m.assignments || [];
+        if (assignments.length > 0) {
+          doc.font('Times-Bold').fontSize(9).fillColor(DARK).text('ASSIGNMENTS:', MARGIN + 12, doc.y + 4);
+          assignments.forEach((a, ai) => {
+            doc.font('Times-Roman').fontSize(8).fillColor('#444444').text(
+              `  ${ai + 1}. ${a.document_type || 'ASSIGNMENT'} | ${a.assignor || 'N/A'} \u2192 ${a.assignee || 'N/A'} | REC: ${a.recorded_date || 'N/A'} | INST: ${a.instrument || 'N/A'}`,
+              MARGIN + 18, doc.y + 2, { width: CONTENT_W - 40 }
+            );
+          });
+          doc.fillColor('black');
+        }
+
+        doc.moveDown(0.3);
+        hr();
+        doc.moveDown(0.3);
+      });
+    }
+    doc.moveDown(0.5);
+
+    // ========================================================================
+    // 4. ASSOCIATED DOCUMENTS
+    // ========================================================================
+    addPage();
+    sectionHeader('ASSOCIATED DOCUMENTS');
+
+    if (assoc.length === 0) {
+      italicText('No associated documents found in the record.');
+    } else {
+      assoc.forEach((a, i) => {
+        doc.font('Times-Bold').fontSize(10).fillColor(DARK).text(`DOCUMENT ${i + 1} OF ${assoc.length}`, MARGIN + 6, doc.y + 2);
+        doc.fillColor('black').moveDown(0.5);
+
+        kv('DOCUMENT TYPE', a.document_type || a.document_title);
+        doc.moveDown(0.3);
+        kvTwoCol('DATED', a.dated, 'RECORDED', a.recorded);
+        doc.moveDown(0.3);
+        kv('BOOK / INSTRUMENT / PAGE', a.book_instrument);
+        doc.moveDown(0.3);
+        kvTwoCol('GRANTOR / ASSIGNOR', a.grantor_assignor, 'GRANTEE / ASSIGNEE', a.grantee_assignee);
         if (a.notes) {
           doc.moveDown(0.3);
-          kv('Notes', a.notes, MARGIN + 12, doc.y);
+          kv('NOTES', a.notes);
         }
         doc.moveDown(0.3);
         hr();
@@ -241,26 +298,27 @@ async function generateV2Report(jobData, outputPath) {
     doc.moveDown(0.5);
 
     // ========================================================================
-    // 6. JUDGMENTS / LIENS
+    // 5. JUDGMENTS / LIENS
     // ========================================================================
-    const liens = fields.judgments_liens || [];
+    addPage();
     sectionHeader('JUDGMENTS / LIENS');
+
     if (liens.length === 0) {
-      italicText('No judgments or liens found.');
+      italicText('No judgments or liens found in the record.');
     } else {
       liens.forEach((l, i) => {
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Judgment / Lien ${i + 1} of ${liens.length}`, MARGIN + 6, doc.y + 2);
+        doc.font('Times-Bold').fontSize(10).fillColor(DARK).text(`JUDGMENT / LIEN ${i + 1} OF ${liens.length}`, MARGIN + 6, doc.y + 2);
         doc.fillColor('black').moveDown(0.5);
-        kv('Title', l.document_title, MARGIN + 12, doc.y);
-        kv('Case #', l.case_number, 280, doc.y);
+
+        kv('DOCUMENT TITLE', l.document_title);
         doc.moveDown(0.3);
-        kv('Dated', l.dated, MARGIN + 12, doc.y);
-        kv('Recorded', l.recorded, 280, doc.y);
+        kvTwoCol('DATED', l.dated, 'CASE #', l.case_number);
         doc.moveDown(0.3);
-        kv('Amount', l.amount, MARGIN + 12, doc.y);
-        kv('Plaintiff', l.plaintiff, 280, doc.y);
+        kv('BOOK / INSTRUMENT / PAGE', l.book_instrument);
         doc.moveDown(0.3);
-        kv('Defendant', l.defendant, MARGIN + 12, doc.y);
+        kvTwoCol('AMOUNT', l.amount, 'RECORDED', l.recorded);
+        doc.moveDown(0.3);
+        kvTwoCol('PLAINTIFF', l.plaintiff, 'DEFENDANT', l.defendant);
         doc.moveDown(0.3);
         hr();
         doc.moveDown(0.3);
@@ -269,24 +327,25 @@ async function generateV2Report(jobData, outputPath) {
     doc.moveDown(0.5);
 
     // ========================================================================
-    // 7. MISCELLANEOUS DOCUMENTS
+    // 6. MISCELLANEOUS DOCUMENTS
     // ========================================================================
-    const misc = fields.misc_documents || [];
+    addPage();
     sectionHeader('MISCELLANEOUS DOCUMENTS');
+
     if (misc.length === 0) {
-      italicText('No miscellaneous documents found.');
+      italicText('No miscellaneous documents found in the record.');
     } else {
       misc.forEach((d, i) => {
-        doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`Document ${i + 1} of ${misc.length}`, MARGIN + 6, doc.y + 2);
+        doc.font('Times-Bold').fontSize(10).fillColor(DARK).text(`DOCUMENT ${i + 1} OF ${misc.length}`, MARGIN + 6, doc.y + 2);
         doc.fillColor('black').moveDown(0.5);
-        kv('Title', d.document_title, MARGIN + 12, doc.y);
-        kv('Book / Inst / Page', `${d.book_instrument || '\u2014'} / ${d.page || '\u2014'}`, 280, doc.y);
+
+        kv('DOCUMENT TITLE', d.document_title);
         doc.moveDown(0.3);
-        kv('Dated', d.dated, MARGIN + 12, doc.y);
-        kv('Recorded', d.recorded, 280, doc.y);
+        kvTwoCol('DATED', d.dated, 'RECORDED', d.recorded);
         doc.moveDown(0.3);
-        kv('Grantor / Assignor', d.grantor_assignor, MARGIN + 12, doc.y);
-        kv('Grantee / Assignee', d.grantee_assignee, 280, doc.y);
+        kv('BOOK / INSTRUMENT / PAGE', d.book_instrument);
+        doc.moveDown(0.3);
+        kvTwoCol('GRANTOR / ASSIGNOR', d.grantor_assignor, 'GRANTEE / ASSIGNEE', d.grantee_assignee);
         doc.moveDown(0.3);
         hr();
         doc.moveDown(0.3);
@@ -295,57 +354,47 @@ async function generateV2Report(jobData, outputPath) {
     doc.moveDown(0.5);
 
     // ========================================================================
-    // 8. TAX STATUS
+    // 7. TAX STATUS
     // ========================================================================
+    addPage();
     sectionHeader('TAX STATUS');
-    const tY = doc.y;
-    kv('Parcel ID', tax.parcel_id, MARGIN + 6, tY);
-    kv('Tax Year', tax.tax_year, 260, tY);
-    kv('Status', tax.status, 400, tY);
+
+    kvTwoCol('PARCEL ID', tax.parcel_id || order.parcel_id, 'TAX YEAR', tax.tax_year);
+    kvTwoCol('STATUS', tax.status, 'TOTAL AMOUNT', tax.total_amount);
     doc.moveDown(0.3);
-    kv('Total Amount', tax.total_amount, MARGIN + 6, doc.y);
-    kv('Paid Date', tax.paid_date, 260, doc.y);
-    kv('Delinquent Amount', tax.delinquent_amount, 400, doc.y);
+    kvTwoCol('PAID DATE', tax.paid_date, 'DELINQUENT AMOUNT', tax.delinquent_amount);
     doc.moveDown(0.3);
 
-    const taxHistory = tax.tax_history || [];
-    if (taxHistory.length > 0) {
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK).text('Tax History:', MARGIN + 6, doc.y + 2);
-      taxHistory.forEach((th) => {
-        doc.font('Helvetica').fontSize(8).fillColor('#444444').text(
-          `  ${th.tax_year || th.year}: $${th.amount || '0.00'} \u2014 ${th.status || 'N/A'}${th.paid_date ? ` (Paid: ${th.paid_date})` : ''}`,
+    const installments = tax.installments || [];
+    if (installments.length > 0) {
+      doc.font('Times-Bold').fontSize(9).fillColor(DARK).text('INSTALLMENTS:', MARGIN + 6, doc.y + 4);
+      installments.forEach((inst) => {
+        doc.font('Times-Roman').fontSize(8).fillColor('#444444').text(
+          `  Installment ${inst.installment_number || 'N/A'}: $${inst.amount || '0.00'} | Due: ${inst.due_date || 'N/A'} | Status: ${inst.status || 'N/A'} | Paid: ${inst.paid_date || 'N/A'} | Delinquent: $${inst.delinquent_amount || '0.00'} | Penalties/Fees: $${inst.penalties_fees || '0.00'}`,
           MARGIN + 12, doc.y + 2, { width: CONTENT_W - 30 }
         );
       });
       doc.fillColor('black');
     }
-    doc.moveDown(1.2);
+    doc.moveDown(1);
 
     // ========================================================================
-    // 9. EXAMINER INSTRUCTIONS
+    // 8. LEGAL DESCRIPTION
     // ========================================================================
-    if (prop.misc_info_to_examiner) {
-      sectionHeader('EXAMINER INSTRUCTIONS');
-      bodyText(prop.misc_info_to_examiner, 7.5, { lineGap: 1.2 });
-      doc.moveDown(1);
-    }
-
-    // ========================================================================
-    // 10. LEGAL DESCRIPTION
-    // ========================================================================
+    addPage();
     sectionHeader('LEGAL DESCRIPTION');
-    doc.font('Helvetica').fontSize(8.5).fillColor('black').text(
-      fields.legal_description || 'SEE ATTACHED',
-      MARGIN + 6, doc.y,
-      { width: CONTENT_W - 12, lineGap: 2 }
+    doc.font('Times-Roman').fontSize(8.5).fillColor('black').text(
+      (legal || 'SEE ATTACHED').toUpperCase(),
+      MARGIN + 6, doc.y, { width: CONTENT_W - 12, lineGap: 2 }
     );
-    doc.moveDown(1.2);
+    doc.moveDown(1);
 
     // ========================================================================
-    // 11. NAMES SEARCHED
+    // 9. NAMES SEARCHED
     // ========================================================================
+    addPage();
     sectionHeader('NAMES SEARCHED');
-    const names = fields.names_searched || [];
+
     if (names.length === 0) {
       italicText('No names searched.');
     } else {
@@ -354,24 +403,44 @@ async function generateV2Report(jobData, outputPath) {
     doc.moveDown(0.5);
 
     // ========================================================================
-    // 12. ADDITIONAL INFORMATION
+    // 10. ADDITIONAL INFORMATION
     // ========================================================================
-    const addInfo = fields.additional_info || fields.additional_information;
     if (addInfo) {
+      addPage();
       sectionHeader('ADDITIONAL INFORMATION');
       bodyText(addInfo);
     }
 
     // ========================================================================
-    // FOOTER — placed at current cursor or near page bottom, whichever is closer
-    // Must stay above the bottom margin (50pt) to avoid pdfkit auto-adding a blank page.
+    // EXAMINER NOTES (editable)
     // ========================================================================
-    const footerY = Math.min(doc.y + 8, doc.page.height - 65);
-    doc.fontSize(7).fillColor('#999999').text(
+    addPage();
+    sectionHeader('EXAMINER NOTES');
+    doc.font('Times-Italic').fontSize(9).fillColor('#666666').text(
+      'Add notes below:', MARGIN + 6, doc.y, { width: CONTENT_W - 12 }
+    );
+    doc.moveDown(0.3);
+
+    // Editable text area
+    doc.formTextField({
+      name: 'examiner_notes',
+      value: '',
+      x: MARGIN + 6,
+      y: doc.y,
+      width: CONTENT_W - 12,
+      height: 200,
+      fontSize: 9,
+      font: 'Times-Roman',
+      multiline: true,
+      borderColor: '#CCCCCC',
+      borderWidth: 0.5,
+    });
+
+    // Final footer on last page
+    doc.moveDown(25);
+    doc.fontSize(7).fillColor('#999999').font('Helvetica').text(
       `Page ${pageTotal}`,
-      MARGIN,
-      footerY,
-      { width: CONTENT_W, align: 'right' }
+      MARGIN, doc.y, { width: CONTENT_W, align: 'right' }
     );
 
     doc.end();
@@ -380,4 +449,4 @@ async function generateV2Report(jobData, outputPath) {
   });
 }
 
-module.exports = { generateV2Report };
+module.exports = { generateV4Report };

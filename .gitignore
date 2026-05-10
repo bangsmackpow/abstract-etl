@@ -8,3 +8,4 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 backend/src/uploads/
+v4/

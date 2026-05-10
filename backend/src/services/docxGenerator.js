@@ -17,7 +17,9 @@ const {
  * Supports both V1 (Legacy) and V2 (ProTitleUSA) schemas.
  */
 async function generateDocx(fields, templateVersion = 'v1') {
-  return templateVersion === 'v2' ? generateV2Docx(fields) : generateV1Docx(fields);
+  if (templateVersion === 'v4') return generateV4Docx(fields);
+  if (templateVersion === 'v2') return generateV2Docx(fields);
+  return generateV1Docx(fields);
 }
 
 /**
@@ -630,6 +632,748 @@ async function generateV1Docx(fields) {
                   }),
                 ],
           }),
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('NAMES SEARCHED'),
+          namesPara,
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('ADDITIONAL INFORMATION'),
+          additionalPara,
+        ],
+      },
+    ],
+  });
+
+  return await Packer.toBuffer(doc);
+}
+
+/**
+ * V4 (Hazelwood) DOCX Generator
+ * Matches V4 PDF structure with Hazelwood layout, Times font, and V4 schema fields.
+ */
+async function generateV4Docx(fields) {
+  const f = fields;
+  const oi = f.order_info || {};
+  const vi = f.vesting_info || {};
+  const tax = f.tax_status || {};
+
+  const val = (v) => (v !== null && v !== undefined && v !== '' ? String(v).toUpperCase() : '');
+  const dash = (v) => val(v) || '—';
+
+  const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+  const borders = { top: border, bottom: border, left: border, right: border };
+
+  function cell(text, opts = {}) {
+    const { bold = false, shade = null, span = 1, width = null, align = AlignmentType.LEFT, italics = false } = opts;
+    return new TableCell({
+      borders,
+      columnSpan: span,
+      ...(width && { width: { size: width, type: WidthType.DXA } }),
+      ...(shade && { shading: { fill: shade, type: ShadingType.CLEAR } }),
+      margins: { top: 40, bottom: 40, left: 80, right: 80 },
+      children: [
+        new Paragraph({
+          alignment: align,
+          children: [new TextRun({ text: val(text), bold, italics, size: 18, font: 'Times New Roman' })],
+        }),
+      ],
+    });
+  }
+
+  function labelCell(text, width) {
+    return cell(text, { bold: true, shade: 'D9D9D9', width });
+  }
+
+  function valueCell(text, width) {
+    return cell(text, { width });
+  }
+
+  function sectionHeader(title) {
+    return new Table({
+      width: { size: 9360, type: WidthType.DXA },
+      columnWidths: [9360],
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              borders,
+              shading: { fill: '1F4E79', type: ShadingType.CLEAR },
+              margins: { top: 60, bottom: 60, left: 120, right: 120 },
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: title, bold: true, size: 20, font: 'Times New Roman', color: 'FFFFFF' })],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    });
+  }
+
+  // ── Order Information Table ────────────────────────────────────────────────
+  const parcelIdsText = (oi.parcel_ids || []).length > 0
+    ? (oi.parcel_ids || []).map((p) => dash(p)).join('; ')
+    : '—';
+
+  const orderTable = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    columnWidths: [1200, 2400, 1200, 1800, 1200, 1560],
+    rows: [
+      new TableRow({
+        children: [
+          labelCell('File Number:', 1200),
+          valueCell(dash(oi.file_number), 2400),
+          labelCell('Effective Date:', 1200),
+          valueCell(dash(oi.effective_date), 1800),
+          labelCell('Completed:', 1200),
+          valueCell(dash(oi.completed_date), 1560),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Address:', 1200),
+          new TableCell({
+            borders,
+            columnSpan: 5,
+            margins: { top: 40, bottom: 40, left: 80, right: 80 },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: dash(oi.property_address),
+                    bold: true,
+                    size: 20,
+                    font: 'Times New Roman',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('County:', 1200),
+          valueCell(dash(oi.county), 2400),
+          labelCell('Township:', 1200),
+          valueCell(dash(oi.township), 1800),
+          labelCell('Parcel ID(s):', 1200),
+          valueCell(parcelIdsText, 1560),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Assessed Val:', 1200),
+          valueCell(dash(oi.assessed_value), 2400),
+          labelCell('Land Value:', 1200),
+          valueCell(dash(oi.land_value), 1800),
+          labelCell('Impr. Value:', 1200),
+          valueCell(dash(oi.improvement_value), 1560),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Tax Amount:', 1200),
+          valueCell(dash(oi.tax_amount), 2400),
+          labelCell('Tax Due:', 1200),
+          valueCell(dash(oi.tax_due), 1800),
+          labelCell('Delinquent:', 1200),
+          valueCell(dash(oi.tax_delinquent), 1560),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Tax ID:', 1200),
+          valueCell(dash(oi.tax_id), 2400),
+          labelCell('Tax Paid:', 1200),
+          valueCell(dash(oi.tax_paid), 1800),
+          cell('', { width: 2760, span: 2 }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Current Vesting Owner:', 1200),
+          new TableCell({
+            borders,
+            columnSpan: 5,
+            margins: { top: 40, bottom: 40, left: 80, right: 80 },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: dash(oi.current_vesting_owner), size: 18, font: 'Times New Roman' }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  // ── Vesting Information Table ──────────────────────────────────────────────
+  const vestTable = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    columnWidths: [1400, 2600, 1400, 2000, 1400, 560],
+    rows: [
+      new TableRow({
+        children: [
+          labelCell('Grantee:', 1400),
+          valueCell(dash(vi.grantee), 2600),
+          labelCell('Grantor:', 1400),
+          valueCell(dash(vi.grantor), 2000),
+          labelCell('Deed Date:', 1400),
+          valueCell(dash(vi.deed_date), 560),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Recorded:', 1400),
+          valueCell(dash(vi.recorded_date), 2600),
+          labelCell('Instrument/Book/Page:', 1400),
+          valueCell(dash(vi.instrument_book_page), 2000),
+          labelCell('Consideration:', 1400),
+          valueCell(dash(vi.consideration), 560),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Deed Type:', 1400),
+          valueCell(dash(vi.deed_type), 2600),
+          labelCell('In/Out Sale:', 1400),
+          valueCell(vi.in_out_sale === true ? 'YES' : vi.in_out_sale === false ? 'NO' : '—', 2000),
+          cell('', { width: 1960, span: 2 }),
+        ],
+      }),
+      ...(vi.notes ? [
+        new TableRow({
+          children: [
+            labelCell('Notes:', 1400),
+            new TableCell({
+              borders,
+              columnSpan: 5,
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: val(vi.notes), size: 16, italics: true, font: 'Times New Roman', color: '555555' })],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ] : []),
+    ],
+  });
+
+  // ── Chain of Title ─────────────────────────────────────────────────────────
+  const chainRows = (f.chain_of_title || []).flatMap((e, i) => {
+    const rows = [
+      new TableRow({
+        children: [
+          labelCell(`(${i + 1}) Deed Type:`, 2000),
+          valueCell(dash(e.deed_type), 3360),
+          labelCell('Book/Inst:', 1200),
+          valueCell(dash(e.instrument_book_page), 1200),
+          labelCell('Page:', 600),
+          valueCell(dash(e.page), 1000),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Dated:', 800),
+          valueCell(dash(e.deed_date), 1400),
+          labelCell('Recorded:', 900),
+          valueCell(dash(e.recorded_date), 1400),
+          labelCell('Consideration:', 1200),
+          valueCell(dash(e.consideration), 1200),
+          cell('', { span: 2 }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Grantor(s):', 1200),
+          new TableCell({
+            borders,
+            columnSpan: 7,
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: (e.grantors || []).map((g) => g.toUpperCase()).join('; ') || '—',
+                    size: 18,
+                    font: 'Times New Roman',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Grantee(s):', 1200),
+          new TableCell({
+            borders,
+            columnSpan: 7,
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: (e.grantees || []).map((g) => g.toUpperCase()).join('; ') || '—',
+                    size: 18,
+                    font: 'Times New Roman',
+                  }),
+                ],
+              }),
+              ...(e.notes
+                ? [
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: e.notes.startsWith('*')
+                            ? e.notes.toUpperCase()
+                            : `NOTES: ${e.notes.toUpperCase()}`,
+                          size: 16,
+                          italics: true,
+                          color: '555555',
+                          font: 'Times New Roman',
+                        }),
+                      ],
+                    }),
+                  ]
+                : []),
+            ],
+          }),
+        ],
+      }),
+    ];
+
+    // Related documents
+    if (e.related_documents && e.related_documents.length > 0) {
+      rows.push(
+        new TableRow({
+          children: [
+            labelCell('Related Docs:', 1200),
+            new TableCell({
+              borders,
+              columnSpan: 7,
+              children: [
+                ...e.related_documents.flatMap((rd, ri) => [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `${ri + 1}. ${dash(rd.document_type || rd)} | ${dash(rd.book_instrument || rd.book || '')} / ${dash(rd.page || '')} | ${dash(rd.recorded_date || rd.recorded || '')}`,
+                        size: 16,
+                        italics: true,
+                        font: 'Times New Roman',
+                      }),
+                    ],
+                    spacing: { before: ri > 0 ? 40 : 0 },
+                  }),
+                ]),
+              ],
+            }),
+          ],
+        }),
+      );
+    }
+
+    return rows;
+  });
+
+  // ── Mortgages (oldest to newest) ───────────────────────────────────────────
+  const mortgageRows = (f.mortgages || []).flatMap((m, i) => [
+    new TableRow({
+      children: [
+        labelCell(`(${i + 1}) Document Type:`, 2000),
+        valueCell(dash(m.document_title || m.mortgage_type), 3360),
+        labelCell('Book/Inst:', 1300),
+        valueCell(dash(m.book || m.instrument), 1200),
+        labelCell('Page:', 500),
+        valueCell(dash(m.page), 1000),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Mortgage Date:', 800),
+        valueCell(dash(m.mortgage_date), 1400),
+        labelCell('Recorded:', 900),
+        valueCell(dash(m.recorded_date), 1400),
+        labelCell('Amount:', 1200),
+        valueCell(dash(m.mortgage_amount), 1200),
+        labelCell('Maturity:', 800),
+        valueCell(dash(m.maturity_date), 1660),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Lender:', 1000),
+        new TableCell({
+          borders,
+          columnSpan: 7,
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `${dash(m.lender)} ${m.mers === 'Yes' ? '(MERS)' : ''}`,
+                  size: 18,
+                  font: 'Times New Roman',
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Borrower:', 1000),
+        valueCell(dash(m.borrower), 3760),
+        labelCell('Type:', 1000),
+        valueCell(dash(m.mortgage_type), 3600),
+      ],
+    }),
+    ...(m.subordination_notes
+      ? [
+          new TableRow({
+            children: [
+              labelCell('Subordination:', 1000),
+              new TableCell({
+                borders,
+                columnSpan: 7,
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: val(m.subordination_notes), size: 16, italics: true, font: 'Times New Roman' })],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ]
+      : []),
+    ...(m.assignments && m.assignments.length > 0
+      ? [
+          new TableRow({
+            children: [
+              labelCell('Assignments:', 1000),
+              new TableCell({
+                borders,
+                columnSpan: 7,
+                children: [
+                  ...m.assignments.flatMap((a, ai) => [
+                    new Paragraph({
+                      children: [
+                        new TextRun({
+                          text: `${ai + 1}. ${dash(a.assignor)} → ${dash(a.assignee)} | ${dash(a.document_type)} | ${dash(a.book)}/${dash(a.page)}/${dash(a.instrument)} | ${dash(a.recorded_date)}`,
+                          size: 16,
+                          italics: true,
+                          font: 'Times New Roman',
+                        }),
+                      ],
+                      spacing: { before: ai > 0 ? 40 : 0 },
+                    }),
+                  ]),
+                ],
+              }),
+            ],
+          }),
+        ]
+      : []),
+  ]);
+
+  // ── Tax Status with Installments ───────────────────────────────────────────
+  const taxRows = [
+    new TableRow({
+      children: [
+        labelCell('Parcel ID:', 1400),
+        valueCell(dash(tax.parcel_id), 2600),
+        labelCell('Tax Year:', 1400),
+        valueCell(dash(tax.tax_year), 2000),
+        labelCell('Status:', 1400),
+        valueCell(dash(tax.status), 560),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Total Amount:', 1400),
+        valueCell(dash(tax.total_amount), 2600),
+        labelCell('Paid Date:', 1400),
+        valueCell(dash(tax.paid_date), 2000),
+        labelCell('Delinquent:', 1400),
+        valueCell(dash(tax.delinquent_amount), 560),
+      ],
+    }),
+  ];
+
+  const installments = tax.installments || [];
+  if (installments.length > 0) {
+    taxRows.push(
+      new TableRow({
+        children: [
+          labelCell('Installments:', 1400),
+          new TableCell({
+            borders,
+            columnSpan: 5,
+            children: installments.flatMap((inst, ii) => [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `${ii + 1}. ${dash(inst.installment_number)} | Amount: ${dash(inst.amount)} | Due: ${dash(inst.due_date)} | Status: ${dash(inst.status)} | Paid: ${dash(inst.paid_date)} | Delinquent: ${dash(inst.delinquent_amount)} | Fees: ${dash(inst.penalties_fees)}`,
+                    size: 16,
+                    font: 'Times New Roman',
+                  }),
+                ],
+                spacing: { before: ii > 0 ? 40 : 0 },
+              }),
+            ]),
+          }),
+        ],
+      }),
+    );
+  }
+
+  const taxTable = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    columnWidths: [1400, 2600, 1400, 2000, 1400, 560],
+    rows: taxRows,
+  });
+
+  // ── Associated Documents ───────────────────────────────────────────────────
+  const assocRows = (f.associated_documents || []).flatMap((a, i) => [
+    new TableRow({
+      children: [
+        labelCell(`(${i + 1}) Document Type:`, 2000),
+        valueCell(dash(a.document_type), 3360),
+        labelCell('Book/Inst:', 1200),
+        valueCell(dash(a.book_instrument), 1200),
+        labelCell('Page:', 600),
+        valueCell(dash(a.page), 1000),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Dated:', 800),
+        valueCell(dash(a.dated), 1400),
+        labelCell('Recorded:', 900),
+        valueCell(dash(a.recorded), 1400),
+        cell('', { width: 3960, span: 4 }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Grantor/Assignor:', 1400),
+        valueCell(dash(a.grantor_assignor), 3000),
+        labelCell('Grantee/Assignee:', 1400),
+        valueCell(dash(a.grantee_assignee), 3560),
+      ],
+    }),
+    ...(a.notes
+      ? [
+          new TableRow({
+            children: [
+              labelCell('Notes:', 1400),
+              new TableCell({
+                borders,
+                columnSpan: 7,
+                children: [
+                  new Paragraph({
+                    children: [new TextRun({ text: val(a.notes), size: 16, italics: true, font: 'Times New Roman' })],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ]
+      : []),
+  ]);
+
+  // ── Judgments/Liens ────────────────────────────────────────────────────────
+  const lienRows = (f.judgments_liens || []).flatMap((l, i) => [
+    new TableRow({
+      children: [
+        labelCell(`(${i + 1}) Document Title:`, 2000),
+        valueCell(dash(l.document_title), 3360),
+        labelCell('Case #:', 1200),
+        valueCell(dash(l.case_number), 2800),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Dated:', 800),
+        valueCell(dash(l.dated), 1400),
+        labelCell('Amount:', 1200),
+        valueCell(dash(l.amount), 1200),
+        labelCell('Recorded:', 1000),
+        valueCell(dash(l.recorded), 3760),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Plaintiff:', 1200),
+        valueCell(dash(l.plaintiff), 3400),
+        labelCell('Defendant:', 1200),
+        valueCell(dash(l.defendant), 3560),
+      ],
+    }),
+  ]);
+
+  // ── Miscellaneous Documents ────────────────────────────────────────────────
+  const miscRows = (f.misc_documents || []).flatMap((m, i) => [
+    new TableRow({
+      children: [
+        labelCell(`(${i + 1}) Document Title:`, 2000),
+        valueCell(dash(m.document_title), 3360),
+        labelCell('Book/Inst:', 1200),
+        valueCell(dash(m.book_instrument), 1200),
+        labelCell('Page:', 600),
+        valueCell(dash(m.page), 1000),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Dated:', 800),
+        valueCell(dash(m.dated), 1400),
+        labelCell('Recorded:', 900),
+        valueCell(dash(m.recorded), 1400),
+        labelCell('Consideration:', 1200),
+        valueCell(dash(m.consideration), 1200),
+        cell('', { span: 2 }),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Grantor/Assignor:', 1400),
+        valueCell(dash(m.grantor_assignor), 3000),
+        labelCell('Grantee/Assignee:', 1400),
+        valueCell(dash(m.grantee_assignee), 3560),
+      ],
+    }),
+  ]);
+
+  // ── Legal Description ──────────────────────────────────────────────────────
+  const legalPara = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            borders,
+            margins: { top: 100, bottom: 100, left: 100, right: 100 },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: dash(f.legal_description), size: 18, font: 'Times New Roman' })],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  // ── Names Searched ─────────────────────────────────────────────────────────
+  const namesPara = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            borders,
+            margins: { top: 100, bottom: 100, left: 100, right: 100 },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: (f.names_searched || []).map((n) => n.toUpperCase()).join('; ') || 'NONE PROVIDED.',
+                    size: 18,
+                    font: 'Times New Roman',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  // ── Additional Information ─────────────────────────────────────────────────
+  const additionalPara = new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            borders,
+            margins: { top: 100, bottom: 100, left: 100, right: 100 },
+            children: [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: dash(f.additional_information), size: 18, italics: true, font: 'Times New Roman' }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+  // ── Build Document ─────────────────────────────────────────────────────────
+  const doc = new Document({
+    styles: { default: { document: { run: { font: 'Times New Roman', size: 18 } } } },
+    sections: [
+      {
+        properties: { margin: { top: 720, right: 720, bottom: 720, left: 720 } },
+        children: [
+          sectionHeader('ORDER INFORMATION'),
+          orderTable,
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('VESTING INFORMATION'),
+          vestTable,
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('CHAIN OF TITLE'),
+          new Table({
+            width: { size: 9360, type: WidthType.DXA },
+            rows: chainRows.length
+              ? chainRows
+              : [new TableRow({ children: [cell('NO CHAIN ENTRIES FOUND.', { span: 8, italics: true })] })],
+          }),
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('MORTGAGES / DEEDS OF TRUST'),
+          new Table({
+            width: { size: 9360, type: WidthType.DXA },
+            rows: mortgageRows.length
+              ? mortgageRows
+              : [new TableRow({ children: [cell('NO OPEN MORTGAGES FOUND.', { span: 8, italics: true })] })],
+          }),
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('TAX STATUS'),
+          taxTable,
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('ASSOCIATED DOCUMENTS'),
+          new Table({
+            width: { size: 9360, type: WidthType.DXA },
+            rows: assocRows.length
+              ? assocRows
+              : [new TableRow({ children: [cell('NO ASSOCIATED DOCUMENTS FOUND.', { span: 8, italics: true })] })],
+          }),
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('JUDGMENTS / LIENS'),
+          new Table({
+            width: { size: 9360, type: WidthType.DXA },
+            rows: lienRows.length
+              ? lienRows
+              : [new TableRow({ children: [cell('NO JUDGMENTS OR LIENS FOUND.', { span: 4, italics: true })] })],
+          }),
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('MISCELLANEOUS DOCUMENTS'),
+          new Table({
+            width: { size: 9360, type: WidthType.DXA },
+            rows: miscRows.length
+              ? miscRows
+              : [new TableRow({ children: [cell('NO MISCELLANEOUS DOCUMENTS FOUND.', { span: 4, italics: true })] })],
+          }),
+          new Paragraph({ spacing: { before: 120 } }),
+          sectionHeader('LEGAL DESCRIPTION'),
+          legalPara,
           new Paragraph({ spacing: { before: 120 } }),
           sectionHeader('NAMES SEARCHED'),
           namesPara,

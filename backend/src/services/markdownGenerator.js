@@ -1,8 +1,9 @@
 /**
  * Given a filled fields object, produce a Markdown string.
- * Supports both V1 (Legacy) and V2 (ProTitleUSA) schemas.
+ * Supports V1 (Legacy), V2 (ProTitleUSA), and V4 (Hazelwood) schemas.
  */
 function generateMarkdown(fields, templateVersion = 'v1') {
+  if (templateVersion === 'v4') return generateV4Markdown(fields);
   const isV2 = templateVersion === 'v2';
   return isV2 ? generateV2Markdown(fields) : generateV1Markdown(fields);
 }
@@ -310,6 +311,203 @@ function generateV2Markdown(f) {
   if (addInfo) {
     md += '## ADDITIONAL INFORMATION\n';
     md += `${dash(addInfo)}\n`;
+  }
+
+  return md;
+}
+
+function generateV4Markdown(f) {
+  const val = (v) => (v !== null && v !== undefined && v !== '' ? String(v).toUpperCase() : '');
+  const dash = (v) => val(v) || '—';
+
+  let md = '# PROPERTY ABSTRACT REPORT (HAZELWOOD V4)\n\n';
+
+  // Order Information
+  const oi = f.order_info || {};
+  md += '## ORDER INFORMATION\n';
+  md += '| Field | Value |\n';
+  md += '| :--- | :--- |\n';
+  md += `| File Number | ${dash(oi.file_number)} |\n`;
+  md += `| Effective Date | ${dash(oi.effective_date)} |\n`;
+  md += `| Completed Date | ${dash(oi.completed_date)} |\n`;
+  md += `| Property Address | **${dash(oi.property_address)}** |\n`;
+  md += `| County | ${dash(oi.county)} |\n`;
+  md += `| Township | ${dash(oi.township)} |\n`;
+  md += `| Parcel ID(s) | ${(oi.parcel_ids || []).length > 0 ? (oi.parcel_ids || []).map((p) => dash(p)).join('; ') : '—'} |\n`;
+  md += `| Assessed Value | ${dash(oi.assessed_value)} |\n`;
+  md += `| Land Value | ${dash(oi.land_value)} |\n`;
+  md += `| Impr. Value | ${dash(oi.improvement_value)} |\n`;
+  md += `| Tax ID | ${dash(oi.tax_id)} |\n`;
+  md += `| Tax Amount | ${dash(oi.tax_amount)} |\n`;
+  md += `| Tax Due | ${dash(oi.tax_due)} |\n`;
+  md += `| Tax Delinquent | ${dash(oi.tax_delinquent)} |\n`;
+  md += `| Tax Paid | ${dash(oi.tax_paid)} |\n`;
+  md += `| Current Vesting Owner | ${dash(oi.current_vesting_owner)} |\n\n`;
+
+  // Vesting Information
+  const vi = f.vesting_info || {};
+  md += '## VESTING INFORMATION\n';
+  md += '| Field | Value |\n';
+  md += '| :--- | :--- |\n';
+  md += `| Grantee | ${dash(vi.grantee)} |\n`;
+  md += `| Grantor | ${dash(vi.grantor)} |\n`;
+  md += `| Deed Date | ${dash(vi.deed_date)} |\n`;
+  md += `| Recorded Date | ${dash(vi.recorded_date)} |\n`;
+  md += `| Instrument/Book/Page | ${dash(vi.instrument_book_page)} |\n`;
+  md += `| Deed Type | ${dash(vi.deed_type)} |\n`;
+  md += `| Consideration | ${dash(vi.consideration)} |\n`;
+  md += `| In/Out Sale | ${vi.in_out_sale === true ? 'YES' : vi.in_out_sale === false ? 'NO' : '—'} |\n`;
+  if (vi.notes) md += `| Notes | ${val(vi.notes)} |\n`;
+  md += '\n';
+
+  // Chain of Title
+  md += '## CHAIN OF TITLE\n';
+  const chain = f.chain_of_title || [];
+  if (chain.length === 0) {
+    md += '*No chain entries found.*\n\n';
+  } else {
+    chain.forEach((e, i) => {
+      md += `### (${i + 1}) ${dash(e.deed_type)}\n`;
+      md += `- **Book/Inst/Page**: ${dash(e.instrument_book_page)} / ${dash(e.page)}\n`;
+      md += `- **Dated/Recorded**: ${dash(e.deed_date)} / ${dash(e.recorded_date)}\n`;
+      md += `- **Consideration**: ${dash(e.consideration)}\n`;
+      md += `- **Grantor(s)**: ${(e.grantors || []).map((g) => g.toUpperCase()).join('; ') || '—'}\n`;
+      md += `- **Grantee(s)**: ${(e.grantees || []).map((g) => g.toUpperCase()).join('; ') || '—'}\n`;
+      if (e.notes)
+        md += `- **Notes**: ${e.notes.startsWith('*') ? val(e.notes) : `NOTES: ${val(e.notes)}`}\n`;
+      if (e.related_documents && e.related_documents.length > 0) {
+        md += '- **Related Documents**:\n';
+        e.related_documents.forEach((rd, ri) => {
+          md += `  ${ri + 1}. ${dash(rd.document_type || rd)} | ${dash(rd.book_instrument || rd.book || '')} / ${dash(rd.page || '')} | ${dash(rd.recorded_date || rd.recorded || '')}\n`;
+        });
+      }
+      md += '\n';
+    });
+  }
+
+  // Mortgages
+  md += '## MORTGAGES / DEEDS OF TRUST\n';
+  const mortgages = f.mortgages || [];
+  if (mortgages.length === 0) {
+    md += '*No open mortgages found.*\n\n';
+  } else {
+    mortgages.forEach((m, i) => {
+      md += `### Mortgage ${i + 1}: ${dash(m.document_title || m.mortgage_type)}\n`;
+      md += `- **Borrower**: ${dash(m.borrower)}\n`;
+      md += `- **Lender**: ${dash(m.lender)} ${m.mers === 'Yes' ? '(MERS)' : ''}\n`;
+      md += `- **Amount**: ${dash(m.mortgage_amount)}\n`;
+      md += `- **Mortgage Date**: ${dash(m.mortgage_date)}\n`;
+      md += `- **Recorded Date**: ${dash(m.recorded_date)}\n`;
+      md += `- **Book/Page/Instrument**: ${dash(m.book)} / ${dash(m.page)} / ${dash(m.instrument)}\n`;
+      md += `- **Maturity Date**: ${dash(m.maturity_date)}\n`;
+      md += `- **Mortgage Type**: ${dash(m.mortgage_type)}\n`;
+      if (m.subordination_notes) md += `- **Subordination**: ${val(m.subordination_notes)}\n`;
+      
+      // Assignments
+      const assignments = m.assignments || [];
+      if (assignments.length > 0) {
+        md += `#### Assignments (${assignments.length})\n`;
+        assignments.forEach((a, ai) => {
+          md += `- **${ai + 1}**: ${dash(a.assignor)} → ${dash(a.assignee)} | ${dash(a.document_type)} | ${dash(a.book)}/${dash(a.page)}/${dash(a.instrument)} | ${dash(a.recorded_date)}\n`;
+        });
+      }
+      md += '\n';
+    });
+  }
+
+  // Tax Status
+  const tax = f.tax_status || {};
+  md += '## TAX STATUS\n';
+  md += '| Field | Value |\n';
+  md += '| :--- | :--- |\n';
+  md += `| Parcel ID | ${dash(tax.parcel_id)} |\n`;
+  md += `| Tax Year | ${dash(tax.tax_year)} |\n`;
+  md += `| Total Amount | ${dash(tax.total_amount)} |\n`;
+  md += `| Status | ${dash(tax.status)} |\n`;
+  md += `| Paid Date | ${dash(tax.paid_date)} |\n`;
+  md += `| Delinquent Amount | ${dash(tax.delinquent_amount)} |\n`;
+  
+  const installments = tax.installments || [];
+  if (installments.length > 0) {
+    md += '\n### Installments\n';
+    installments.forEach((inst, ii) => {
+      md += `#### Installment ${ii + 1}\n`;
+      md += `- **Number**: ${dash(inst.installment_number)}\n`;
+      md += `- **Amount**: ${dash(inst.amount)}\n`;
+      md += `- **Due Date**: ${dash(inst.due_date)}\n`;
+      md += `- **Status**: ${dash(inst.status)}\n`;
+      md += `- **Paid Date**: ${dash(inst.paid_date)}\n`;
+      md += `- **Delinquent**: ${dash(inst.delinquent_amount)}\n`;
+      md += `- **Penalties/Fees**: ${dash(inst.penalties_fees)}\n`;
+      md += '\n';
+    });
+  } else {
+    md += '\n';
+  }
+
+  // Associated Documents
+  md += '## ASSOCIATED DOCUMENTS\n';
+  const assoc = f.associated_documents || [];
+  if (assoc.length === 0) {
+    md += '*No associated documents found.*\n\n';
+  } else {
+    assoc.forEach((a, i) => {
+      md += `### Document ${i + 1}: ${dash(a.document_type)}\n`;
+      md += `- **Book/Inst/Page**: ${dash(a.book_instrument)} / ${dash(a.page)}\n`;
+      md += `- **Dated/Recorded**: ${dash(a.dated)} / ${dash(a.recorded)}\n`;
+      md += `- **Grantor/Assignor**: ${dash(a.grantor_assignor)}\n`;
+      md += `- **Grantee/Assignee**: ${dash(a.grantee_assignee)}\n`;
+      if (a.notes) md += `- **Notes**: ${val(a.notes)}\n`;
+      md += '\n';
+    });
+  }
+
+  // Judgments/Liens
+  md += '## JUDGMENTS / LIENS\n';
+  const liens = f.judgments_liens || [];
+  if (liens.length === 0) {
+    md += '*No judgments or liens found.*\n\n';
+  } else {
+    liens.forEach((l, i) => {
+      md += `### Judgment/Lien ${i + 1}: ${dash(l.document_title)}\n`;
+      md += `- **Case #**: ${dash(l.case_number)}\n`;
+      md += `- **Dated/Recorded**: ${dash(l.dated)} / ${dash(l.recorded)}\n`;
+      md += `- **Amount**: ${dash(l.amount)}\n`;
+      md += `- **Plaintiff**: ${dash(l.plaintiff)}\n`;
+      md += `- **Defendant**: ${dash(l.defendant)}\n`;
+      md += '\n';
+    });
+  }
+
+  // Miscellaneous Documents
+  md += '## MISCELLANEOUS DOCUMENTS\n';
+  const misc = f.misc_documents || [];
+  if (misc.length === 0) {
+    md += '*No miscellaneous documents found.*\n\n';
+  } else {
+    misc.forEach((m, i) => {
+      md += `### Document ${i + 1}: ${dash(m.document_title)}\n`;
+      md += `- **Book/Inst/Page**: ${dash(m.book_instrument)} / ${dash(m.page)}\n`;
+      md += `- **Dated/Recorded**: ${dash(m.dated)} / ${dash(m.recorded)}\n`;
+      md += `- **Consideration**: ${dash(m.consideration)}\n`;
+      md += `- **Grantor/Assignor**: ${dash(m.grantor_assignor)}\n`;
+      md += `- **Grantee/Assignee**: ${dash(m.grantee_assignee)}\n`;
+      md += '\n';
+    });
+  }
+
+  // Legal Description
+  md += '## LEGAL DESCRIPTION\n';
+  md += `${dash(f.legal_description)}\n\n`;
+
+  // Names Searched
+  md += '## NAMES SEARCHED\n';
+  md += `${(f.names_searched || []).map((n) => n.toUpperCase()).join('; ') || 'NONE PROVIDED.'}\n\n`;
+
+  // Additional Information
+  if (f.additional_information) {
+    md += '## ADDITIONAL INFORMATION\n';
+    md += `${dash(f.additional_information)}\n`;
   }
 
   return md;
