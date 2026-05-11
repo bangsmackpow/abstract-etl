@@ -49,3 +49,14 @@
 - [x] **Backup Download**: `GET /api/admin/backups/:id/download` streams the backup file. Download button per row in admin UI.
 - [x] **Admin Settings UI**: New Backups and Settings tabs in admin panel. SMTP config (host, port, user, pass, from) stored in `settings` table, overrides env vars at runtime. Backup schedule (interval, retention, enabled/disabled) configurable without restart.
 - [x] **Email Broadcast Extended**: `emailService.js` now supports `sendBulkImportNotification()` and `sendBackupNotification()` in addition to existing `sendCompletionEmail()`.
+
+## V4 Hazelwood Milestones (May 2026)
+- [x] **V4 Schema & Prompt**: Created `V4_SCHEMA` and `SYSTEM_PROMPT_V4` in `googleAiService.js` with 12-section Hazelwood run sheet format, ALL CAPS output, and standardized deed types.
+- [x] **V4 Extraction Validated**: Tested against 9 sample PDFs — 8/9 PASS (89%), 1/9 PARTIAL (missing order number for Eastman Credit Union, expected behavior).
+- [x] **V4 Order Number Fallback Rule**: Added fallback for Eastman Credit Union and Clear Choice Abstracting — uses "COMPANY NAME - PROPERTY ADDRESS" when no order number is present.
+- [x] **V4 PDF Generator**: Multi-page PDF with Times-Roman font, Hazelwood branding, section page breaks, all fields fully editable.
+- [x] **V4 DOCX Generator**: Word document output matching PDF layout with all 12 sections.
+- [x] **V4 Markdown Generator**: Plain text output with all 12 sections.
+- [x] **V4 Frontend Form**: `V4Form` component with all 12 sections, array support for chain of title (grantors/grantees), tax installments, associated documents, judgments/liens, misc documents, and names searched.
+- [x] **V4 UI Toggles**: New Job, Edit Job, and Bulk Import pages all support v4 template version selection.
+- [x] **V4 Documentation**: `docs/rules.md` created as single source of truth for all extraction rules, output sections, template versions, and documentation update policy.

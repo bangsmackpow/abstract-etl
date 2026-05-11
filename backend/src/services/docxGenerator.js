@@ -721,8 +721,8 @@ async function generateV4Docx(fields) {
     rows: [
       new TableRow({
         children: [
-          labelCell('File Number:', 1200),
-          valueCell(dash(oi.file_number), 2400),
+          labelCell('Order Number:', 1200),
+          valueCell(dash(oi.order_number), 2400),
           labelCell('Effective Date:', 1200),
           valueCell(dash(oi.effective_date), 1800),
           labelCell('Completed:', 1200),

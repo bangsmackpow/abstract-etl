@@ -24,23 +24,24 @@ function Section({ title, children }) {
 }
 
 // Field helper component
-function Field({ label, path, placeholder, multiline, masterList, ...rest }) {
-  const { fields, aiFlags, alternatives, onChange, onFlagChange } = rest;
-  const value = getNestedValue(fields, path);
-  
-  return (
-    <FieldInput
-      label={label}
-      fieldKey={path}
-      value={value}
-      onChange={onChange}
-      onFlagChange={onFlagChange}
-      aiFlags={aiFlags}
-      alternatives={alternatives}
-      textarea={multiline}
-      masterList={masterList}
-    />
-  );
+function Field({ label, path, placeholder, multiline, masterList, value: overrideValue, onChange: overrideOnChange, ...rest }) {
+    const { fields, aiFlags, alternatives, onChange, onFlagChange } = rest;
+    const value = overrideValue !== undefined ? overrideValue : getNestedValue(fields, path);
+    const handleChange = overrideOnChange || onChange;
+    
+    return (
+        <FieldInput
+            label={label}
+            fieldKey={path}
+            value={value}
+            onChange={handleChange}
+            onFlagChange={onFlagChange}
+            aiFlags={aiFlags}
+            alternatives={alternatives}
+            textarea={multiline}
+            masterList={masterList}
+        />
+    );
 }
 
 function getNestedValue(obj, path) {
@@ -79,6 +80,11 @@ function V4Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) 
     const fieldProps = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
     const chain = fields?.chain_of_title || [];
     const mortgages = fields?.mortgages || [];
+    const assocDocs = fields?.associated_documents || [];
+    const judgments = fields?.judgments_liens || [];
+    const miscDocs = fields?.misc_documents || [];
+    const namesSearched = fields?.names_searched || [];
+    const parcelIds = fields?.order_info?.parcel_ids || [];
 
     return (
         <div>
@@ -87,15 +93,32 @@ function V4Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) 
                     <Field label="ORDER NUMBER" path="order_info.order_number" {...fieldProps} />
                     <Field label="COMPLETED DATE" path="order_info.completed_date" placeholder="MM/DD/YYYY" {...fieldProps} />
                 </div>
+                <div style={s.grid2}>
+                    <Field label="COMPANY NAME" path="order_info.company_name" {...fieldProps} />
+                    <Field label="EFFECTIVE DATE" path="order_info.effective_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+                </div>
                 <Field label="PROPERTY ADDRESS" path="order_info.property_address" {...fieldProps} />
                 <div style={s.grid3}>
                     <Field label="COUNTY" path="order_info.county" {...fieldProps} />
-                    <Field label="PARCEL ID" path="order_info.parcel_id" {...fieldProps} />
-                    <Field label="APN/PIN" path="order_info.apn_pin" {...fieldProps} />
+                    <Field label="TOWNSHIP" path="order_info.township" {...fieldProps} />
+                    <Field label="CURRENT VESTING OWNER" path="order_info.current_vesting_owner" {...fieldProps} />
+                </div>
+                <ArrayField label="PARCEL IDS (one per line)" path="order_info.parcel_ids" {...fieldProps} />
+                <div style={s.grid3}>
+                    <Field label="ASSESSED VALUE" path="order_info.assessed_value" placeholder="0.00" {...fieldProps} />
+                    <Field label="LAND VALUE" path="order_info.land_value" placeholder="0.00" {...fieldProps} />
+                    <Field label="IMPROVEMENT VALUE" path="order_info.improvement_value" placeholder="0.00" {...fieldProps} />
                 </div>
                 <div style={s.grid2}>
-                    <Field label="CURRENT OWNER" path="order_info.current_owner" {...fieldProps} />
-                    <Field label="MISCELLANEOUS INFORMATION" path="order_info.misc_info" multiline {...fieldProps} />
+                    <Field label="TAX ID" path="order_info.tax_id" {...fieldProps} />
+                    <Field label="TAX AMOUNT" path="order_info.tax_amount" {...fieldProps} />
+                </div>
+                <div style={s.grid2}>
+                    <Field label="TAX DUE" path="order_info.tax_due" {...fieldProps} />
+                    <Field label="TAX DELINQUENT" path="order_info.tax_delinquent" {...fieldProps} />
+                </div>
+                <div style={s.grid2}>
+                    <Field label="TAX PAID" path="order_info.tax_paid" {...fieldProps} />
                 </div>
             </Section>
 
@@ -112,11 +135,7 @@ function V4Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) 
                 <div style={s.grid3}>
                     <Field label="INSTRUMENT/BOOK/PAGE" path="vesting_info.instrument_book_page" {...fieldProps} />
                     <Field label="CONSIDERATION" path="vesting_info.consideration" {...fieldProps} />
-                    <Field label="SALE PRICE" path="vesting_info.sale_price" {...fieldProps} />
-                </div>
-                <div style={s.grid2}>
-                    <Field label="PROBATE STATUS" path="vesting_info.probate_status" {...fieldProps} />
-                    <Field label="DIVORCE STATUS" path="vesting_info.divorce_status" {...fieldProps} />
+                    <Field label="IN/OUT SALE" path="vesting_info.in_out_sale" {...fieldProps} />
                 </div>
                 <Field label="NOTES" path="vesting_info.notes" multiline {...fieldProps} />
             </Section>
@@ -135,22 +154,116 @@ function V4Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) 
                 {mortgages.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No mortgages found.</div>}
             </Section>
 
-            <Section title="TAX INFORMATION">
+            <Section title={`ASSOCIATED DOCUMENTS (${assocDocs.length})`}>
+                {assocDocs.map((_, i) => (
+                    <V4AssocDocEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {assocDocs.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No associated documents found.</div>}
+            </Section>
+
+            <Section title={`JUDGMENTS & LIENS (${judgments.length})`}>
+                {judgments.map((_, i) => (
+                    <V4JudgmentEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {judgments.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No judgments or liens found.</div>}
+            </Section>
+
+            <Section title={`MISCELLANEOUS DOCUMENTS (${miscDocs.length})`}>
+                {miscDocs.map((_, i) => (
+                    <V4MiscDocEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {miscDocs.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No miscellaneous documents found.</div>}
+            </Section>
+
+            <Section title="TAX STATUS">
                 <div style={s.grid3}>
-                    <Field label="TAX YEAR" path="tax_info.tax_year" {...fieldProps} />
-                    <Field label="TOTAL TAX AMOUNT" path="tax_info.total_amount" {...fieldProps} />
-                    <Field label="STATUS" path="tax_info.status" {...fieldProps} />
+                    <Field label="PARCEL ID" path="tax_status.parcel_id" {...fieldProps} />
+                    <Field label="TAX YEAR" path="tax_status.tax_year" {...fieldProps} />
+                    <Field label="TOTAL AMOUNT" path="tax_status.total_amount" {...fieldProps} />
                 </div>
                 <div style={s.grid3}>
-                    <Field label="PAID DATE" path="tax_info.paid_date" placeholder="MM/DD/YYYY" {...fieldProps} />
-                    <Field label="DELINQUENT AMOUNT" path="tax_info.delinquent_amount" {...fieldProps} />
-                    <Field label="TAX PARCEL ID" path="tax_info.parcel_id" {...fieldProps} />
+                    <Field label="STATUS" path="tax_status.status" {...fieldProps} />
+                    <Field label="PAID DATE" path="tax_status.paid_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+                    <Field label="DELINQUENT AMOUNT" path="tax_status.delinquent_amount" {...fieldProps} />
                 </div>
+                <TaxInstallments fields={fields} onFieldChange={onFieldChange} onFlagChange={onFlagChange} aiFlags={aiFlags} alternatives={alternatives} />
             </Section>
 
             <Section title="LEGAL DESCRIPTION">
                 <Field label="LEGAL DESCRIPTION" path="legal_description" multiline {...fieldProps} />
             </Section>
+
+            <Section title="ADDITIONAL INFORMATION">
+                <Field label="ADDITIONAL INFORMATION" path="additional_information" multiline {...fieldProps} />
+            </Section>
+
+            <Section title={`NAMES SEARCHED (${namesSearched.length})`}>
+                <ArrayField label="NAMES SEARCHED (one per line)" path="names_searched" {...fieldProps} />
+            </Section>
+        </div>
+    );
+}
+
+function ArrayField({ label, path, fields, onChange, aiFlags, alternatives, onFlagChange }) {
+    const arr = getNestedValue(fields, path);
+    const value = Array.isArray(arr) ? arr.join('\n') : '';
+
+    const handleChange = (e) => {
+        const lines = e.target.value.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+        onChange(path, lines);
+    };
+
+    return (
+        <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px', textTransform: 'uppercase' }}>
+                {label}
+            </label>
+            <textarea
+                value={value}
+                onChange={handleChange}
+                rows={Math.max(2, (arr?.length || 0) + 1)}
+                style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    backgroundColor: '#fff',
+                    resize: 'vertical',
+                }}
+            />
+        </div>
+    );
+}
+
+function TaxInstallments({ fields, onFieldChange, onFlagChange, aiFlags, alternatives }) {
+    const installments = fields?.tax_status?.installments || [];
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+
+    return (
+        <div style={{ marginTop: '1rem' }}>
+            <div style={s.entryNum}>INSTALLMENTS</div>
+            {installments.map((_, i) => {
+                const base = `tax_status.installments.${i}`;
+                return (
+                    <div key={i} style={{...s.entryCard, background: '#fff', border: '1px solid #d1d5db'}}>
+                        <div style={s.entryNum}>INSTALLMENT {i + 1}</div>
+                        <div style={s.grid3}>
+                            <Field label="NUMBER" path={`${base}.installment_number`} {...fp} />
+                            <Field label="AMOUNT" path={`${base}.amount`} {...fp} />
+                            <Field label="DUE DATE" path={`${base}.due_date`} placeholder="MM/DD/YYYY" {...fp} />
+                        </div>
+                        <div style={s.grid3}>
+                            <Field label="PAID DATE" path={`${base}.paid_date`} placeholder="MM/DD/YYYY" {...fp} />
+                            <Field label="STATUS" path={`${base}.status`} {...fp} />
+                            <Field label="DELINQUENT AMOUNT" path={`${base}.delinquent_amount`} {...fp} />
+                        </div>
+                        <Field label="PENALTIES/FEES" path={`${base}.penalties_fees`} {...fp} />
+                    </div>
+                );
+            })}
+            {installments.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No tax installments found.</div>}
         </div>
     );
 }
@@ -158,22 +271,43 @@ function V4Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) 
 function V4ChainEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
     const base = `chain_of_title.${index}`;
     const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    const entry = fields?.chain_of_title?.[index] || {};
     return (
         <div style={s.entryCard}>
             <div style={s.entryNum}>ENTRY {index + 1}</div>
             <div style={s.grid2}>
-                <Field label="GRANTEE" path={`${base}.grantee`} {...fp} />
-                <Field label="GRANTOR" path={`${base}.grantor`} {...fp} />
+                <Field label="DEED TYPE" path={`${base}.deed_type`} {...fp} masterList={DEED_TYPES} />
+                <Field label="INSTRUMENT/BOOK/PAGE" path={`${base}.instrument_book_page`} {...fp} />
             </div>
             <div style={s.grid3}>
                 <Field label="DEED DATE" path={`${base}.deed_date`} placeholder="MM/DD/YYYY" {...fp} />
                 <Field label="RECORDED DATE" path={`${base}.recorded_date`} placeholder="MM/DD/YYYY" {...fp} />
-                <Field label="DEED TYPE" path={`${base}.deed_type`} {...fp} masterList={DEED_TYPES} />
-            </div>
-            <div style={s.grid2}>
-                <Field label="INSTRUMENT/BOOK/PAGE" path={`${base}.instrument_book_page`} {...fp} />
                 <Field label="CONSIDERATION" path={`${base}.consideration`} {...fp} />
             </div>
+            <Field
+                label="GRANTORS (one per line)"
+                path={`${base}.grantors`}
+                multiline
+                {...fp}
+                value={Array.isArray(entry.grantors) ? entry.grantors.join('\n') : (entry.grantors || '')}
+                onChange={(k, v) => onFieldChange(k, v.split('\n').map(x => x.trim()).filter(Boolean))}
+            />
+            <Field
+                label="GRANTEES (one per line)"
+                path={`${base}.grantees`}
+                multiline
+                {...fp}
+                value={Array.isArray(entry.grantees) ? entry.grantees.join('\n') : (entry.grantees || '')}
+                onChange={(k, v) => onFieldChange(k, v.split('\n').map(x => x.trim()).filter(Boolean))}
+            />
+            <Field
+                label="RELATED DOCUMENTS (one per line)"
+                path={`${base}.related_documents`}
+                multiline
+                {...fp}
+                value={Array.isArray(entry.related_documents) ? entry.related_documents.join('\n') : (entry.related_documents || '')}
+                onChange={(k, v) => onFieldChange(k, v.split('\n').map(x => x.trim()).filter(Boolean))}
+            />
             <Field label="NOTES" path={`${base}.notes`} multiline {...fp} />
         </div>
     );
@@ -200,6 +334,15 @@ function V4MortgageEntry({ index, fields, aiFlags, alternatives, onFieldChange, 
                 <Field label="VESTING STATUS" path={`${base}.vesting_status`} {...fp} masterList={VESTING_STATUSES} />
                 <Field label="MATURITY DATE" path={`${base}.maturity_date`} placeholder="MM/DD/YYYY" {...fp} />
             </div>
+            <div style={s.grid3}>
+                <Field label="BOOK" path={`${base}.book`} {...fp} />
+                <Field label="PAGE" path={`${base}.page`} {...fp} />
+                <Field label="INSTRUMENT" path={`${base}.instrument`} {...fp} />
+            </div>
+            <div style={s.grid2}>
+                <Field label="MERS" path={`${base}.mers`} {...fp} />
+            </div>
+            <Field label="SUBORDINATION NOTES" path={`${base}.subordination_notes`} multiline {...fp} />
             {assignments.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>
                     <div style={s.entryNum}>ASSIGNMENTS</div>
@@ -212,14 +355,89 @@ function V4MortgageEntry({ index, fields, aiFlags, alternatives, onFieldChange, 
                                     <Field label="ASSIGNEE" path={`${a_base}.assignee`} {...fp} />
                                 </div>
                                 <div style={s.grid3}>
+                                    <Field label="DOCUMENT TYPE" path={`${a_base}.document_type`} {...fp} />
                                     <Field label="RECORDED DATE" path={`${a_base}.recorded_date`} placeholder="MM/DD/YYYY" {...fp} />
                                     <Field label="INSTRUMENT #" path={`${a_base}.instrument`} {...fp} />
+                                </div>
+                                <div style={s.grid2}>
+                                    <Field label="BOOK" path={`${a_base}.book`} {...fp} />
+                                    <Field label="PAGE" path={`${a_base}.page`} {...fp} />
                                 </div>
                             </div>
                         );
                     })}
                 </div>
             )}
+        </div>
+    );
+}
+
+function V4AssocDocEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `associated_documents.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>ASSOCIATED DOCUMENT {index + 1}</div>
+            <div style={s.grid2}>
+                <Field label="DOCUMENT TYPE" path={`${base}.document_type`} {...fp} />
+                <Field label="BOOK/INSTRUMENT" path={`${base}.book_instrument`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="PAGE" path={`${base}.page`} {...fp} />
+                <Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+            </div>
+            <div style={s.grid2}>
+                <Field label="GRANTOR/ASSIGNOR" path={`${base}.grantor_assignor`} {...fp} />
+                <Field label="GRANTEE/ASSIGNEE" path={`${base}.grantee_assignee`} {...fp} />
+            </div>
+            <Field label="NOTES" path={`${base}.notes`} multiline {...fp} />
+        </div>
+    );
+}
+
+function V4JudgmentEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `judgments_liens.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>JUDGMENT/LIEN {index + 1}</div>
+            <Field label="DOCUMENT TITLE" path={`${base}.document_title`} {...fp} />
+            <div style={s.grid3}>
+                <Field label="BOOK/INSTRUMENT" path={`${base}.book_instrument`} {...fp} />
+                <Field label="PAGE" path={`${base}.page`} {...fp} />
+                <Field label="AMOUNT" path={`${base}.amount`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="CASE NUMBER" path={`${base}.case_number`} {...fp} />
+            </div>
+            <div style={s.grid2}>
+                <Field label="PLAINTIFF" path={`${base}.plaintiff`} {...fp} />
+                <Field label="DEFENDANT" path={`${base}.defendant`} {...fp} />
+            </div>
+        </div>
+    );
+}
+
+function V4MiscDocEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `misc_documents.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>MISCELLANEOUS DOCUMENT {index + 1}</div>
+            <Field label="DOCUMENT TITLE" path={`${base}.document_title`} {...fp} />
+            <div style={s.grid3}>
+                <Field label="BOOK/INSTRUMENT" path={`${base}.book_instrument`} {...fp} />
+                <Field label="PAGE" path={`${base}.page`} {...fp} />
+                <Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="GRANTOR/ASSIGNOR" path={`${base}.grantor_assignor`} {...fp} />
+                <Field label="GRANTEE/ASSIGNEE" path={`${base}.grantee_assignee`} {...fp} />
+            </div>
         </div>
     );
 }

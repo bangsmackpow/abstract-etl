@@ -127,7 +127,7 @@ async function generateV4Report(jobData, outputPath) {
     doc.moveDown(1.5);
 
     // Order info on cover
-    kvTwoCol('FILE NUMBER', order.file_number, 'COMPLETED DATE', order.completed_date);
+    kvTwoCol('ORDER NUMBER', order.order_number, 'COMPLETED DATE', order.completed_date);
     doc.moveDown(0.3);
     kvTwoCol('COMPANY', order.company_name, 'EFFECTIVE DATE', order.effective_date);
     doc.moveDown(0.3);

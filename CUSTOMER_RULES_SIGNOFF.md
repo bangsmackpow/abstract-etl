@@ -69,6 +69,18 @@ The following rules apply exclusively to jobs created using the "v2" standard:
     *   If no direct match is found, the value will be formatted as `OTHER - [DISCOVERED TYPE]`.
 *   **UI Suggestions**: The user interface provides "Smart Suggestions" for many fields, including fuzzy-matched options from master lists for fields like `deed_type`.
 
+## 7. V4 System (Hazelwood & Associates) Rules
+The following rules apply exclusively to jobs created using the "v4" standard:
+*   **Schema**: Data is extracted into the Hazelwood V4 run sheet schema with 12 sections.
+*   **ALL CAPS**: All text values must be UPPERCASE.
+*   **Order Number Fallback**: Two companies — Eastman Credit Union and Clear Choice Abstracting — sometimes do NOT provide an order number. When missing, use: `"COMPANY NAME - PROPERTY ADDRESS"`.
+*   **Output Formats**: V4 jobs support three export formats, each covering all 12 report sections:
+    *   **PDF**: Hazelwood-branded multi-page report with Times-Roman font, section page breaks, and all fields fully editable.
+    *   **DOCX**: A professional Word document with all 12 sections.
+    *   **Markdown**: A structured .md file with all 12 sections.
+*   **Standardized Deed Types**: GENERAL WARRANTY, SPECIAL WARRANTY, QUITCLAIM, GIFT DEED, DEED OF ASSUMPTION, ESCHEAT DEED, PARTITION DEED, DEED OF FORECLOSURE, TRUSTEE'S DEED, or OTHER - [DISCOVERED TYPE].
+*   **Full Details**: See [docs/rules.md](docs/rules.md) for complete V4 extraction rules.
+
 ---
 
 ### **Approval**

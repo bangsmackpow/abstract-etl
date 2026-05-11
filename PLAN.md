@@ -29,7 +29,18 @@
 - [x] **V2 Markdown Export**: Restored Markdown download button for V2 jobs in the frontend alongside PDF export.
 - [ ] **Cleanup**: Use `knip` to remove dead legacy code and dependencies (PocketBase, sharp, pdf2pic, etc.).
 
-## Phase 4: Cloudflare Edge Migration
+## Phase 5: V4 Hazelwood (COMPLETE ✅)
+- [x] **V4 Schema & Prompt**: Created `V4_SCHEMA` and `SYSTEM_PROMPT_V4` with 12-section Hazelwood run sheet format, ALL CAPS output, standardized deed types, and extraction rules.
+- [x] **V4 Extraction Validation**: Tested against 9 sample PDFs — 8/9 PASS (89%), 1/9 PARTIAL (expected missing order number for Eastman Credit Union).
+- [x] **V4 Order Number Fallback Rule**: Added fallback for Eastman Credit Union and Clear Choice Abstracting — uses "COMPANY NAME - PROPERTY ADDRESS" when no order number is present.
+- [x] **V4 PDF Generator**: Multi-page PDF with Times-Roman font, Hazelwood branding, section page breaks, all fields fully editable.
+- [x] **V4 DOCX Generator**: Word document output matching PDF layout with all 12 sections.
+- [x] **V4 Markdown Generator**: Plain text output with all 12 sections.
+- [x] **V4 Frontend Form**: `V4Form` component with all 12 sections, array support for chain of title (grantors/grantees), tax installments, associated documents, judgments/liens, misc documents, and names searched.
+- [x] **V4 UI Toggles**: New Job, Edit Job, and Bulk Import pages all support v4 template version selection.
+- [x] **V4 Documentation**: `docs/rules.md` created as single source of truth. Documentation update policy established in AGENTS.md and rules.md.
+
+## Phase 6: Cloudflare Edge Migration
 - [ ] **Hono Refactor**: Rewrite Express routes to Hono for edge compatibility.
 - [ ] **D1 Database**: Switch `better-sqlite3` to `drizzle-orm/d1`.
 - [ ] **R2 Storage**: Move temporary file storage from local disk to Cloudflare R2.

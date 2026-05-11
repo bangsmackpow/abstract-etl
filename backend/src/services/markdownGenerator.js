@@ -327,7 +327,7 @@ function generateV4Markdown(f) {
   md += '## ORDER INFORMATION\n';
   md += '| Field | Value |\n';
   md += '| :--- | :--- |\n';
-  md += `| File Number | ${dash(oi.file_number)} |\n`;
+  md += `| Order Number | ${dash(oi.order_number)} |\n`;
   md += `| Effective Date | ${dash(oi.effective_date)} |\n`;
   md += `| Completed Date | ${dash(oi.completed_date)} |\n`;
   md += `| Property Address | **${dash(oi.property_address)}** |\n`;

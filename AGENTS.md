@@ -29,6 +29,11 @@ This project is a high-performance ETL system for property abstracts. Agents wor
 7. **Settings Table**: SMTP and backup config stored in `settings` table (key-value). DB values override env vars at runtime. Update via `PATCH /api/admin/settings`.
 8. **Backups**: SQLite DB snapshots go to `backend/backups/`. Manual via admin UI or `POST /api/admin/backup`. Scheduled backup honors `backup_enabled`, `backup_interval_minutes`, `backup_retention_days` settings.
 9. **Dead Code**: `backend/src/services/proTitleConstants.js` and `backend/src/test/generateV2Report.js` have been removed. Frontend `proTitleConstants.js` is still used by V1/V2 forms.
+10. **Documentation Updates**: Any change to extraction rules (in `docs/rules.md`), new template versions, new output formats, or major architectural changes MUST be documented in `docs/rules.md` and this file. Commit with message: `docs: update rules for [change description]`.
+
+## Documentation
+- **`docs/rules.md`**: Single source of truth for extraction rules, output formatting, system architecture, and template versions. Updated whenever rules change or major features are added.
+- **`AGENTS.md`**: Development guidelines for agents working on this project.
 
 ## Future Path (Cloudflare)
 The project is currently in the **Hybrid Phase**. 

@@ -19,7 +19,7 @@ function getModel() {
 
 const V4_SCHEMA = `{
   "order_info": {
-    "file_number": null,
+    "order_number": null,
     "company_name": null,
     "effective_date": null,
     "completed_date": null,
@@ -141,7 +141,8 @@ Extract ALL property data from the PDF into the Hazelwood V4 JSON schema.
 
 ### CRITICAL EXTRACTION RULES:
 
-1. **ORDER NUMBER**: Extract from the PDF filename. Use the ENTIRE number exactly — no dropped digits, no shortened versions, no breaking apart number groups. Combine company name with full order number when shown.
+1. **ORDER NUMBER**: Extract from the PDF filename or document header. Use the ENTIRE number exactly — no dropped digits, no shortened versions, no breaking apart number groups. This maps to order_info.order_number in the JSON schema. Combine company name with full order number when shown.
+   - **FALLBACK RULE**: Two companies — "EASTMAN CREDIT UNION" and "CLEAR CHOICE ABSTRACTING" — sometimes do NOT provide an order number. When the order number is missing for these companies, use: "COMPANY NAME - PROPERTY ADDRESS" (e.g., "EASTMAN CREDIT UNION - 224 OAK LANE ROAD, DRYDEN, VA 24243").
 
 2. **PARCEL IDs**: NEVER drop leading zeros (e.g., "069A17" stays "069A17"). Multiple IDs go in the "parcel_ids" array in source order.
 
