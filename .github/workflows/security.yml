@@ -16,7 +16,7 @@ permissions:
   actions: read
 
 jobs:
-  # ── Secret Detection ──────────────────────────────────────────────
+  # ── Secret Detection (Gitleaks) ───────────────────────────────────
   gitleaks:
     name: Secret Detection (Gitleaks)
     runs-on: ubuntu-latest
@@ -31,7 +31,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          config: ''
           report-path: gitleaks-report.json
 
       - name: Upload SARIF
@@ -40,7 +39,7 @@ jobs:
         with:
           sarif_file: gitleaks-report.json
 
-  # ── SCA — Dependency Scanning (Trivy) ─────────────────────────────
+  # ── Dependency Scanning (Trivy SCA) ───────────────────────────────
   trivy-sca:
     name: SCA Scan (Trivy)
     runs-on: ubuntu-latest
@@ -48,7 +47,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Trivy vulnerability scanner (npm workspaces)
+      - name: Run Trivy vulnerability scanner (root workspace)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -76,7 +75,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t abstract-etl-${{ matrix.image }}:${{ github.sha }} ./${{ matrix.image }}
+        run: docker build -t abstract-etl-${{ matrix.image }}:${{ github.sha }} -f ./${{ matrix.image }}/Dockerfile .
 
       - name: Run Trivy on Docker image
         uses: aquasecurity/trivy-action@master
