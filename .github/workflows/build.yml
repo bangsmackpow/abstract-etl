@@ -52,12 +52,10 @@ jobs:
           tags: |
             ${{ env.IMAGE_PREFIX }}-backend:latest
             ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+          load: true
 
       - name: Smoke test backend image
         run: |
-          # Pull the image we just pushed
-          docker pull ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
-
           # Run the app and check it doesn't crash on missing schema/files
           docker run --rm \
             -e GOOGLE_AI_API_KEY=test-key-for-smoke-test \
