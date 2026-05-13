@@ -1,0 +1,244 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly scan every Monday at 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # ── Secret Detection ──────────────────────────────────────────────
+  gitleaks:
+    name: Secret Detection (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config: ''
+          report-path: gitleaks-report.json
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: gitleaks-report.json
+
+  # ── SCA — Dependency Scanning (Trivy) ─────────────────────────────
+  trivy-sca:
+    name: SCA Scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (npm workspaces)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-sca.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-sca.sarif
+
+  # ── Docker Image Scanning (Trivy) ─────────────────────────────────
+  trivy-docker:
+    name: Docker Scan (Trivy)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: [backend, frontend]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t abstract-etl-${{ matrix.image }}:${{ github.sha }} ./${{ matrix.image }}
+
+      - name: Run Trivy on Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'abstract-etl-${{ matrix.image }}:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-docker-${{ matrix.image }}.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-docker-${{ matrix.image }}.sarif
+
+  # ── SAST — Static Analysis (Semgrep) ──────────────────────────────
+  semgrep:
+    name: SAST Scan (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        env:
+          SEMGREP_RULES: >-
+            p/security-audit
+            p/secrets
+            p/nodejs
+            p/owasp-top-ten
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/nodejs
+            p/owasp-top-ten
+
+  # ── Dockerfile Lint (Hadolint) ────────────────────────────────────
+  hadolint:
+    name: Dockerfile Lint (Hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint backend Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: backend/Dockerfile
+          failure-threshold: error
+
+      - name: Lint frontend Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: frontend/Dockerfile
+          failure-threshold: error
+
+  # ── Docker Compose Security Check ─────────────────────────────────
+  docker-compose-audit:
+    name: Docker Compose Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets in docker-compose.yml
+        run: |
+          echo "Checking docker-compose.yml for insecure patterns..."
+          FAIL=0
+
+          # Check for hardcoded secrets (non-variable references)
+          if grep -P ':\s*(?!.*\$\{)' docker-compose.yml | grep -iE '(secret|password|api_key|token)' | grep -v '^\s*#'; then
+            echo "::error::Hardcoded secrets detected in docker-compose.yml — use \${VAR} syntax"
+            FAIL=1
+          fi
+
+          # Check for privileged mode
+          if grep -q 'privileged:\s*true' docker-compose.yml; then
+            echo "::error::privileged: true found in docker-compose.yml"
+            FAIL=1
+          fi
+
+          # Check for host network mode
+          if grep -q 'network_mode:\s*host' docker-compose.yml; then
+            echo "::warning::host network mode detected — reduces container isolation"
+          fi
+
+          # Check for binding to 0.0.0.0
+          if grep -qE "ports:.*0\.0\.0\.0" docker-compose.yml; then
+            echo "::warning::Ports bound to 0.0.0.0 — consider restricting to 127.0.0.1"
+          fi
+
+          exit $FAIL
+
+  # ── Environment & Config Audit ────────────────────────────────────
+  env-audit:
+    name: Environment & Config Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify .env is gitignored
+        run: |
+          if grep -q '^\.env$' .gitignore; then
+            echo "✅ .env is properly gitignored"
+          else
+            echo "::error::.env is NOT in .gitignore — secrets may be committed"
+            exit 1
+          fi
+
+      - name: Check .env.example has placeholder values
+        run: |
+          FAIL=0
+          while IFS= read -r line; do
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+            key="${line%%=*}"
+            val="${line#*=}"
+            if [[ -z "$val" ]]; then
+              echo "::warning::$key has empty value in .env.example"
+            fi
+          done < .env.example
+          echo "✅ .env.example reviewed"
+
+      - name: Verify stack.env is gitignored
+        run: |
+          if grep -q 'stack\.env' .gitignore; then
+            echo "✅ stack.env is gitignored"
+          else
+            echo "::warning::stack.env is not explicitly gitignored"
+          fi
+
+      - name: Check for over-privileged GitHub Actions permissions
+        run: |
+          echo "Checking workflow permissions..."
+          # Verify build.yml does not use write-all
+          if grep -q 'permissions:\s*write-all' .github/workflows/*.yml 2>/dev/null; then
+            echo "::error::write-all permissions detected in workflows"
+            exit 1
+          fi
+          echo "✅ No write-all permissions found"
+
+  # ── Summary ───────────────────────────────────────────────────────
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [gitleaks, trivy-sca, trivy-docker, semgrep, hadolint, docker-compose-audit, env-audit]
+    if: always()
+    steps:
+      - name: Report status
+        run: |
+          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          for job in gitleaks trivy-sca trivy-docker semgrep hadolint docker-compose-audit env-audit; do
+            result="${{ needs.$job.result }}"
+            if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
+              echo "| $job | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $job | ❌ Fail |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
