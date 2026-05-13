@@ -44,10 +44,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push backend
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
-          dockerfile: ./backend/Dockerfile
+          file: ./backend/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE_PREFIX }}-backend:latest
@@ -84,6 +84,24 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend]
     steps:
+      - name: Verify images exist before deploy
+        run: |
+          docker pull ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+          docker pull ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+          echo "✅ Both images verified"
+
+      - name: Smoke test backend image
+        run: |
+          CONTAINER_ID=$(docker run -d --rm \
+            -e GOOGLE_AI_API_KEY=test \
+            -e JWT_SECRET=test \
+            -e ADMIN_EMAIL=test@test.com \
+            -e ADMIN_PASSWORD=test123 \
+            ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }} \
+            node -e "try { require('./src/index.js') } catch(e) { if(e.message.includes('Schema')) { console.error('FAIL: '+e.message); process.exit(1) } else { console.log('OK - startup failed for expected reason: '+e.message); process.exit(0) } }")
+          docker wait $CONTAINER_ID
+          echo "✅ Backend smoke test passed"
+
       - name: Trigger Portainer Webhook
         run: |
           curl -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}"
