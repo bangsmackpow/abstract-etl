@@ -60,10 +60,10 @@ jobs:
 
           # Run the app and check it doesn't crash on missing schema/files
           docker run --rm \
-            -e GOOGLE_AI_API_KEY=test \
-            -e JWT_SECRET=test \
+            -e GOOGLE_AI_API_KEY=test-key-for-smoke-test \
+            -e JWT_SECRET=test-secret-key-1234 \
             -e ADMIN_EMAIL=test@test.com \
-            -e ADMIN_PASSWORD=test123 \
+            -e ADMIN_PASSWORD=test12345678 \
             ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }} \
             node -e "
               try {
