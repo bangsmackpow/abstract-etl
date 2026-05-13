@@ -4,6 +4,8 @@ RUN apk add --no-cache poppler-utils ghostscript graphicsmagick
 
 WORKDIR /app
 
+ENV DOCS_DIR=/app/docs
+
 COPY backend/package*.json ./
 RUN npm install
 

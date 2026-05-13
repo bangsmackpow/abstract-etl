@@ -8,7 +8,7 @@ const path = require('path');
  * Prompts are loaded from docs/prompts/ at startup for auditability.
  */
 
-const DOCS_DIR = path.join(__dirname, '..', '..', '..', 'docs');
+const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
 
 function loadPrompt(filename) {
   const filePath = path.join(DOCS_DIR, 'prompts', filename);

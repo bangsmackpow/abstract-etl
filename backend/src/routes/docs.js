@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const router = express.Router();
 
-const DOCS_DIR = path.join(__dirname, '..', '..', '..', 'docs');
+const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
 
 // ── GET /api/docs/rules — current rules.md ───────────────────────────────────
 router.get('/rules', (req, res) => {
@@ -62,7 +62,7 @@ router.get('/revisions/:id', (req, res) => {
 
   const result = { revision: rev, files: {} };
   for (const [key, filePath] of Object.entries(rev.files)) {
-    const fullPath = path.join(__dirname, '..', '..', '..', filePath); // nosemgrep: filePath from revision data, not user input
+    const fullPath = path.join(DOCS_DIR, filePath); // nosemgrep: filePath from revision data, not user input
     if (fs.existsSync(fullPath)) {
       result.files[key] = fs.readFileSync(fullPath, 'utf8');
     }
@@ -105,7 +105,7 @@ router.get('/revisions/:id/download/:fileType', (req, res) => {
     content = fs.readFileSync(snapshotPath, 'utf8');
     filename = snapshotName;
   } else {
-    const fullPath = path.join(__dirname, '..', '..', '..', relPath); // nosemgrep: relPath from fileMap, not user input
+    const fullPath = path.join(DOCS_DIR, relPath); // nosemgrep: relPath from fileMap, not user input
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ error: `File not found: ${relPath}` });
     }
