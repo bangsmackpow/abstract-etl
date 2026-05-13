@@ -9,7 +9,7 @@ export default function BulkImport() {
   const [stage, setStage] = useState('upload');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
-  const [version, setVersion] = useState('v2');
+  const [version, setVersion] = useState('v4');
   const [results, setResults] = useState(null);
 
   const addFiles = (newFiles) => {
@@ -78,13 +78,6 @@ export default function BulkImport() {
                     style={{ flex: 1 }}
                   >
                     V1 (Legacy)
-                  </button>
-                  <button
-                    className={`btn ${version === 'v2' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v2')}
-                    style={{ flex: 1 }}
-                  >
-                    V2 (ProTitleUSA)
                   </button>
                   <button
                     className={`btn ${version === 'v4' ? 'btn-primary' : 'btn-outline'}`}

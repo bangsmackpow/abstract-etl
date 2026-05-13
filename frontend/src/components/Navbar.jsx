@@ -31,6 +31,9 @@ export default function Navbar() {
           Admin
         </Link>
       )}
+      <Link to="/docs" className="navbar-link">
+        Docs
+      </Link>
       <div className="navbar-spacer" />
       <span className="navbar-user">{user?.name || user?.email}</span>
       <button

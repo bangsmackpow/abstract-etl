@@ -1,10 +1,33 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
+const path = require('path');
 
 /**
  * Native Google AI Service
- * Supports v1 (Legacy) and v2 (ProTitleUSA) extraction.
+ * Supports v1 (Legacy) and v4 (Hazelwood) extraction.
+ * Prompts are loaded from docs/prompts/ at startup for auditability.
  */
+
+const DOCS_DIR = path.join(__dirname, '..', '..', '..', 'docs');
+
+function loadPrompt(filename) {
+  const filePath = path.join(DOCS_DIR, 'prompts', filename);
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Prompt file not found: ${filePath}`);
+  }
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+function loadSchema(filename) {
+  const filePath = path.join(DOCS_DIR, 'schemas', filename);
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Schema file not found: ${filePath}`);
+  }
+  return fs.readFileSync(filePath, 'utf8');
+}
+
+const V4_SCHEMA = loadSchema('v4-schema.json');
+const SYSTEM_PROMPT_V4 = loadPrompt('v4-prompt.md').replace(/### SCHEMA REFERENCE:[\s\S]*?Return ONLY/, `### SCHEMA REFERENCE:\n${V4_SCHEMA}\n\nReturn ONLY`);
 
 function getModel() {
   const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
@@ -16,195 +39,6 @@ function getModel() {
     generationConfig: { responseMimeType: 'application/json' }
   });
 }
-
-const V4_SCHEMA = `{
-  "order_info": {
-    "order_number": null,
-    "company_name": null,
-    "effective_date": null,
-    "completed_date": null,
-    "property_address": null,
-    "county": null,
-    "township": null,
-    "parcel_ids": [],
-    "assessed_value": null,
-    "land_value": null,
-    "improvement_value": null,
-    "tax_id": null,
-    "tax_amount": null,
-    "tax_due": null,
-    "tax_delinquent": null,
-    "tax_paid": null,
-    "current_vesting_owner": null
-  },
-  "vesting_info": {
-    "grantee": null,
-    "grantor": null,
-    "deed_date": null,
-    "recorded_date": null,
-    "instrument_book_page": null,
-    "deed_type": null,
-    "consideration": null,
-    "in_out_sale": false,
-    "notes": null
-  },
-  "chain_of_title": [{
-    "deed_type": null,
-    "grantors": [],
-    "grantees": [],
-    "deed_date": null,
-    "recorded_date": null,
-    "instrument_book_page": null,
-    "consideration": null,
-    "notes": null,
-    "related_documents": []
-  }],
-  "mortgages": [{
-    "borrower": null,
-    "lender": null,
-    "mortgage_amount": null,
-    "mortgage_date": null,
-    "recorded_date": null,
-    "book": null,
-    "page": null,
-    "instrument": null,
-    "maturity_date": null,
-    "mortgage_type": null,
-    "mers": "No",
-    "vesting_status": null,
-    "subordination_notes": null,
-    "assignments": [{
-      "document_type": null,
-      "instrument": null,
-      "book": null,
-      "page": null,
-      "recorded_date": null,
-      "assignor": null,
-      "assignee": null
-    }]
-  }],
-  "associated_documents": [{
-    "document_type": null,
-    "book_instrument": null,
-    "page": null,
-    "dated": null,
-    "recorded": null,
-    "grantor_assignor": null,
-    "grantee_assignee": null,
-    "notes": null
-  }],
-  "judgments_liens": [{
-    "document_title": null,
-    "book_instrument": null,
-    "page": null,
-    "dated": null,
-    "recorded": null,
-    "case_number": null,
-    "amount": null,
-    "plaintiff": null,
-    "defendant": null
-  }],
-  "misc_documents": [{
-    "document_title": null,
-    "book_instrument": null,
-    "page": null,
-    "dated": null,
-    "recorded": null,
-    "grantor_assignor": null,
-    "grantee_assignee": null
-  }],
-  "tax_status": {
-    "parcel_id": null,
-    "tax_year": null,
-    "total_amount": null,
-    "status": null,
-    "paid_date": null,
-    "delinquent_amount": null,
-    "installments": [{
-      "installment_number": null,
-      "amount": null,
-      "due_date": null,
-      "paid_date": null,
-      "status": null,
-      "delinquent_amount": null,
-      "penalties_fees": null
-    }]
-  },
-  "legal_description": null,
-  "additional_information": null,
-  "names_searched": [],
-  "alternatives": {}
-}`;
-
-const SYSTEM_PROMPT_V4 = `You are an expert title abstract processor for Hazelwood & Associates, LLC.
-Extract ALL property data from the PDF into the Hazelwood V4 JSON schema.
-
-### CRITICAL EXTRACTION RULES:
-
-1. **ORDER NUMBER**: Extract from the PDF filename or document header. Use the ENTIRE number exactly — no dropped digits, no shortened versions, no breaking apart number groups. This maps to order_info.order_number in the JSON schema. Combine company name with full order number when shown.
-   - **FALLBACK RULE**: Two companies — "EASTMAN CREDIT UNION" and "CLEAR CHOICE ABSTRACTING" — sometimes do NOT provide an order number. When the order number is missing for these companies, use: "COMPANY NAME - PROPERTY ADDRESS" (e.g., "EASTMAN CREDIT UNION - 224 OAK LANE ROAD, DRYDEN, VA 24243").
-
-2. **PARCEL IDs**: NEVER drop leading zeros (e.g., "069A17" stays "069A17"). Multiple IDs go in the "parcel_ids" array in source order.
-
-3. **TOWNSHIP**: Default to the CITY from the property address.
-
-4. **TAX INFORMATION**:
-   - Capture EVERY installment shown — do NOT assume a two-installment limit.
-   - Delinquent is a NUMERIC field, not Yes/No. Show original amount, due date, and full delinquent amount with penalties/fees.
-   - Multiple parcels/installments are captured in the "installments" array.
-
-5. **CHAIN OF TITLE**:
-   - Use separate numbered entries (1, 2, 3...).
-   - Deed Type FIRST, then Grantors and Grantees listed below.
-   - Use these simplified deed titles: GENERAL WARRANTY, SPECIAL WARRANTY, QUITCLAIM, GIFT DEED, DEED OF ASSUMPTION, ESCHEAT DEED, PARTITION DEED, DEED OF FORECLOSURE, TRUSTEE'S DEED.
-   - If no match, use: "OTHER - [DISCOVERED TYPE]".
-   - Consideration comes from the DEED ITSELF only — specific numeric amount or "LOVE AND AFFECTION". Otherwise leave null.
-   - In/Out Sale: true if the vesting owner acquires land in pieces or sells a portion.
-   - Duplicate names: If someone is both Grantor and Grantee, list in BOTH places.
-   - Life estates: Grantor reserving life estate → "Reserving Life Estate", other party → "REMAINDERMENT".
-   - Foreclosures: Trustee's Deed = numbered chain entry. Related docs (Account of Sale, Sub Trustee, etc.) go in "related_documents" for that entry, NOT as new chain numbers.
-
-6. **MARITAL LOGIC**:
-   - NO separate marital-status field.
-   - If instrument says "Husband and Wife" or similar → join names with "&" (e.g., "JOHN SMITH & JANE SMITH").
-   - Otherwise → separate with commas (e.g., "JOHN SMITH, JANE SMITH").
-   - Always use full names as they appear in that specific instrument.
-   - If one instrument lists them as married and another does not, follow the wording of that specific instrument.
-
-7. **NOTES / SPECIAL SITUATIONS**:
-   - Only add notes for special situations: will, deceased person, life estate, divorce, third/fourth-party issue, foreclosure-related supporting documents.
-   - Do NOT add notes under every deed.
-   - Note wording templates:
-     - "WILL OF [NAME] [BOOK/PAGE]"
-     - "LOH FOR [NAME] [BOOK/PAGE]"
-     - "REA FOR [NAME] [BOOK/PAGE OR CASE REFERENCE]"
-     - "NO WILL OR LOH FOR [NAME] [DATE OF DEATH]"
-     - "REFERENCE MADE TO A WILL FOR [NAME] BUT NONE WAS FOUND"
-   - Notes follow the order they appear in source documents.
-
-8. **MORTGAGES**:
-   - List from OLDEST to NEWEST by date, unless a subordination agreement changes priority.
-   - Associated document types: ASSIGNMENT, SUBSTITUTE TRUSTEE, MODIFICATION, or OTHER.
-   - Abbreviations: DOT (Deed of Trust), RFDT (Refinance Deed of Trust), DTCL (Credit Line Deed of Trust).
-
-9. **NAMES SEARCHED**:
-   - Borrower (listed first).
-   - Every Grantor/Grantee in the Chain.
-   - Every heir named in a Will, LOH, or REA.
-   - EXCLUDE: Special Commissioners and Trustees on a Trustee's Deed.
-
-10. **LEGAL DESCRIPTION**: Only the VESTING DEED requires a full legal description. Do not repeat for other deeds unless a special note requires it.
-
-11. **ALL CAPS**: All text values must be UPPERCASE.
-
-12. **EXTRACT EVERY FIELD**: Do NOT leave fields null unless they truly don't exist in the document.
-
-13. **ALTERNATIVES**: For any Names, Dates, or Legal Descriptions where OCR is blurry or ambiguous, provide the top 2 alternatives in the "alternatives" object using the field path as key.
-
-### SCHEMA REFERENCE:
-${V4_SCHEMA}
-
-Return ONLY valid JSON matching the schema above. Every field must have a value if it exists in the document.`;
 
 function sanitizeJsonResponse(text) {
   let cleaned = text.trim();
@@ -302,4 +136,4 @@ async function extractFromPDF(pdfPath, originalFilename = '', version = 'v4') {
   }
 }
 
-module.exports = { extractFromPDF, V4_SCHEMA, SYSTEM_PROMPT_V4 };
+module.exports = { extractFromPDF };

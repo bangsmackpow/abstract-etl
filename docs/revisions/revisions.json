@@ -1,0 +1,18 @@
+{
+  "revisions": [
+    {
+      "id": "rev-001",
+      "timestamp": "2026-05-13T00:00:00Z",
+      "label": "Initial V4 Hazelwood Release",
+      "files": {
+        "rules": "docs/rules.md",
+        "v4_prompt": "docs/prompts/v4-prompt.md",
+        "v1_prompt": "docs/prompts/v1-prompt.md",
+        "v4_schema": "docs/schemas/v4-schema.json"
+      },
+      "notes": "Baseline snapshot. V4 extraction live with 12-section Hazelwood run sheet format, ALL CAPS output, order number fallback for Eastman Credit Union & Clear Choice Abstracting. V1 uses same prompt as V4. V2 deprecated from UI.",
+      "status": "superseded"
+    }
+  ],
+  "active": "rev-001"
+}

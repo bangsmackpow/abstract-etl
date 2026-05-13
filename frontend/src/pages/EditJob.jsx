@@ -57,16 +57,11 @@ export default function EditJob() {
     setSaved(false);
     try {
       const tv = job?.templateVersion;
-      const isV2 = tv === 'v2';
       const isV4 = tv === 'v4';
-      const addr = isV2
-        ? fields.property_info?.address
-        : isV4
+      const addr = isV4
         ? fields.order_info?.property_address
         : fields.order_info?.property_address;
-      const cnty = isV2
-        ? fields.property_info?.county
-        : isV4
+      const cnty = isV4
         ? fields.order_info?.county
         : fields.order_info?.county;
       await updateJob(id, {
@@ -103,11 +98,8 @@ export default function EditJob() {
     try {
       await handleSave();
       const tv = job?.templateVersion;
-      const isV2 = tv === 'v2';
       const isV4 = tv === 'v4';
-      const addr = isV2
-        ? fields.property_info?.address
-        : isV4
+      const addr = isV4
         ? fields.order_info?.property_address
         : fields.order_info?.property_address || job.propertyAddress;
       await downloadMarkdown(id, addr);
@@ -149,10 +141,9 @@ export default function EditJob() {
     );
 
   const tv = job?.templateVersion;
-  const isV2 = tv === 'v2';
   const isV4 = tv === 'v4';
-  const headerAddress = isV2
-    ? fields.property_info?.address || job?.propertyAddress
+  const headerAddress = isV4
+    ? fields.order_info?.property_address || job?.propertyAddress
     : fields.order_info?.property_address || job?.propertyAddress;
 
   return (
@@ -192,35 +183,19 @@ export default function EditJob() {
       </div>
 
       <div className="flex gap-3 mb-6">
-        {isV2 || isV4 ? (
-          <>
-            <button className="btn btn-success" onClick={handleDownloadPdf} disabled={downloadingPdf}>
-              {downloadingPdf ? 'Generating...' : '⬇ Download PDF Report'}
-            </button>
-            <button
-              className="btn btn-ghost"
-              onClick={handleDownloadMd}
-              disabled={downloadingMd}
-              style={{ border: '1px solid #ddd' }}
-            >
-              {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
-            </button>
-          </>
-        ) : (
-          <>
-            <button className="btn btn-success" onClick={handleDownloadDocx} disabled={downloadingDocx}>
-              {downloadingDocx ? 'Generating...' : '⬇ Download Word (.docx)'}
-            </button>
-            <button
-              className="btn btn-ghost"
-              onClick={handleDownloadMd}
-              disabled={downloadingMd}
-              style={{ border: '1px solid #ddd' }}
-            >
-              {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
-            </button>
-          </>
-        )}
+        <>
+          <button className="btn btn-success" onClick={handleDownloadPdf} disabled={downloadingPdf}>
+            {downloadingPdf ? 'Generating...' : '⬇ Download PDF Report'}
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={handleDownloadMd}
+            disabled={downloadingMd}
+            style={{ border: '1px solid #ddd' }}
+          >
+            {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
+          </button>
+        </>
       </div>
 
       <div className="alert alert-info text-sm mb-6">

@@ -1,0 +1,118 @@
+{
+  "order_info": {
+    "order_number": null,
+    "company_name": null,
+    "effective_date": null,
+    "completed_date": null,
+    "property_address": null,
+    "county": null,
+    "township": null,
+    "parcel_ids": [],
+    "assessed_value": null,
+    "land_value": null,
+    "improvement_value": null,
+    "tax_id": null,
+    "tax_amount": null,
+    "tax_due": null,
+    "tax_delinquent": null,
+    "tax_paid": null,
+    "current_vesting_owner": null
+  },
+  "vesting_info": {
+    "grantee": null,
+    "grantor": null,
+    "deed_date": null,
+    "recorded_date": null,
+    "instrument_book_page": null,
+    "deed_type": null,
+    "consideration": null,
+    "in_out_sale": false,
+    "notes": null
+  },
+  "chain_of_title": [{
+    "deed_type": null,
+    "grantors": [],
+    "grantees": [],
+    "deed_date": null,
+    "recorded_date": null,
+    "instrument_book_page": null,
+    "consideration": null,
+    "notes": null,
+    "related_documents": []
+  }],
+  "mortgages": [{
+    "borrower": null,
+    "lender": null,
+    "mortgage_amount": null,
+    "mortgage_date": null,
+    "recorded_date": null,
+    "book": null,
+    "page": null,
+    "instrument": null,
+    "maturity_date": null,
+    "mortgage_type": null,
+    "mers": "No",
+    "vesting_status": null,
+    "subordination_notes": null,
+    "assignments": [{
+      "document_type": null,
+      "instrument": null,
+      "book": null,
+      "page": null,
+      "recorded_date": null,
+      "assignor": null,
+      "assignee": null
+    }]
+  }],
+  "associated_documents": [{
+    "document_type": null,
+    "book_instrument": null,
+    "page": null,
+    "dated": null,
+    "recorded": null,
+    "grantor_assignor": null,
+    "grantee_assignee": null,
+    "notes": null
+  }],
+  "judgments_liens": [{
+    "document_title": null,
+    "book_instrument": null,
+    "page": null,
+    "dated": null,
+    "recorded": null,
+    "case_number": null,
+    "amount": null,
+    "plaintiff": null,
+    "defendant": null
+  }],
+  "misc_documents": [{
+    "document_title": null,
+    "book_instrument": null,
+    "page": null,
+    "dated": null,
+    "recorded": null,
+    "grantor_assignor": null,
+    "grantee_assignee": null
+  }],
+  "tax_status": {
+    "parcel_id": null,
+    "tax_year": null,
+    "total_amount": null,
+    "status": null,
+    "paid_date": null,
+    "delinquent_amount": null,
+    "installments": [{
+      "installment_number": null,
+      "amount": null,
+      "due_date": null,
+      "paid_date": null,
+      "status": null,
+      "delinquent_amount": null,
+      "penalties_fees": null
+    }]
+  },
+  "legal_description": null,
+  "additional_information": null,
+  "names_searched": [],
+  "alternatives": {}
+}

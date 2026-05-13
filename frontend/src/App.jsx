@@ -6,6 +6,7 @@ import NewJob from './pages/NewJob';
 import BulkImport from './pages/BulkImport';
 import EditJob from './pages/EditJob';
 import Admin from './pages/Admin';
+import Docs from './pages/Docs';
 import Navbar from './components/Navbar';
 
 function ProtectedRoute({ children, adminOnly = false }) {
@@ -76,6 +77,16 @@ export default function App() {
               <ProtectedRoute adminOnly>
                 <AppLayout>
                   <Admin />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/docs"
+            element={
+              <ProtectedRoute>
+                <AppLayout>
+                  <Docs />
                 </AppLayout>
               </ProtectedRoute>
             }

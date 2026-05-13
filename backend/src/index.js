@@ -13,6 +13,7 @@ const extractRoutes = require('./routes/extract');
 const generateRoutes = require('./routes/generate');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const docsRoutes = require('./routes/docs');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -58,6 +59,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/extract', extractRoutes);
 app.use('/api/generate', generateRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/docs', docsRoutes);
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);

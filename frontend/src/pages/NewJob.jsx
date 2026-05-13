@@ -9,7 +9,7 @@ export default function NewJob() {
   const [stage, setStage] = useState('upload'); // upload | processing | done
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
-  const [version, setVersion] = useState('v1'); // v1 | v2 | v4
+  const [version, setVersion] = useState('v1'); // v1 | v4
 
   const handleFile = (f) => {
     if (f?.type !== 'application/pdf') {
@@ -42,18 +42,15 @@ export default function NewJob() {
       setProgress(90);
 
       // 2. Create job record with extracted data
-      const isV2 = version === 'v2';
       const isV4 = version === 'v4';
       const job = await createJob({
-        property_address: isV2
-          ? fields.property_info?.address
+        property_address: isV4
+          ? fields.order_info?.property_address || ''
           : fields.order_info?.property_address || '',
-        borrower_names: isV2
-          ? fields.property_info?.current_owner
-          : isV4
+        borrower_names: isV4
           ? fields.order_info?.current_owner
           : fields.order_info?.current_vesting_owner || '',
-        county: isV2 ? fields.property_info?.county : fields.order_info?.county || '',
+        county: fields.order_info?.county || '',
         fields_json: fields,
         ai_flags_json: aiFlags,
         template_version: version,
@@ -100,13 +97,6 @@ export default function NewJob() {
                     style={{ flex: 1 }}
                   >
                     V1 (Legacy)
-                  </button>
-                  <button
-                    className={`btn ${version === 'v2' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v2')}
-                    style={{ flex: 1 }}
-                  >
-                    V2 (ProTitleUSA)
                   </button>
                   <button
                     className={`btn ${version === 'v4' ? 'btn-primary' : 'btn-outline'}`}
