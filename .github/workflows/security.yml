@@ -223,11 +223,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          for job in gitleaks trivy-sca trivy-docker semgrep hadolint docker-compose-audit env-audit; do
-            result="${{ needs.$job.result }}"
-            if [ "$result" = "success" ] || [ "$result" = "skipped" ]; then
-              echo "| $job | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
+          for result in \
+            "gitleaks|${{ needs.gitleaks.result }}" \
+            "trivy-sca|${{ needs.trivy-sca.result }}" \
+            "trivy-docker|${{ needs.trivy-docker.result }}" \
+            "semgrep|${{ needs.semgrep.result }}" \
+            "hadolint|${{ needs.hadolint.result }}" \
+            "docker-compose-audit|${{ needs.docker-compose-audit.result }}" \
+            "env-audit|${{ needs.env-audit.result }}"; do
+            name="${result%%|*}"
+            status="${result##*|}"
+            if [ "$status" = "success" ] || [ "$status" = "skipped" ]; then
+              echo "| $name | ✅ Pass |" >> $GITHUB_STEP_SUMMARY
             else
-              echo "| $job | ❌ Fail |" >> $GITHUB_STEP_SUMMARY
+              echo "| $name | ❌ Fail |" >> $GITHUB_STEP_SUMMARY
             fi
           done
