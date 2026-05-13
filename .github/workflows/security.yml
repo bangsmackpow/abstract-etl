@@ -103,17 +103,7 @@ jobs:
       - name: Run Semgrep
         uses: semgrep/semgrep-action@v1
         env:
-          SEMGREP_RULES: >-
-            p/security-audit
-            p/secrets
-            p/nodejs
-            p/owasp-top-ten
-        with:
-          config: >-
-            p/security-audit
-            p/secrets
-            p/nodejs
-            p/owasp-top-ten
+          SEMGREP_RULES: p/security-audit p/secrets p/nodejs p/owasp-top-ten
 
   # ── Dockerfile Lint (Hadolint) ────────────────────────────────────
   hadolint:
