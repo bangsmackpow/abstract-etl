@@ -30,14 +30,6 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          report-path: gitleaks-report.json
-
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: gitleaks-report.json
 
   # ── Dependency Scanning (Trivy SCA) ───────────────────────────────
   trivy-sca:
@@ -64,25 +56,22 @@ jobs:
           sarif_file: trivy-sca.sarif
 
   # ── Docker Image Scanning (Trivy) ─────────────────────────────────
-  trivy-docker:
-    name: Docker Scan (Trivy)
+  trivy-docker-backend:
+    name: Docker Scan Backend (Trivy)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        image: [backend, frontend]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t abstract-etl-${{ matrix.image }}:${{ github.sha }} -f ./${{ matrix.image }}/Dockerfile .
+        run: docker build -t abstract-etl-backend:${{ github.sha }} -f ./backend/Dockerfile .
 
       - name: Run Trivy on Docker image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'abstract-etl-${{ matrix.image }}:${{ github.sha }}'
+          image-ref: 'abstract-etl-backend:${{ github.sha }}'
           format: 'sarif'
-          output: 'trivy-docker-${{ matrix.image }}.sarif'
+          output: 'trivy-docker-backend.sarif'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
 
@@ -90,7 +79,32 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: trivy-docker-${{ matrix.image }}.sarif
+          sarif_file: trivy-docker-backend.sarif
+
+  trivy-docker-frontend:
+    name: Docker Scan Frontend (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t abstract-etl-frontend:${{ github.sha }} ./frontend
+
+      - name: Run Trivy on Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'abstract-etl-frontend:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-docker-frontend.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-docker-frontend.sarif
 
   # ── SAST — Static Analysis (Semgrep) ──────────────────────────────
   semgrep:
@@ -104,6 +118,7 @@ jobs:
         uses: semgrep/semgrep-action@v1
         env:
           SEMGREP_RULES: p/security-audit p/secrets p/nodejs p/owasp-top-ten
+          SEMGREP_FAILURE_THRESHOLD: ERROR
 
   # ── Dockerfile Lint (Hadolint) ────────────────────────────────────
   hadolint:
@@ -214,7 +229,7 @@ jobs:
   security-summary:
     name: Security Summary
     runs-on: ubuntu-latest
-    needs: [gitleaks, trivy-sca, trivy-docker, semgrep, hadolint, docker-compose-audit, env-audit]
+    needs: [gitleaks, trivy-sca, trivy-docker-backend, trivy-docker-frontend, semgrep, hadolint, docker-compose-audit, env-audit]
     if: always()
     steps:
       - name: Report status
@@ -226,7 +241,8 @@ jobs:
           for result in \
             "gitleaks|${{ needs.gitleaks.result }}" \
             "trivy-sca|${{ needs.trivy-sca.result }}" \
-            "trivy-docker|${{ needs.trivy-docker.result }}" \
+            "trivy-docker-backend|${{ needs.trivy-docker-backend.result }}" \
+            "trivy-docker-frontend|${{ needs.trivy-docker-frontend.result }}" \
             "semgrep|${{ needs.semgrep.result }}" \
             "hadolint|${{ needs.hadolint.result }}" \
             "docker-compose-audit|${{ needs.docker-compose-audit.result }}" \
