@@ -53,6 +53,34 @@ jobs:
             ${{ env.IMAGE_PREFIX }}-backend:latest
             ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
 
+      - name: Smoke test backend image
+        run: |
+          # Pull the image we just pushed
+          docker pull ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+
+          # Run the app and check it doesn't crash on missing schema/files
+          docker run --rm \
+            -e GOOGLE_AI_API_KEY=test \
+            -e JWT_SECRET=test \
+            -e ADMIN_EMAIL=test@test.com \
+            -e ADMIN_PASSWORD=test123 \
+            ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }} \
+            node -e "
+              try {
+                require('./src/index.js');
+              } catch(e) {
+                // Schema/prompt/file missing = fatal build issue
+                if (e.message.includes('Schema') || e.message.includes('Prompt') || e.message.includes('file not found')) {
+                  console.error('FATAL: ' + e.message);
+                  process.exit(1);
+                }
+                // Other startup errors (no DB, no AI key) are expected in test
+                console.log('OK - startup failed for expected reason: ' + e.message);
+                process.exit(0);
+              }
+            "
+          echo "✅ Backend smoke test passed"
+
   build-frontend:
     runs-on: ubuntu-latest
     needs: validate
@@ -104,4 +132,11 @@ jobs:
 
       - name: Trigger Portainer Webhook
         run: |
-          curl -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}"
+          WEBHOOK_URL="${{ secrets.PORTAINER_WEBHOOK_URL }}"
+          # Append ?pull=true if not already present
+          if [[ "$WEBHOOK_URL" == *"?"* ]]; then
+            WEBHOOK_URL="${WEBHOOK_URL}&pull=true"
+          else
+            WEBHOOK_URL="${WEBHOOK_URL}?pull=true"
+          fi
+          curl -X POST "$WEBHOOK_URL"
