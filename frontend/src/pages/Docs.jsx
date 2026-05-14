@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = '';
 
 export default function Docs() {
   const { user } = useAuth();
