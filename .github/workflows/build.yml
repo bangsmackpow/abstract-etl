@@ -56,8 +56,8 @@ jobs:
 
       - name: Smoke test backend image
         run: |
-          # Run the app and check it doesn't crash on missing schema/files
-          docker run --rm \
+          # Start the app in background, wait for startup, then kill it
+          CONTAINER_ID=$(docker run -d --rm \
             -e GOOGLE_AI_API_KEY=test-key-for-smoke-test \
             -e JWT_SECRET=test-secret-key-1234 \
             -e ADMIN_EMAIL=test@test.com \
@@ -66,17 +66,23 @@ jobs:
             node -e "
               try {
                 require('./src/index.js');
+                // Server started successfully, keep alive briefly
+                setTimeout(() => process.exit(0), 5000);
               } catch(e) {
-                // Schema/prompt/file missing = fatal build issue
                 if (e.message.includes('Schema') || e.message.includes('Prompt') || e.message.includes('file not found')) {
                   console.error('FATAL: ' + e.message);
                   process.exit(1);
                 }
-                // Other startup errors (no DB, no AI key) are expected in test
                 console.log('OK - startup failed for expected reason: ' + e.message);
                 process.exit(0);
               }
-            "
+            ")
+          EXIT_CODE=$(docker wait $CONTAINER_ID)
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "❌ Backend smoke test failed (exit code: $EXIT_CODE)"
+            docker logs $CONTAINER_ID 2>&1 || true
+            exit 1
+          fi
           echo "✅ Backend smoke test passed"
 
   build-frontend:
@@ -124,8 +130,12 @@ jobs:
             -e ADMIN_EMAIL=test@test.com \
             -e ADMIN_PASSWORD=test123 \
             ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }} \
-            node -e "try { require('./src/index.js') } catch(e) { if(e.message.includes('Schema')) { console.error('FAIL: '+e.message); process.exit(1) } else { console.log('OK - startup failed for expected reason: '+e.message); process.exit(0) } }")
-          docker wait $CONTAINER_ID
+            node -e "try { require('./src/index.js'); setTimeout(() => process.exit(0), 5000); } catch(e) { if(e.message.includes('Schema')) { console.error('FAIL: '+e.message); process.exit(1) } else { console.log('OK - startup failed for expected reason: '+e.message); process.exit(0) } }")
+          EXIT_CODE=$(docker wait $CONTAINER_ID)
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "❌ Backend smoke test failed (exit code: $EXIT_CODE)"
+            exit 1
+          fi
           echo "✅ Backend smoke test passed"
 
       - name: Trigger Portainer Webhook
