@@ -126,9 +126,9 @@ jobs:
         run: |
           CONTAINER_ID=$(docker run -d --rm \
             -e GOOGLE_AI_API_KEY=test \
-            -e JWT_SECRET=test \
+            -e JWT_SECRET=test-secret-key-1234 \
             -e ADMIN_EMAIL=test@test.com \
-            -e ADMIN_PASSWORD=test123 \
+            -e ADMIN_PASSWORD=test12345678 \
             ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }} \
             node -e "try { require('./src/index.js'); setTimeout(() => process.exit(0), 5000); } catch(e) { if(e.message.includes('Schema')) { console.error('FAIL: '+e.message); process.exit(1) } else { console.log('OK - startup failed for expected reason: '+e.message); process.exit(0) } }")
           EXIT_CODE=$(docker wait $CONTAINER_ID)
