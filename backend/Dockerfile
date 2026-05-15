@@ -13,6 +13,9 @@ COPY backend/src/ ./src/
 COPY backend/drizzle/ ./drizzle/
 COPY docs/ ./docs/
 
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
 EXPOSE 3001
 
 CMD ["node", "src/index.js"]

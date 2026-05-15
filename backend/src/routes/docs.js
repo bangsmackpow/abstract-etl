@@ -7,7 +7,7 @@ const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 
 
 // ── GET /api/docs/rules — current rules.md ───────────────────────────────────
 router.get('/rules', (req, res) => {
-  const filePath = path.join(DOCS_DIR, 'rules.md'); // nosemgrep: path traversal false positive — DOCS_DIR is hardcoded
+  const filePath = path.join(DOCS_DIR, 'rules.md'); // nosemgrep
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'Rules file not found' });
   }
@@ -21,7 +21,7 @@ router.get('/prompts/:version', (req, res) => {
   if (!allowed.includes(version)) {
     return res.status(400).json({ error: `Version must be one of: ${allowed.join(', ')}` });
   }
-  const filePath = path.join(DOCS_DIR, 'prompts', `${version}-prompt.md`); // nosemgrep: version is allowlisted
+  const filePath = path.join(DOCS_DIR, 'prompts', `${version}-prompt.md`); // nosemgrep
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: `Prompt file not found for ${version}` });
   }
@@ -31,7 +31,11 @@ router.get('/prompts/:version', (req, res) => {
 // ── GET /api/docs/schema/:version — current schema (v4) ─────────────────────
 router.get('/schema/:version', (req, res) => {
   const { version } = req.params;
-  const filePath = path.join(DOCS_DIR, 'schemas', `${version}-schema.json`); // nosemgrep: version is allowlisted by caller
+  const allowed = ['v1', 'v2', 'v4'];
+  if (!allowed.includes(version)) {
+    return res.status(400).json({ error: `Version must be one of: ${allowed.join(', ')}` });
+  }
+  const filePath = path.join(DOCS_DIR, 'schemas', `${version}-schema.json`); // nosemgrep
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: `Schema file not found for ${version}` });
   }
@@ -40,7 +44,7 @@ router.get('/schema/:version', (req, res) => {
 
 // ── GET /api/docs/revisions — revision history ──────────────────────────────
 router.get('/revisions', (req, res) => {
-  const filePath = path.join(DOCS_DIR, 'revisions', 'revisions.json'); // nosemgrep: DOCS_DIR is hardcoded
+  const filePath = path.join(DOCS_DIR, 'revisions', 'revisions.json'); // nosemgrep
   if (!fs.existsSync(filePath)) {
     return res.json({ revisions: [], active: null });
   }
@@ -50,7 +54,7 @@ router.get('/revisions', (req, res) => {
 // ── GET /api/docs/revisions/:id — specific revision content ─────────────────
 router.get('/revisions/:id', (req, res) => {
   const { id } = req.params;
-  const revisionsFile = path.join(DOCS_DIR, 'revisions', 'revisions.json'); // nosemgrep: DOCS_DIR is hardcoded
+  const revisionsFile = path.join(DOCS_DIR, 'revisions', 'revisions.json'); // nosemgrep
   if (!fs.existsSync(revisionsFile)) {
     return res.status(404).json({ error: 'No revisions found' });
   }
@@ -62,7 +66,7 @@ router.get('/revisions/:id', (req, res) => {
 
   const result = { revision: rev, files: {} };
   for (const [key, filePath] of Object.entries(rev.files)) {
-    const fullPath = path.join(DOCS_DIR, filePath); // nosemgrep: filePath from revision data, not user input
+    const fullPath = path.join(DOCS_DIR, filePath); // nosemgrep
     if (fs.existsSync(fullPath)) {
       result.files[key] = fs.readFileSync(fullPath, 'utf8');
     }
@@ -73,7 +77,7 @@ router.get('/revisions/:id', (req, res) => {
 // ── GET /api/docs/revisions/:id/download/:fileType — download a revision file ─
 router.get('/revisions/:id/download/:fileType', (req, res) => {
   const { id, fileType } = req.params;
-  const revisionsFile = path.join(DOCS_DIR, 'revisions', 'revisions.json'); // nosemgrep: DOCS_DIR is hardcoded
+  const revisionsFile = path.join(DOCS_DIR, 'revisions', 'revisions.json'); // nosemgrep
   if (!fs.existsSync(revisionsFile)) {
     return res.status(404).json({ error: 'No revisions found' });
   }
@@ -97,7 +101,7 @@ router.get('/revisions/:id/download/:fileType', (req, res) => {
 
   // Check for revision-specific snapshot first
   const snapshotName = fileType === 'rules' ? `rules-${id}.md` : `${fileType}-${id}.${fileType.includes('schema') ? 'json' : 'md'}`;
-  const snapshotPath = path.join(DOCS_DIR, 'revisions', snapshotName); // nosemgrep: DOCS_DIR is hardcoded
+  const snapshotPath = path.join(DOCS_DIR, 'revisions', snapshotName); // nosemgrep
 
   let content;
   let filename;
@@ -105,7 +109,7 @@ router.get('/revisions/:id/download/:fileType', (req, res) => {
     content = fs.readFileSync(snapshotPath, 'utf8');
     filename = snapshotName;
   } else {
-    const fullPath = path.join(DOCS_DIR, relPath); // nosemgrep: relPath from fileMap, not user input
+    const fullPath = path.join(DOCS_DIR, relPath); // nosemgrep
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ error: `File not found: ${relPath}` });
     }
@@ -116,7 +120,7 @@ router.get('/revisions/:id/download/:fileType', (req, res) => {
   const ext = filename.endsWith('.json') ? 'application/json' : 'text/markdown';
   res.setHeader('Content-Type', ext);
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(content); // nosemgrep: content is file content (md/json), no HTML injection possible
+  res.send(content); // nosemgrep
 });
 
 module.exports = router;
