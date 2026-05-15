@@ -98,18 +98,11 @@ async function generateV4Report(jobData, outputPath) {
 
     const _addTextField = (label, value, yOverride) => {
       const yy = yOverride || doc.y;
-      doc.formTextField({
-        name: `field_${label.replace(/\s+/g, '_').toLowerCase()}`,
-        value: (value || '').toString().toUpperCase(),
-        x: MARGIN + 6,
-        y: yy,
-        width: CONTENT_W - 12,
-        height: 16,
-        fontSize: 9,
-        font: 'Times-Roman',
-        borderColor: '#CCCCCC',
-        borderWidth: 0.5,
-      });
+      // Static text fallback — formTextField not available in all pdfkit builds
+      doc.font('Times-Roman').fontSize(9).fillColor('black').text(
+        (value || '').toString().toUpperCase(),
+        MARGIN + 6, yy, { width: CONTENT_W - 12 }
+      );
     };
 
     // ========================================================================
@@ -422,20 +415,12 @@ async function generateV4Report(jobData, outputPath) {
     );
     doc.moveDown(0.3);
 
-    // Editable text area
-    doc.formTextField({
-      name: 'examiner_notes',
-      value: '',
-      x: MARGIN + 6,
-      y: doc.y,
-      width: CONTENT_W - 12,
-      height: 200,
-      fontSize: 9,
-      font: 'Times-Roman',
-      multiline: true,
-      borderColor: '#CCCCCC',
-      borderWidth: 0.5,
-    });
+    // Static text area for examiner notes
+    doc.font('Times-Roman').fontSize(9).fillColor('#CCCCCC').text(
+      '________________________________________________________________________________\n'.repeat(12),
+      MARGIN + 6, doc.y, { width: CONTENT_W - 12 }
+    );
+    doc.fillColor('black');
 
     // Final footer on last page
     doc.moveDown(25);
