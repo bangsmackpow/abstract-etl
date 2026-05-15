@@ -49,8 +49,12 @@ jobs:
 
       - name: Install Trivy
         run: |
-          TRIVY_VERSION="0.61.0"
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v${TRIVY_VERSION}
+          TRIVY_VERSION="0.63.0"
+          curl -L -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          tar -xzf trivy.tar.gz trivy
+          chmod +x trivy
+          sudo mv trivy /usr/local/bin/trivy
+          trivy --version
 
       - name: Run Trivy vulnerability scanner (root workspace)
         run: |
@@ -83,8 +87,12 @@ jobs:
 
       - name: Install Trivy
         run: |
-          TRIVY_VERSION="0.61.0"
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v${TRIVY_VERSION}
+          TRIVY_VERSION="0.63.0"
+          curl -L -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          tar -xzf trivy.tar.gz trivy
+          chmod +x trivy
+          sudo mv trivy /usr/local/bin/trivy
+          trivy --version
 
       - name: Run Trivy on Docker image
         run: |
@@ -108,8 +116,12 @@ jobs:
 
       - name: Install Trivy
         run: |
-          TRIVY_VERSION="0.61.0"
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v${TRIVY_VERSION}
+          TRIVY_VERSION="0.63.0"
+          curl -L -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          tar -xzf trivy.tar.gz trivy
+          chmod +x trivy
+          sudo mv trivy /usr/local/bin/trivy
+          trivy --version
 
       - name: Run Trivy on Docker image
         run: |
