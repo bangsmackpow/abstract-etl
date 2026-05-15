@@ -16,7 +16,9 @@ FROM nginx:alpine AS production
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-RUN sed -i 's/listen 80;/listen 8080;/' /etc/nginx/conf.d/default.conf
+RUN sed -i 's/listen 80;/listen 8080;/' /etc/nginx/conf.d/default.conf && \
+    chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
 
 EXPOSE 8080
 
