@@ -39,16 +39,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Run Trivy vulnerability scanner (root workspace)
-        uses: aquasecurity/trivy-action@v0.36.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-sca.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'
-          ignore-unfixed: true
+          node-version: '22'
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci --ignore-scripts
+
+      - name: Install Trivy
+        run: |
+          TRIVY_VERSION="0.61.0"
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v${TRIVY_VERSION}
+
+      - name: Run Trivy vulnerability scanner (root workspace)
+        run: |
+          trivy fs --severity CRITICAL,HIGH --ignore-unfixed --format sarif --output trivy-sca.sarif --exit-code 1 .
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
@@ -64,18 +70,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci --ignore-scripts
+
       - name: Build Docker image
         run: docker build -t abstract-etl-backend:${{ github.sha }} -f ./backend/Dockerfile .
 
+      - name: Install Trivy
+        run: |
+          TRIVY_VERSION="0.61.0"
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v${TRIVY_VERSION}
+
       - name: Run Trivy on Docker image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: 'abstract-etl-backend:${{ github.sha }}'
-          format: 'sarif'
-          output: 'trivy-docker-backend.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'
-          ignore-unfixed: true
+        run: |
+          trivy image --severity CRITICAL,HIGH --ignore-unfixed --format sarif --output trivy-docker-backend.sarif --exit-code 1 abstract-etl-backend:${{ github.sha }}
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
@@ -93,15 +106,14 @@ jobs:
       - name: Build Docker image
         run: docker build -t abstract-etl-frontend:${{ github.sha }} ./frontend
 
+      - name: Install Trivy
+        run: |
+          TRIVY_VERSION="0.61.0"
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v${TRIVY_VERSION}
+
       - name: Run Trivy on Docker image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: 'abstract-etl-frontend:${{ github.sha }}'
-          format: 'sarif'
-          output: 'trivy-docker-frontend.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '1'
-          ignore-unfixed: true
+        run: |
+          trivy image --severity CRITICAL,HIGH --ignore-unfixed --format sarif --output trivy-docker-frontend.sarif --exit-code 1 abstract-etl-frontend:${{ github.sha }}
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v4
