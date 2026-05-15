@@ -7,7 +7,7 @@ WORKDIR /app
 ENV DOCS_DIR=/app/docs
 
 COPY backend/package*.json ./
-RUN npm install
+RUN npm install && npm cache clean --force
 
 COPY backend/src/ ./src/
 COPY backend/drizzle/ ./drizzle/

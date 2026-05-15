@@ -40,3 +40,27 @@ The project is currently in the **Hybrid Phase**.
 - Use Drizzle ORM exclusively for data access.
 - Avoid libraries that require heavy Node.js binaries (like `sharp`).
 - Keep code lightweight for edge deployment.
+
+## RTK (Rust Token Killer) — Mandatory for All Operations
+This project uses [RTK](https://github.com/rtk-ai/rtk) (v0.40.0+) for 60-90% LLM token reduction on all CLI operations.
+
+### Setup
+- RTK binary: `~/.local/bin/rtk.exe` (Windows) — already installed.
+- All shell commands in this session MUST be prefixed with `rtk` (e.g., `rtk git status`, `rtk cargo test`).
+- In command chains, prefix EACH command: `rtk git add . && rtk git commit -m "msg" && rtk git push`.
+- Use `rtk gain` to view token savings. Use `rtk discover` to find missed optimization opportunities.
+
+### Supported Commands (Key Ones for This Project)
+| Category | Commands |
+|----------|----------|
+| Git | `rtk git status`, `rtk git log`, `rtk git diff`, `rtk git add`, `rtk git commit`, `rtk git push` |
+| Files | `rtk ls`, `rtk read`, `rtk grep`, `rtk find` |
+| Node.js | `rtk pnpm install`, `rtk npm run <script>`, `rtk lint`, `rtk tsc` |
+| GitHub | `rtk gh pr view`, `rtk gh pr checks`, `rtk gh run list` |
+| Docker | `rtk docker ps`, `rtk docker images`, `rtk docker logs` |
+| Analysis | `rtk json`, `rtk deps`, `rtk log`, `rtk curl`, `rtk summary` |
+
+### CI/CD RTK Commands
+- `rtk git status` — compact branch status before pushes
+- `rtk gh run list` — check workflow run status
+- `rtk gh pr view <num>` — check PR details and checks
