@@ -50,7 +50,7 @@ jobs:
       - name: Install Trivy
         run: |
           TRIVY_VERSION="0.63.0"
-          curl -L -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -L -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_linux-64bit.tar.gz"
           tar -xzf trivy.tar.gz trivy
           chmod +x trivy
           sudo mv trivy /usr/local/bin/trivy
@@ -88,7 +88,7 @@ jobs:
       - name: Install Trivy
         run: |
           TRIVY_VERSION="0.63.0"
-          curl -L -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -L -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_linux-64bit.tar.gz"
           tar -xzf trivy.tar.gz trivy
           chmod +x trivy
           sudo mv trivy /usr/local/bin/trivy
@@ -117,7 +117,7 @@ jobs:
       - name: Install Trivy
         run: |
           TRIVY_VERSION="0.63.0"
-          curl -L -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -L -o trivy.tar.gz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_linux-64bit.tar.gz"
           tar -xzf trivy.tar.gz trivy
           chmod +x trivy
           sudo mv trivy /usr/local/bin/trivy
