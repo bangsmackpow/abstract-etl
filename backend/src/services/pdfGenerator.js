@@ -38,12 +38,13 @@ async function generateV4Report(jobData, outputPath) {
     // --- Helpers ---
     const addPage = () => {
       doc.addPage();
-      pageTotal++;
+      const savedY = doc.y;
       renderFooter();
+      doc.y = savedY;
     };
 
     const renderFooter = () => {
-      const footerY = doc.page.height - 30;
+      const footerY = doc.page.height - 72;
       doc.save();
       doc.fontSize(7).fillColor('#999999').font('Helvetica').text(
         `Page ${pageTotal}`,
@@ -413,10 +414,10 @@ async function generateV4Report(jobData, outputPath) {
     doc.fillColor('black');
 
     // Final footer on last page
-    doc.moveDown(25);
+    const finalFooterY = doc.page.height - 72;
     doc.fontSize(7).fillColor('#999999').font('Helvetica').text(
       `Page ${pageTotal}`,
-      MARGIN, doc.y, { width: CONTENT_W, align: 'right' }
+      MARGIN, finalFooterY, { width: CONTENT_W, align: 'right' }
     );
 
     doc.end();

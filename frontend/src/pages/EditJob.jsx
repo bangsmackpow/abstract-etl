@@ -189,6 +189,14 @@ export default function EditJob() {
           </button>
           <button
             className="btn btn-ghost"
+            onClick={handleDownloadDocx}
+            disabled={downloadingDocx}
+            style={{ border: '1px solid #ddd' }}
+          >
+            {downloadingDocx ? 'Generating...' : '⬇ Download Word (.docx)'}
+          </button>
+          <button
+            className="btn btn-ghost"
             onClick={handleDownloadMd}
             disabled={downloadingMd}
             style={{ border: '1px solid #ddd' }}
