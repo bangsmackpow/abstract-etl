@@ -160,8 +160,6 @@ async function generateV4Report(jobData, outputPath) {
       doc.moveDown(0.3);
       kv('NOTES', vest.notes);
     }
-    doc.moveDown(1);
-
     // ========================================================================
     // 2. CHAIN OF TITLE
     // ========================================================================
@@ -212,7 +210,6 @@ async function generateV4Report(jobData, outputPath) {
         doc.moveDown(0.3);
       });
     }
-    doc.moveDown(0.5);
 
     // ========================================================================
     // 3. MORTGAGES / LIENS
@@ -258,7 +255,6 @@ async function generateV4Report(jobData, outputPath) {
         doc.moveDown(0.3);
       });
     }
-    doc.moveDown(0.5);
 
     // ========================================================================
     // 4. ASSOCIATED DOCUMENTS
@@ -289,7 +285,6 @@ async function generateV4Report(jobData, outputPath) {
         doc.moveDown(0.3);
       });
     }
-    doc.moveDown(0.5);
 
     // ========================================================================
     // 5. JUDGMENTS / LIENS
@@ -318,7 +313,6 @@ async function generateV4Report(jobData, outputPath) {
         doc.moveDown(0.3);
       });
     }
-    doc.moveDown(0.5);
 
     // ========================================================================
     // 6. MISCELLANEOUS DOCUMENTS
@@ -345,7 +339,6 @@ async function generateV4Report(jobData, outputPath) {
         doc.moveDown(0.3);
       });
     }
-    doc.moveDown(0.5);
 
     // ========================================================================
     // 7. TAX STATUS
@@ -370,7 +363,6 @@ async function generateV4Report(jobData, outputPath) {
       });
       doc.fillColor('black');
     }
-    doc.moveDown(1);
 
     // ========================================================================
     // 8. LEGAL DESCRIPTION
@@ -381,7 +373,6 @@ async function generateV4Report(jobData, outputPath) {
       (legal || 'SEE ATTACHED').toUpperCase(),
       MARGIN + 6, doc.y, { width: CONTENT_W - 12, lineGap: 2 }
     );
-    doc.moveDown(1);
 
     // ========================================================================
     // 9. NAMES SEARCHED
@@ -394,7 +385,6 @@ async function generateV4Report(jobData, outputPath) {
     } else {
       bodyText(names.map((n) => n.toUpperCase()).join('; '));
     }
-    doc.moveDown(0.5);
 
     // ========================================================================
     // 10. ADDITIONAL INFORMATION
