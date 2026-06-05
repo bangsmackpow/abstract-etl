@@ -86,6 +86,13 @@ export default function BulkImport() {
                   >
                     V4 (Hazelwood)
                   </button>
+                  <button
+                    className={`btn ${version === 'v5' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setVersion('v5')}
+                    style={{ flex: 1 }}
+                  >
+                    V5 (Standard)
+                  </button>
                 </div>
               </div>
 

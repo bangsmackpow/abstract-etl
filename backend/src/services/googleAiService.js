@@ -4,7 +4,7 @@ const path = require('path');
 
 /**
  * Native Google AI Service
- * Supports v1 (Legacy) and v4 (Hazelwood) extraction.
+ * Supports v1 (Legacy), v4 (Hazelwood), and v5 (June 2026) extraction.
  * Prompts are loaded from docs/prompts/ at startup for auditability.
  */
 
@@ -27,7 +27,9 @@ function loadSchema(filename) {
 }
 
 const V4_SCHEMA = loadSchema('v4-schema.json');
+const V5_SCHEMA = loadSchema('v5-schema.json');
 const SYSTEM_PROMPT_V4 = loadPrompt('v4-prompt.md').replace(/### SCHEMA REFERENCE:[\s\S]*?Return ONLY/, `### SCHEMA REFERENCE:\n${V4_SCHEMA}\n\nReturn ONLY`);
+const SYSTEM_PROMPT_V5 = loadPrompt('v5-prompt.md').replace(/### SCHEMA REFERENCE:[\s\S]*?Return ONLY/, `### SCHEMA REFERENCE:\n${V5_SCHEMA}\n\nReturn ONLY`);
 
 function getModel() {
   const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
@@ -99,9 +101,11 @@ async function extractFromPDF(pdfPath, originalFilename = '', version = 'v4') {
   const pdfBuffer = fs.readFileSync(pdfPath);
 
   const prompt =
-    version === 'v4'
-      ? SYSTEM_PROMPT_V4
-      : SYSTEM_PROMPT_V4;
+    version === 'v5'
+      ? SYSTEM_PROMPT_V5
+      : version === 'v4'
+        ? SYSTEM_PROMPT_V4
+        : SYSTEM_PROMPT_V4;
 
   const promptParts = [
     { text: `Filename: "${originalFilename}"` },
@@ -120,7 +124,13 @@ async function extractFromPDF(pdfPath, originalFilename = '', version = 'v4') {
     const rawText = response.text();
     const parsed = parseJsonResponse(rawText, originalFilename);
     
-    if (version === 'v4') {
+    if (version === 'v5') {
+      console.log('🔍 [V5 Extraction] Raw response length:', rawText.length);
+      console.log('🔍 [V5 Extraction] Parsed keys:', Object.keys(parsed));
+      console.log('🔍 [V5 Extraction] order_info:', parsed.order_info);
+      console.log('🔍 [V5 Extraction] chain_of_title count:', parsed.chain_of_title?.length || 0);
+      console.log('🔍 [V5 Extraction] mortgages count:', parsed.mortgages?.length || 0);
+    } else if (version === 'v4') {
       console.log('🔍 [V4 Extraction] Raw response length:', rawText.length);
       console.log('🔍 [V4 Extraction] Parsed keys:', Object.keys(parsed));
       console.log('🔍 [V4 Extraction] order_info:', parsed.order_info);

@@ -14,10 +14,10 @@ router.get('/rules', (req, res) => {
   res.json({ content: fs.readFileSync(filePath, 'utf8'), path: 'docs/rules.md' });
 });
 
-// ── GET /api/docs/prompts/:version — current prompt (v1 or v4) ──────────────
+// ── GET /api/docs/prompts/:version — current prompt (v1, v4, or v5) ──────────
 router.get('/prompts/:version', (req, res) => {
   const { version } = req.params;
-  const allowed = ['v1', 'v4'];
+  const allowed = ['v1', 'v4', 'v5'];
   if (!allowed.includes(version)) {
     return res.status(400).json({ error: `Version must be one of: ${allowed.join(', ')}` });
   }
@@ -28,10 +28,10 @@ router.get('/prompts/:version', (req, res) => {
   res.json({ content: fs.readFileSync(filePath, 'utf8'), path: `docs/prompts/${version}-prompt.md` });
 });
 
-// ── GET /api/docs/schema/:version — current schema (v4) ─────────────────────
+// ── GET /api/docs/schema/:version — current schema (v1, v2, v4, or v5) ─────────────────────
 router.get('/schema/:version', (req, res) => {
   const { version } = req.params;
-  const allowed = ['v1', 'v2', 'v4'];
+  const allowed = ['v1', 'v2', 'v4', 'v5'];
   if (!allowed.includes(version)) {
     return res.status(400).json({ error: `Version must be one of: ${allowed.join(', ')}` });
   }

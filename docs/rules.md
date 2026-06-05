@@ -124,6 +124,74 @@ The V4 Hazelwood run sheet contains these sections in order:
 
 ---
 
+## V5 Extraction Rules (Standard — June 2026)
+
+V5 uses a clean, readable format without copying the Hazelwood visual style. All text values are UPPERCASE where practical. Source names, descriptions, misspellings, and punctuation must be preserved exactly.
+
+### Rule 1 — File Number
+
+- Extract from the **PDF filename** first.
+- **Fallback**: If no filename number, use `COMPANY NAME - PROPERTY ADDRESS`.
+- If no company, use just the `PROPERTY ADDRESS`.
+
+### Rule 2 — Tax Delinquent
+
+- Numeric field with three sub-fields:
+  - `original_amount` — the original tax amount
+  - `due_date` — the date it was due (MM/DD/YYYY)
+  - `full_delinquent_amount` — total including penalties and fees
+
+### Rule 3 — Chain of Title
+
+- Ordered **newest to oldest**.
+- Use separate numbered entries.
+- Standardized deed titles:
+  - `GENERAL WARRANTY`, `SPECIAL WARRANTY`, `QUITCLAIM`, `GIFT DEED`, `DEED OF ASSUMPTION`, `ESCHEAT DEED`, `PARTITION DEED`, `DEED OF FORECLOSURE`, `TRUSTEE'S DEED`
+  - If no match: `OTHER - [DISCOVERED TYPE]`
+- Grantors and grantees listed as arrays (one per line in UI).
+- `in_out_sale` is a boolean checkbox.
+
+### Rule 4 — Mortgages / Deeds of Trust
+
+- Ordered **oldest to newest** by date.
+- Fields: document_title, book_instrument, page, dated, recorded, consideration, maturity_date, lender, borrower, trustee, mers_number, notes.
+
+### Rule 5 — Judgments / Liens
+
+- Fields: document_title, book_instrument, page, amount, dated, recorded, case_number, plaintiff, defendant.
+
+### Rule 6 — Miscellaneous Documents
+
+- Fields: document_title, book_instrument, page, dated, recorded, consideration, grantor_assignor, grantee_assignee, notes.
+
+### Rule 7 — Names Searched
+
+- Must include all name variations: AKA, FKA, maiden names, remarried names.
+- Must include all heirs named in wills, LOHs, and REAs.
+- Borrower listed first.
+
+### Rule 8 — No Silent Corrections
+
+- Do NOT silently correct misspellings, punctuation, or formatting from source documents.
+- Preserve exact text as it appears in the original.
+
+---
+
+## V5 Output Sections (8 Total)
+
+The V5 Standard report contains these sections in order:
+
+1. **ORDER INFORMATION** — file_number, effective_date, completed_date, current_vesting_owner, property_address, county, township, tax_id, parcel_ids, assessed/land/improvement values, tax info, tax_delinquent (object)
+2. **CHAIN OF TITLE** — numbered entries (newest to oldest) with document_title, book_instrument, page, dated, recorded, consideration, in_out_sale, grantors[], grantees[], notes
+3. **MORTGAGES / DEEDS OF TRUST** — numbered entries (oldest to newest) with document_title, book_instrument, page, dated, recorded, consideration, maturity_date, lender, borrower, trustee, mers_number, notes
+4. **JUDGMENTS / LIENS** — numbered entries with document_title, book_instrument, page, amount, dated, recorded, case_number, plaintiff, defendant
+5. **MISCELLANEOUS DOCUMENTS** — numbered entries with document_title, book_instrument, page, dated, recorded, consideration, grantor_assignor, grantee_assignee, notes
+6. **LEGAL DESCRIPTION** — full legal description from vesting deed
+7. **ADDITIONAL INFORMATION** — free-text notes
+8. **NAMES SEARCHED** — array of all names (including variations and heirs)
+
+---
+
 ## Template Versions
 
 | Version | Description | Status |
@@ -131,6 +199,7 @@ The V4 Hazelwood run sheet contains these sections in order:
 | `v1` | Legacy — basic abstract format | ✅ Active |
 | `v2` | ProTitleUSA — 12-section detailed report | ✅ Active |
 | `v4` | Hazelwood & Associates — run sheet format, ALL CAPS, Times-Roman | ✅ Active |
+| `v5` | Standard — clean format, 8 sections, ALL CAPS where practical | ✅ Active |
 
 ---
 
@@ -141,9 +210,9 @@ The V4 Hazelwood run sheet contains these sections in order:
 
 ## Supported Output Formats
 
-- **PDF** — A4, Hazelwood branding, Times-Roman font, section page breaks, all fields editable
-- **DOCX** — Microsoft Word document matching PDF layout
-- **Markdown** — Plain text format for all versions
+- **PDF** — A4, Hazelwood branding, Times-Roman font, section page breaks, all fields editable (v2, v4). V5 uses clean format with standard fonts.
+- **DOCX** — Microsoft Word document matching PDF layout (v1, v2, v5)
+- **Markdown** — Plain text format for all versions (v1, v2, v4, v5)
 
 ---
 
@@ -159,10 +228,11 @@ The V4 Hazelwood run sheet contains these sections in order:
 ### Core Services
 | Service | Purpose |
 | :--- | :--- |
-| `googleAiService.js` | Primary AI engine — PDF extraction with structured JSON output |
+| `googleAiService.js` | Primary AI engine — PDF extraction with structured JSON output (v1, v2, v4, v5) |
 | `pdfGenerator.js` | Multi-page PDF reports (v2, v4) |
-| `docxGenerator.js` | Word documents (v1, v2) |
-| `markdownGenerator.js` | Markdown output (v1, v2, v4) |
+| `v5PdfGenerator.js` | V5 clean-format PDF reports (8 sections, standard fonts) |
+| `docxGenerator.js` | Word documents (v1, v2, v5) |
+| `markdownGenerator.js` | Markdown output (v1, v2, v4, v5) |
 | `emailService.js` | SMTP email notifications |
 | `backupService.js` | SQLite database backups |
 | `env.js / env.ts` | Zod-validated environment config |
@@ -192,5 +262,5 @@ The V4 Hazelwood run sheet contains these sections in order:
 
 ---
 
-*Last updated: 2026-05-10*
-*Version: 1.0*
+*Last updated: 2026-06-05*
+*Version: 1.1*

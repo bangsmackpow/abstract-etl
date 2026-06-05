@@ -9,7 +9,7 @@ export default function NewJob() {
   const [stage, setStage] = useState('upload'); // upload | processing | done
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
-  const [version, setVersion] = useState('v1'); // v1 | v4
+  const [version, setVersion] = useState('v1'); // v1 | v4 | v5
 
   const handleFile = (f) => {
     if (f?.type !== 'application/pdf') {
@@ -43,13 +43,16 @@ export default function NewJob() {
 
       // 2. Create job record with extracted data
       const isV4 = version === 'v4';
+      const isV5 = version === 'v5';
       const job = await createJob({
         property_address: isV4
           ? fields.order_info?.property_address || ''
           : fields.order_info?.property_address || '',
         borrower_names: isV4
           ? fields.order_info?.current_owner
-          : fields.order_info?.current_vesting_owner || '',
+          : isV5
+            ? fields.order_info?.current_vesting_owner || ''
+            : fields.order_info?.current_vesting_owner || '',
         county: fields.order_info?.county || '',
         fields_json: fields,
         ai_flags_json: aiFlags,
@@ -104,6 +107,13 @@ export default function NewJob() {
                     style={{ flex: 1 }}
                   >
                     V4 (Hazelwood)
+                  </button>
+                  <button
+                    className={`btn ${version === 'v5' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setVersion('v5')}
+                    style={{ flex: 1 }}
+                  >
+                    V5 (Standard)
                   </button>
                 </div>
               </div>
