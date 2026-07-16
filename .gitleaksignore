@@ -1,0 +1,8 @@
+# Gitleaks Ignore Configuration
+# Whitelist files containing mock secrets and local environment configurations
+
+.env.example
+.github/workflows/build.yml
+.github/workflows/security.yml
+README.md
+backend/src/services/authService.js
