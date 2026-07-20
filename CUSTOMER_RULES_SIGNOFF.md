@@ -81,6 +81,23 @@ The following rules apply exclusively to jobs created using the "v4" standard:
 *   **Standardized Deed Types**: GENERAL WARRANTY, SPECIAL WARRANTY, QUITCLAIM, GIFT DEED, DEED OF ASSUMPTION, ESCHEAT DEED, PARTITION DEED, DEED OF FORECLOSURE, TRUSTEE'S DEED, or OTHER - [DISCOVERED TYPE].
 *   **Full Details**: See [docs/rules.md](docs/rules.md) for complete V4 extraction rules.
 
+## 8. V6 System (Enhanced) Rules
+The following rules apply exclusively to jobs created using the "v6" standard:
+*   **Schema**: Data is extracted into the Enhanced V6 schema extending V5 with additional fields and document accounting.
+*   **No Completed Date**: V6 does not include a `completed_date` field in the output.
+*   **Additional Order Info**: Captures `assessor_owner`, `assessor_description`, and `acreage` when available.
+*   **Expanded Mortgage Fields**: Captures `loan_number`, `min`, and `status` for each mortgage.
+*   **Expanded Judgment/Lien Fields**: Captures `interest`, `costs`, `attorneys_fees`, and `status`.
+*   **Expanded Misc Document Fields**: Captures `area_or_width` and `notes`.
+*   **Document Accounting**: Builds a page-by-page listing of every document in the PDF (`document_accounting[]` array with `page_range` and `document_label`).
+*   **Complete Document Review**: Every PDF page must be reviewed and accounted for. Does not rely only on parsed text or cover sheets.
+*   **Standardized Deed Types**: GENERAL WARRANTY, SPECIAL WARRANTY, QUITCLAIM, GIFT DEED, DEED OF ASSUMPTION, ESCHEAT DEED, PARTITION DEED, TRUSTEE'S DEED, DEED OF BARGAIN AND SALE, or OTHER - [DISCOVERED TYPE].
+*   **Output Formats**: V6 jobs support three export formats, each covering all 8 report sections:
+    *   **PDF**: Clean-format multi-page report with standard fonts (Helvetica), 8 sections, document accounting rendered in Additional Information.
+    *   **DOCX**: A professional Word document with all 8 sections and expanded fields.
+    *   **Markdown**: A structured .md file with all 8 sections and expanded fields.
+*   **Full Details**: See [docs/v6_rules.md](docs/v6_rules.md) for complete V6 extraction rules.
+
 ---
 
 ### **Approval**

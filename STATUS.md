@@ -60,3 +60,15 @@
 - [x] **V4 Frontend Form**: `V4Form` component with all 12 sections, array support for chain of title (grantors/grantees), tax installments, associated documents, judgments/liens, misc documents, and names searched.
 - [x] **V4 UI Toggles**: New Job, Edit Job, and Bulk Import pages all support v4 template version selection.
 - [x] **V4 Documentation**: `docs/rules.md` created as single source of truth for all extraction rules, output sections, template versions, and documentation update policy.
+
+## V6 Enhanced Milestones (July 2026)
+- [x] **V6 Schema**: Created `docs/schemas/v6-schema.json` extending V5 with new fields: `assessor_owner`, `assessor_description`, `acreage`, `loan_number`, `min`, `status` (mortgages), `interest`, `costs`, `attorneys_fees` (liens), `area_or_width`, `notes` (misc), and `document_accounting[]`.
+- [x] **V6 Prompt**: Created `docs/prompts/v6-prompt.md` incorporating all 17 sections from customer rules (v6_rules.md), including complete document review, PDF document accounting, wills/probate/heirs handling, and recorded references.
+- [x] **V6 AI Service**: Added V6 schema/prompt loading and version routing in `googleAiService.js`.
+- [x] **V6 PDF Generator**: Extended `v5PdfGenerator.js` with `generateV6Report()` rendering all new fields and document accounting.
+- [x] **V6 DOCX Generator**: Added `generateV6Docx()` in `docxGenerator.js` with V6 table layouts.
+- [x] **V6 Markdown Generator**: Added `generateV6Markdown()` in `markdownGenerator.js` with V6 formatting.
+- [x] **V6 Route**: Added V6 branch in `generate.js` PDF route.
+- [x] **V6 Frontend Form**: Created `V6Form` component with `V6MortgageEntry`, `V6JudgmentEntry`, `V6MiscDocEntry`, and `V6DocAccountingEntry` sub-components.
+- [x] **V6 UI Toggles**: Added "V6 (Enhanced)" button to NewJob version selector, V6 status badge styling in Dashboard.
+- [x] **V6 Documentation**: Updated `docs/rules.md` with V6 extraction rules and output sections. Updated `AGENTS.md` with V6 template version.

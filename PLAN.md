@@ -40,7 +40,19 @@
 - [x] **V4 UI Toggles**: New Job, Edit Job, and Bulk Import pages all support v4 template version selection.
 - [x] **V4 Documentation**: `docs/rules.md` created as single source of truth. Documentation update policy established in AGENTS.md and rules.md.
 
-## Phase 6: Cloudflare Edge Migration
+## Phase 6: V6 Enhanced (COMPLETE ✅)
+- [x] **V6 Schema**: Created `docs/schemas/v6-schema.json` extending V5 with new fields (assessor_owner, assessor_description, acreage, loan_number, min, status, interest, costs, attorneys_fees, area_or_width, document_accounting[]).
+- [x] **V6 Prompt**: Created `docs/prompts/v6-prompt.md` incorporating complete document review rules, PDF document accounting, wills/probate/heirs handling, recorded references, and quality control checklist.
+- [x] **V6 AI Service**: Added V6 schema/prompt loading and version routing in `googleAiService.js`.
+- [x] **V6 PDF Generator**: Extended `v5PdfGenerator.js` with `generateV6Report()` rendering all new fields and document accounting.
+- [x] **V6 DOCX Generator**: Added `generateV6Docx()` with V6 table layouts for all new fields.
+- [x] **V6 Markdown Generator**: Added `generateV6Markdown()` with V6 formatting.
+- [x] **V6 Route**: Added V6 branch in `generate.js` PDF route.
+- [x] **V6 Frontend Form**: Created `V6Form` component with V6-specific sub-components (V6MortgageEntry, V6JudgmentEntry, V6MiscDocEntry, V6DocAccountingEntry).
+- [x] **V6 UI Toggles**: Added "V6 (Enhanced)" button to NewJob version selector, V6 status badge styling in Dashboard.
+- [x] **V6 Documentation**: Updated `docs/rules.md` with V6 extraction rules and output sections. Updated `AGENTS.md` with V6 template version.
+
+## Phase 7: Cloudflare Edge Migration
 - [ ] **Hono Refactor**: Rewrite Express routes to Hono for edge compatibility.
 - [ ] **D1 Database**: Switch `better-sqlite3` to `drizzle-orm/d1`.
 - [ ] **R2 Storage**: Move temporary file storage from local disk to Cloudflare R2.
