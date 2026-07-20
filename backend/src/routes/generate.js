@@ -7,7 +7,7 @@ const { requireAuth } = require('../middleware/requireAuth');
 const { generateDocx } = require('../services/docxGenerator');
 const { generateMarkdown } = require('../services/markdownGenerator');
 const { generateV4Report } = require('../services/pdfGenerator');
-const { generateV5Report } = require('../services/v5PdfGenerator');
+const { generateV5Report, generateV6Report } = require('../services/v5PdfGenerator');
 const { createError } = require('../middleware/errorHandler');
 
 router.use(requireAuth);
@@ -24,7 +24,9 @@ router.get('/:jobId/pdf', async (req, res, next) => {
 
     const tempPath = `/tmp/report-${job.id}.pdf`;
     
-    if (job.templateVersion === 'v5') {
+    if (job.templateVersion === 'v6') {
+        await generateV6Report(job, tempPath);
+    } else if (job.templateVersion === 'v5') {
         await generateV5Report(job, tempPath);
     } else {
         await generateV4Report(job, tempPath);

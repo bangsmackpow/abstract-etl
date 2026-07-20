@@ -276,6 +276,10 @@ a:hover {
   background: #e8f5e9;
   color: #2e7d32;
 }
+.status-v6 {
+  background: #fff3e0;
+  color: #e65100;
+}
 
 /* Tables */
 .data-table {

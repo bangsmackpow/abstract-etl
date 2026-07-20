@@ -65,9 +65,13 @@ export default function AbstractForm({
   const isV2 = templateVersion === 'v2';
   const isV4 = templateVersion === 'v4';
   const isV5 = templateVersion === 'v5';
+  const isV6 = templateVersion === 'v6';
   const alternatives = fields?.alternatives || {};
   const fieldProps = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
 
+  if (isV6) {
+    return <V6Form {...fieldProps} />;
+  }
   if (isV5) {
     return <V5Form {...fieldProps} />;
   }
@@ -424,6 +428,209 @@ function V5MiscDocEntry({ index, fields, aiFlags, alternatives, onFieldChange, o
             </div>
             <Field label="GRANTEE/ASSIGNEE" path={`${base}.grantee_assignee`} {...fp} />
             <Field label="NOTES" path={`${base}.notes`} multiline {...fp} />
+        </div>
+    );
+}
+
+function V6Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const fieldProps = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    const chain = fields?.chain_of_title || [];
+    const mortgages = fields?.mortgages || [];
+    const judgments = fields?.judgments_liens || [];
+    const miscDocs = fields?.misc_documents || [];
+    const namesSearched = fields?.names_searched || [];
+
+    return (
+        <div>
+            <Section title="ORDER INFORMATION">
+                <div style={s.grid2}>
+                    <Field label="FILE NUMBER" path="order_info.file_number" {...fieldProps} />
+                    <Field label="EFFECTIVE DATE" path="order_info.effective_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+                </div>
+                <div style={s.grid2}>
+                    <Field label="CURRENT VESTING OWNER" path="order_info.current_vesting_owner" {...fieldProps} />
+                    <Field label="ASSESSOR OWNER" path="order_info.assessor_owner" {...fieldProps} />
+                </div>
+                <Field label="PROPERTY ADDRESS" path="order_info.property_address" {...fieldProps} />
+                <div style={s.grid3}>
+                    <Field label="COUNTY" path="order_info.county" {...fieldProps} />
+                    <Field label="TOWNSHIP" path="order_info.township" {...fieldProps} />
+                    <Field label="TAX ID" path="order_info.tax_id" {...fieldProps} />
+                </div>
+                <ArrayField label="PARCEL IDS (one per line)" path="order_info.parcel_ids" {...fieldProps} />
+                <div style={s.grid3}>
+                    <Field label="ASSESSED VALUE" path="order_info.assessed_value" placeholder="0.00" {...fieldProps} />
+                    <Field label="LAND VALUE" path="order_info.land_value" placeholder="0.00" {...fieldProps} />
+                    <Field label="IMPROVEMENT VALUE" path="order_info.improvement_value" placeholder="0.00" {...fieldProps} />
+                </div>
+                <div style={s.grid3}>
+                    <Field label="TAX AMOUNT" path="order_info.tax_amount" placeholder="0.00" {...fieldProps} />
+                    <Field label="TAX DUE" path="order_info.tax_due" placeholder="MM/DD/YYYY" {...fieldProps} />
+                    <Field label="TAX PAID" path="order_info.tax_paid" placeholder="MM/DD/YYYY" {...fieldProps} />
+                </div>
+                <div style={s.grid3}>
+                    <Field label="TAX DELINQUENT (ORIG)" path="order_info.tax_delinquent.original_amount" {...fieldProps} />
+                    <Field label="TAX DELINQUENT (DUE DATE)" path="order_info.tax_delinquent.due_date" placeholder="MM/DD/YYYY" {...fieldProps} />
+                    <Field label="TAX DELINQUENT (FULL AMT)" path="order_info.tax_delinquent.full_delinquent_amount" {...fieldProps} />
+                </div>
+                <div style={s.grid2}>
+                    <Field label="ACREAGE" path="order_info.acreage" {...fieldProps} />
+                    <Field label="ASSESSOR DESCRIPTION" path="order_info.assessor_description" {...fieldProps} />
+                </div>
+            </Section>
+
+            <Section title={`CHAIN OF TITLE (${chain.length})`}>
+                {chain.map((_, i) => (
+                    <V5ChainEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {chain.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No chain of title entries found.</div>}
+            </Section>
+
+            <Section title={`MORTGAGES / DEEDS OF TRUST (${mortgages.length})`}>
+                {mortgages.map((_, i) => (
+                    <V6MortgageEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {mortgages.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No mortgages found.</div>}
+            </Section>
+
+            <Section title={`JUDGMENTS / LIENS (${judgments.length})`}>
+                {judgments.map((_, i) => (
+                    <V6JudgmentEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {judgments.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No judgments or liens found.</div>}
+            </Section>
+
+            <Section title={`MISCELLANEOUS DOCUMENTS (${miscDocs.length})`}>
+                {miscDocs.map((_, i) => (
+                    <V6MiscDocEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {miscDocs.length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No miscellaneous documents found.</div>}
+            </Section>
+
+            <Section title="LEGAL DESCRIPTION">
+                <Field label="LEGAL DESCRIPTION" path="legal_description" multiline {...fieldProps} />
+            </Section>
+
+            <Section title="ADDITIONAL INFORMATION">
+                <Field label="ADDITIONAL INFORMATION" path="additional_information" multiline {...fieldProps} />
+            </Section>
+
+            <Section title={`DOCUMENT ACCOUNTING (${(fields?.document_accounting || []).length})`}>
+                {(fields?.document_accounting || []).map((_, i) => (
+                    <V6DocAccountingEntry key={i} index={i} {...fieldProps} />
+                ))}
+                {(fields?.document_accounting || []).length === 0 && <div style={{ color: '#6b7280', fontStyle: 'italic' }}>No document accounting entries.</div>}
+            </Section>
+
+            <Section title={`NAMES SEARCHED (${namesSearched.length})`}>
+                <ArrayField label="NAMES SEARCHED (one per line)" path="names_searched" {...fieldProps} />
+            </Section>
+        </div>
+    );
+}
+
+function V6MortgageEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `mortgages.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>MORTGAGE {index + 1}</div>
+            <div style={s.grid2}>
+                <Field label="DOCUMENT TITLE" path={`${base}.document_title`} {...fp} />
+                <Field label="BOOK/INSTRUMENT" path={`${base}.book_instrument`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="PAGE" path={`${base}.page`} {...fp} />
+                <Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="CONSIDERATION" path={`${base}.consideration`} {...fp} />
+                <Field label="MATURITY DATE" path={`${base}.maturity_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="LENDER" path={`${base}.lender`} {...fp} />
+            </div>
+            <div style={s.grid2}>
+                <Field label="BORROWER" path={`${base}.borrower`} {...fp} />
+                <Field label="TRUSTEE" path={`${base}.trustee`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="LOAN NUMBER" path={`${base}.loan_number`} {...fp} />
+                <Field label="MIN" path={`${base}.min`} {...fp} />
+                <Field label="OPEN/CLOSED ENDED" path={`${base}.open_closed_ended`} {...fp} />
+            </div>
+            <Field label="STATUS" path={`${base}.status`} {...fp} />
+            <Field label="NOTES" path={`${base}.notes`} multiline {...fp} />
+        </div>
+    );
+}
+
+function V6JudgmentEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `judgments_liens.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>JUDGMENT/LIEN {index + 1}</div>
+            <Field label="DOCUMENT TITLE" path={`${base}.document_title`} {...fp} />
+            <div style={s.grid3}>
+                <Field label="BOOK/INSTRUMENT" path={`${base}.book_instrument`} {...fp} />
+                <Field label="PAGE" path={`${base}.page`} {...fp} />
+                <Field label="AMOUNT" path={`${base}.amount`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="CASE NUMBER" path={`${base}.case_number`} {...fp} />
+            </div>
+            <div style={s.grid2}>
+                <Field label="PLAINTIFF" path={`${base}.plaintiff`} {...fp} />
+                <Field label="DEFENDANT" path={`${base}.defendant`} {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="INTEREST" path={`${base}.interest`} {...fp} />
+                <Field label="COSTS" path={`${base}.costs`} {...fp} />
+                <Field label="ATTORNEY'S FEES" path={`${base}.attorneys_fees`} {...fp} />
+            </div>
+            <Field label="STATUS" path={`${base}.status`} {...fp} />
+        </div>
+    );
+}
+
+function V6MiscDocEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `misc_documents.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>MISCELLANEOUS DOCUMENT {index + 1}</div>
+            <Field label="DOCUMENT TITLE" path={`${base}.document_title`} {...fp} />
+            <div style={s.grid3}>
+                <Field label="BOOK/INSTRUMENT" path={`${base}.book_instrument`} {...fp} />
+                <Field label="PAGE" path={`${base}.page`} {...fp} />
+                <Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
+            </div>
+            <div style={s.grid3}>
+                <Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="CONSIDERATION" path={`${base}.consideration`} {...fp} />
+                <Field label="AREA/WIDTH" path={`${base}.area_or_width`} {...fp} />
+            </div>
+            <div style={s.grid2}>
+                <Field label="GRANTOR/ASSIGNOR" path={`${base}.grantor_assignor`} {...fp} />
+                <Field label="GRANTEE/ASSIGNEE" path={`${base}.grantee_assignee`} {...fp} />
+            </div>
+            <Field label="NOTES" path={`${base}.notes`} multiline {...fp} />
+        </div>
+    );
+}
+
+function V6DocAccountingEntry({ index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `document_accounting.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={s.entryCard}>
+            <div style={s.entryNum}>PAGE ENTRY {index + 1}</div>
+            <div style={s.grid2}>
+                <Field label="PAGE RANGE" path={`${base}.page_range`} placeholder="e.g., 1-3" {...fp} />
+                <Field label="DOCUMENT LABEL" path={`${base}.document_label`} {...fp} />
+            </div>
         </div>
     );
 }

@@ -192,6 +192,85 @@ The V5 Standard report contains these sections in order:
 
 ---
 
+## V6 Extraction Rules (Enhanced — July 2026)
+
+V6 extends V5 with additional fields, complete document review requirements, and PDF document accounting. All V5 rules apply unless overridden below. Full rules are documented in `docs/v6_rules.md`.
+
+### Key Differences from V5
+
+1. **No Completed Date** — V6 does not include a `completed_date` field in order_info.
+2. **Additional Order Info Fields** — `assessor_owner`, `assessor_description`, `acreage` are captured.
+3. **Expanded Mortgage Fields** — `loan_number`, `min`, `status` are captured for each mortgage.
+4. **Expanded Judgment/Lien Fields** — `interest`, `costs`, `attorneys_fees`, `status` are captured.
+5. **Expanded Misc Document Fields** — `area_or_width` and `notes` are captured.
+6. **Document Accounting** — A new top-level `document_accounting[]` array tracks every page/page range in the PDF.
+7. **Complete Document Review** — Every PDF page must be reviewed and accounted for.
+8. **DEED OF BARGAIN AND SALE** — Added to the list of standard deed titles.
+9. **Wills/Probate/Heirs** — More detailed rules for heir extraction from wills, LOHs, and REAs.
+10. **Recorded References** — Explicit rules for capturing source deeds, outsales, easements, and other references.
+
+### Rule 1 — No Completed Date
+
+- Do NOT include a `completed_date` field in the output.
+
+### Rule 2 — Additional Order Info
+
+- Capture `assessor_owner` (the owner name as shown on assessor records).
+- Capture `assessor_description` (the property description from assessor records).
+- Capture `acreage` (lot size in acres when shown).
+
+### Rule 3 — Expanded Mortgage Fields
+
+- Capture `loan_number` (the lender's internal loan identifier).
+- Capture `min` (Mortgage Identification Number).
+- Capture `status` (e.g., OPEN, RELEASED, FORECLOSED, STATUS UNCLEAR).
+
+### Rule 4 — Expanded Judgment/Lien Fields
+
+- Capture `interest` (interest rate or amount).
+- Capture `costs` (court costs).
+- Capture `attorneys_fees` (attorney fee amount).
+- Capture `status` (e.g., SATISFIED, OPEN, STATUS UNCLEAR FROM PROVIDED DOCUMENTS).
+
+### Rule 5 — Expanded Misc Document Fields
+
+- Capture `area_or_width` (for easements, rights of way — width or area).
+- Capture `notes` (additional notes about the document).
+
+### Rule 6 — Document Accounting
+
+- Build a `document_accounting[]` array listing every page or page range in the PDF.
+- Each entry has `page_range` (e.g., "1-3", "5") and `document_label` (e.g., "GENERAL WARRANTY DEED", "DEED OF TRUST").
+- Also render within Additional Information in the final report.
+
+### Rule 7 — Complete Document Review
+
+- Review every PDF page and every distinct document.
+- Do not rely only on parsed text, the cover sheet, or the first page.
+- Check recording stamps, signature pages, exhibits, riders, attachments.
+- Account for every distinct document.
+
+### Rule 8 — Standard Deed Titles
+
+- Add `DEED OF BARGAIN AND SALE` to the list of standard deed titles.
+
+---
+
+## V6 Output Sections (8 Total)
+
+The V6 Enhanced report contains these sections in order (same as V5, with expanded fields):
+
+1. **ORDER INFORMATION** — file_number, effective_date, current_vesting_owner, assessor_owner, assessor_description, property_address, county, township, tax_id, parcel_ids, assessed/land/improvement values, acreage, tax info, tax_delinquent (object)
+2. **CHAIN OF TITLE** — numbered entries (newest to oldest) with document_title, book_instrument, page, dated, recorded, consideration, in_out_sale, grantors[], grantees[], notes
+3. **MORTGAGES / DEEDS OF TRUST** — numbered entries (oldest to newest) with document_title, book_instrument, page, dated, recorded, consideration, maturity_date, lender, borrower, trustee, loan_number, min, open_closed_ended, status, associated_documents[]
+4. **JUDGMENTS / LIENS** — numbered entries with document_title, book_instrument, page, amount, interest, costs, attorneys_fees, status, dated, recorded, case_number, plaintiff, defendant
+5. **MISCELLANEOUS DOCUMENTS** — numbered entries with document_title, book_instrument, page, dated, recorded, consideration, area_or_width, grantor_assignor, grantee_assignee, notes
+6. **LEGAL DESCRIPTION** — full legal description from vesting deed
+7. **ADDITIONAL INFORMATION** — free-text notes + PDF DOCUMENT ACCOUNTING
+8. **NAMES SEARCHED** — array of all names (including variations and heirs)
+
+---
+
 ## Template Versions
 
 | Version | Description | Status |
@@ -200,6 +279,7 @@ The V5 Standard report contains these sections in order:
 | `v2` | ProTitleUSA — 12-section detailed report | ✅ Active |
 | `v4` | Hazelwood & Associates — run sheet format, ALL CAPS, Times-Roman | ✅ Active |
 | `v5` | Standard — clean format, 8 sections, ALL CAPS where practical | ✅ Active |
+| `v6` | Enhanced — extends V5 with additional fields, document accounting, complete document review rules | ✅ Active |
 
 ---
 

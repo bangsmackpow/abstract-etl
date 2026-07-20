@@ -115,6 +115,13 @@ export default function NewJob() {
                   >
                     V5 (Standard)
                   </button>
+                  <button
+                    className={`btn ${version === 'v6' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setVersion('v6')}
+                    style={{ flex: 1 }}
+                  >
+                    V6 (Enhanced)
+                  </button>
                 </div>
               </div>
 

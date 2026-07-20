@@ -1,0 +1,99 @@
+{
+  "order_info": {
+    "file_number": null,
+    "company_name": null,
+    "effective_date": null,
+    "property_address": null,
+    "county": null,
+    "township": null,
+    "parcel_ids": [],
+    "assessed_value": null,
+    "land_value": null,
+    "improvement_value": null,
+    "tax_id": null,
+    "tax_amount": null,
+    "tax_due": null,
+    "tax_delinquent": {
+      "original_amount": null,
+      "due_date": null,
+      "full_delinquent_amount": null
+    },
+    "tax_paid": null,
+    "current_vesting_owner": null,
+    "assessor_owner": null,
+    "assessor_description": null,
+    "acreage": null
+  },
+  "chain_of_title": [{
+    "deed_type": null,
+    "grantors": [],
+    "grantees": [],
+    "deed_date": null,
+    "recorded_date": null,
+    "instrument_book_page": null,
+    "consideration": null,
+    "in_out_sale": false,
+    "notes": null,
+    "related_documents": []
+  }],
+  "mortgages": [{
+    "document_title": null,
+    "book_instrument": null,
+    "page": null,
+    "dated": null,
+    "recorded": null,
+    "consideration": null,
+    "maturity_date": null,
+    "lender": null,
+    "borrower": null,
+    "trustee": null,
+    "loan_number": null,
+    "min": null,
+    "open_closed_ended": null,
+    "status": null,
+    "associated_documents": [{
+      "document_type": null,
+      "book_instrument": null,
+      "page": null,
+      "dated": null,
+      "recorded": null,
+      "assignor": null,
+      "assignee": null,
+      "notes": null
+    }]
+  }],
+  "judgments_liens": [{
+    "document_title": null,
+    "book_instrument": null,
+    "page": null,
+    "dated": null,
+    "recorded": null,
+    "case_number": null,
+    "amount": null,
+    "interest": null,
+    "costs": null,
+    "attorneys_fees": null,
+    "status": null,
+    "plaintiff": null,
+    "defendant": null
+  }],
+  "misc_documents": [{
+    "document_title": null,
+    "book_instrument": null,
+    "page": null,
+    "dated": null,
+    "recorded": null,
+    "consideration": null,
+    "area_or_width": null,
+    "grantor_assignor": null,
+    "grantee_assignee": null,
+    "notes": null
+  }],
+  "legal_description": null,
+  "additional_information": [],
+  "document_accounting": [{
+    "page_range": null,
+    "document_label": null
+  }],
+  "names_searched": []
+}
