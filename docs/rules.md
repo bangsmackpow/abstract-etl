@@ -182,7 +182,7 @@ V5 uses a clean, readable format without copying the Hazelwood visual style. All
 The V5 Standard report contains these sections in order:
 
 1. **ORDER INFORMATION** — file_number, effective_date, completed_date, current_vesting_owner, property_address, county, township, tax_id, parcel_ids, assessed/land/improvement values, tax info, tax_delinquent (object)
-2. **CHAIN OF TITLE** — numbered entries (newest to oldest) with document_title, book_instrument, page, dated, recorded, consideration, in_out_sale, grantors[], grantees[], notes
+2. **CHAIN OF TITLE** — numbered entries (newest to oldest) with deed_type, instrument_book_page, deed_date, recorded_date, consideration, in_out_sale, grantors[], grantees[], notes
 3. **MORTGAGES / DEEDS OF TRUST** — numbered entries (oldest to newest) with document_title, book_instrument, page, dated, recorded, consideration, maturity_date, lender, borrower, trustee, mers_number, notes
 4. **JUDGMENTS / LIENS** — numbered entries with document_title, book_instrument, page, amount, dated, recorded, case_number, plaintiff, defendant
 5. **MISCELLANEOUS DOCUMENTS** — numbered entries with document_title, book_instrument, page, dated, recorded, consideration, grantor_assignor, grantee_assignee, notes
@@ -261,7 +261,7 @@ V6 extends V5 with additional fields, complete document review requirements, and
 The V6 Enhanced report contains these sections in order (same as V5, with expanded fields):
 
 1. **ORDER INFORMATION** — file_number, effective_date, current_vesting_owner, assessor_owner, assessor_description, property_address, county, township, tax_id, parcel_ids, assessed/land/improvement values, acreage, tax info, tax_delinquent (object)
-2. **CHAIN OF TITLE** — numbered entries (newest to oldest) with document_title, book_instrument, page, dated, recorded, consideration, in_out_sale, grantors[], grantees[], notes
+2. **CHAIN OF TITLE** — numbered entries (newest to oldest) with deed_type, instrument_book_page, deed_date, recorded_date, consideration, in_out_sale, grantors[], grantees[], notes
 3. **MORTGAGES / DEEDS OF TRUST** — numbered entries (oldest to newest) with document_title, book_instrument, page, dated, recorded, consideration, maturity_date, lender, borrower, trustee, loan_number, min, open_closed_ended, status, associated_documents[]
 4. **JUDGMENTS / LIENS** — numbered entries with document_title, book_instrument, page, amount, interest, costs, attorneys_fees, status, dated, recorded, case_number, plaintiff, defendant
 5. **MISCELLANEOUS DOCUMENTS** — numbered entries with document_title, book_instrument, page, dated, recorded, consideration, area_or_width, grantor_assignor, grantee_assignee, notes
