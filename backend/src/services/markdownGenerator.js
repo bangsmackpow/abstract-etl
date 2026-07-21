@@ -363,9 +363,9 @@ function generateV5Markdown(f) {
     md += '*No chain entries found.*\n\n';
   } else {
     chain.forEach((e, i) => {
-      md += `### Entry ${i + 1}: ${dash(e.document_title)}\n`;
-      md += `- **Book/Inst/Page**: ${dash(e.book_instrument)} / ${dash(e.page)}\n`;
-      md += `- **Dated/Recorded**: ${dash(e.dated)} / ${dash(e.recorded)}\n`;
+      md += `### Entry ${i + 1}: ${dash(e.deed_type || e.document_title)}\n`;
+      md += `- **Instrument/Book/Page**: ${dash(e.instrument_book_page)}\n`;
+      md += `- **Deed Date/Recorded Date**: ${dash(e.deed_date)} / ${dash(e.recorded_date)}\n`;
       md += `- **Consideration**: ${dash(e.consideration)}\n`;
       md += `- **In/Out Sale**: ${e.in_out_sale === true ? 'YES' : e.in_out_sale === false ? 'NO' : '—'}\n`;
       md += `- **Grantor(s)**: ${(e.grantors || []).map((g) => g.toUpperCase()).join('; ') || '—'}\n`;

@@ -309,13 +309,12 @@ function V5ChainEntry({ index, fields, aiFlags, alternatives, onFieldChange, onF
         <div style={s.entryCard}>
             <div style={s.entryNum}>ENTRY {index + 1}</div>
             <div style={s.grid2}>
-                <Field label="DOCUMENT TITLE" path={`${base}.document_title`} {...fp} />
-                <Field label="BOOK/INSTRUMENT" path={`${base}.book_instrument`} {...fp} />
+                <Field label="DEED TYPE" path={`${base}.deed_type`} {...fp} />
+                <Field label="INSTRUMENT/BOOK/PAGE" path={`${base}.instrument_book_page`} {...fp} />
             </div>
-            <div style={s.grid3}>
-                <Field label="PAGE" path={`${base}.page`} {...fp} />
-                <Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} />
-                <Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} />
+            <div style={s.grid2}>
+                <Field label="DEED DATE" path={`${base}.deed_date`} placeholder="MM/DD/YYYY" {...fp} />
+                <Field label="RECORDED DATE" path={`${base}.recorded_date`} placeholder="MM/DD/YYYY" {...fp} />
             </div>
             <div style={s.grid2}>
                 <Field label="CONSIDERATION" path={`${base}.consideration`} {...fp} />
