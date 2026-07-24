@@ -98,6 +98,23 @@ The following rules apply exclusively to jobs created using the "v6" standard:
     *   **Markdown**: A structured .md file with all 8 sections and expanded fields.
 *   **Full Details**: See [docs/v6_rules.md](docs/v6_rules.md) for complete V6 extraction rules.
 
+## 9. V7 System (Enhanced Report) Rules
+The following rules apply exclusively to jobs created using the "v7" standard:
+*   **Schema**: Data is extracted into the Enhanced Report V7 schema with separate TAX INFORMATION section, supporting documents in chain of title (*-prefixed WILL, LOH, REA, PROBATE), extended mortgage/judgment fields, and dual-type miscellaneous documents.
+*   **Section Order**: ORDER INFORMATION, TAX INFORMATION, CHAIN OF TITLE, MORTGAGES / DEEDS OF TRUST, JUDGMENTS / LIENS, MISCELLANEOUS DOCUMENTS, LEGAL DESCRIPTION, ADDITIONAL INFORMATION, NAMES SEARCHED.
+*   **CLIENT / ORDER**: Single combined field containing company name, order case numbers, and reference numbers together.
+*   **TAX INFORMATION**: Separate section capturing FIRST HALF and SECOND HALF installment details (due date, original bill, paid date, amount paid, penalty, interest, balance due) plus totals.
+*   **Supporting Documents**: Chain of Title entries support a `supporting_documents` sub-array for *-prefixed entries (WILL, LOH, REA, PROBATE) with decedent, heirs, devisees/beneficiaries fields.
+*   **Mortgages/Judgments Empty Status**: When empty, show "NONE — NO [DOCUMENT TYPE] WAS INCLUDED OR CLEARLY IDENTIFIED" as the status.
+*   **Miscellaneous Documents Dual Type**: Supports estate-type (WILL, LOH, REA, PROBATE with decedent/heirs) and document-type (PLAT, EASEMENT, RESTRICTIONS with grantor/assignor).
+*   **Names Searched**: Single line format with "Performed by: Patrick Hazelwood" signature.
+*   **Output Formats**: V7 jobs support four export formats:
+    *   **DOCX (Text)**: Text-based layout matching blank.docx (paragraphs, no table borders).
+    *   **DOCX (Table)**: Table-based layout like v5/v6 style with v7 fields.
+    *   **Markdown**: 9-section markdown with v7 formatting.
+    *   **PDF**: Clean-format text-based PDF with v7 sections.
+*   **Full Details**: See [docs/rules.md](docs/rules.md) for complete V7 extraction rules.
+
 ---
 
 ### **Approval**

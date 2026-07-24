@@ -72,3 +72,17 @@
 - [x] **V6 Frontend Form**: Created `V6Form` component with `V6MortgageEntry`, `V6JudgmentEntry`, `V6MiscDocEntry`, and `V6DocAccountingEntry` sub-components.
 - [x] **V6 UI Toggles**: Added "V6 (Enhanced)" button to NewJob version selector, V6 status badge styling in Dashboard.
 - [x] **V6 Documentation**: Updated `docs/rules.md` with V6 extraction rules and output sections. Updated `AGENTS.md` with V6 template version.
+
+## V7 Enhanced Report Milestones (July 2026)
+- [x] **V7 Schema**: Created `docs/schemas/v7-schema.json` with separate TAX INFORMATION section, supporting_documents sub-array in chain entries, dual-type misc_documents (estate and document subtypes), combined client_order field, and document_accounting in additional_information.
+- [x] **V7 Prompt**: Created `docs/prompts/v7-prompt.md` with 9-section report order, supporting document rules, separate tax section rules, and order/verification notes.
+- [x] **V7 AI Service**: Added V7 schema/prompt loading and version routing in `googleAiService.js`.
+- [x] **V7 Text DOCX Generator**: Added `generateV7TextDocx()` in `docxGenerator.js` — text-based layout matching blank.docx (paragraphs, no table borders).
+- [x] **V7 Table DOCX Generator**: Added `generateV7TableDocx()` in `docxGenerator.js` — table-based layout like v5/v6 style with v7 fields.
+- [x] **V7 Markdown Generator**: Added `generateV7Markdown()` in `markdownGenerator.js` with 9-section v7 format.
+- [x] **V7 PDF Generator**: Added `generateV7Report()` in `v5PdfGenerator.js` — text-based clean PDF with v7 fields.
+- [x] **V7 Routes**: Added `/generate/:jobId/docx-text`, `/generate/:jobId/docx-table`, and v7 PDF routing in `generate.js`.
+- [x] **V7 Frontend Form**: Created `V7Form` component with all v7 sub-components (V7ChainEntry, V7ChainSupportingDoc, V7MortgageEntry, V7MortgageAssocDoc, V7JudgmentEntry, V7MiscDocEntry, V7DocAccountingEntry) matching blank.docx labeled layout.
+- [x] **V7 UI Toggles**: Added "V7 (Enhanced Report)" button to NewJob version selector. Two DOCX download buttons (Text / Table) on EditJob for v7 jobs.
+- [x] **V7 API Methods**: Added `downloadDocxText()` and `downloadDocxTable()` in `api.js` frontend service.
+- [x] **V7 Documentation**: Updated `docs/rules.md` with V7 extraction rules and output formats. Updated `AGENTS.md` with V7 template version. Updated all project markdown files for V7 handoff.

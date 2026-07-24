@@ -52,7 +52,21 @@
 - [x] **V6 UI Toggles**: Added "V6 (Enhanced)" button to NewJob version selector, V6 status badge styling in Dashboard.
 - [x] **V6 Documentation**: Updated `docs/rules.md` with V6 extraction rules and output sections. Updated `AGENTS.md` with V6 template version.
 
-## Phase 7: Cloudflare Edge Migration
+## Phase 7: V7 Enhanced Report (COMPLETE ✅)
+- [x] **V7 Schema**: Created `docs/schemas/v7-schema.json` with separate TAX INFORMATION, supporting_documents sub-array, dual-type misc_documents, combined client_order field.
+- [x] **V7 Prompt**: Created `docs/prompts/v7-prompt.md` with 9-section report order and v7-specific extraction rules.
+- [x] **V7 AI Service**: Added V7 schema/prompt loading and version routing in `googleAiService.js`.
+- [x] **V7 Text DOCX Generator**: Created `generateV7TextDocx()` matching blank.docx (paragraph-based, no table borders).
+- [x] **V7 Table DOCX Generator**: Created `generateV7TableDocx()` with v5/v6-style table format.
+- [x] **V7 Markdown Generator**: Created `generateV7Markdown()` with 9-section v7 format.
+- [x] **V7 PDF Generator**: Created `generateV7Report()` with text-based clean format.
+- [x] **V7 Routes**: Added `/docx-text` and `/docx-table` endpoints, v7 PDF routing.
+- [x] **V7 Frontend Form**: Created `V7Form` with all sub-components matching blank.docx layout.
+- [x] **V7 UI Toggles**: Added V7 button in NewJob, dual DOCX download buttons in EditJob.
+- [x] **V7 API Methods**: Added `downloadDocxText()` and `downloadDocxTable()`.
+- [x] **V7 Documentation**: Updated all project markdown files, AGENTS.md, and docs/rules.md.
+
+## Phase 8: Cloudflare Edge Migration
 - [ ] **Hono Refactor**: Rewrite Express routes to Hono for edge compatibility.
 - [ ] **D1 Database**: Switch `better-sqlite3` to `drizzle-orm/d1`.
 - [ ] **R2 Storage**: Move temporary file storage from local disk to Cloudflare R2.
