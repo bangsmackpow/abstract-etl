@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getJob, updateJob, downloadDocx, downloadMarkdown, deleteJob, downloadPdf } from '../services/api';
+import { getJob, updateJob, downloadDocx, downloadMarkdown, deleteJob, downloadPdf, downloadDocxText, downloadDocxTable } from '../services/api';
 import AbstractForm from '../components/AbstractForm';
 import { useAuth } from '../hooks/useAuth';
 
@@ -15,6 +15,8 @@ export default function EditJob() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [downloadingDocx, setDownloadingDocx] = useState(false);
+  const [downloadingDocxText, setDownloadingDocxText] = useState(false);
+  const [downloadingDocxTable, setDownloadingDocxTable] = useState(false);
   const [downloadingMd, setDownloadingMd] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -90,6 +92,32 @@ export default function EditJob() {
       setError('Word download failed.');
     } finally {
       setDownloadingDocx(false);
+    }
+  };
+
+  const handleDownloadDocxText = async () => {
+    setDownloadingDocxText(true);
+    try {
+      await handleSave();
+      const addr = fields.order_info?.property_address || job.propertyAddress;
+      await downloadDocxText(id, addr);
+    } catch {
+      setError('Word (Text) download failed.');
+    } finally {
+      setDownloadingDocxText(false);
+    }
+  };
+
+  const handleDownloadDocxTable = async () => {
+    setDownloadingDocxTable(true);
+    try {
+      await handleSave();
+      const addr = fields.order_info?.property_address || job.propertyAddress;
+      await downloadDocxTable(id, addr);
+    } catch {
+      setError('Word (Table) download failed.');
+    } finally {
+      setDownloadingDocxTable(false);
     }
   };
 
@@ -187,14 +215,35 @@ export default function EditJob() {
           <button className="btn btn-success" onClick={handleDownloadPdf} disabled={downloadingPdf}>
             {downloadingPdf ? 'Generating...' : '⬇ Download PDF Report'}
           </button>
-          <button
-            className="btn btn-ghost"
-            onClick={handleDownloadDocx}
-            disabled={downloadingDocx}
-            style={{ border: '1px solid #ddd' }}
-          >
-            {downloadingDocx ? 'Generating...' : '⬇ Download Word (.docx)'}
-          </button>
+          {tv === 'v7' ? (
+            <>
+              <button
+                className="btn btn-ghost"
+                onClick={handleDownloadDocxText}
+                disabled={downloadingDocxText}
+                style={{ border: '1px solid #ddd' }}
+              >
+                {downloadingDocxText ? 'Generating...' : '⬇ Download Word (Text)'}
+              </button>
+              <button
+                className="btn btn-ghost"
+                onClick={handleDownloadDocxTable}
+                disabled={downloadingDocxTable}
+                style={{ border: '1px solid #ddd' }}
+              >
+                {downloadingDocxTable ? 'Generating...' : '⬇ Download Word (Table)'}
+              </button>
+            </>
+          ) : (
+            <button
+              className="btn btn-ghost"
+              onClick={handleDownloadDocx}
+              disabled={downloadingDocx}
+              style={{ border: '1px solid #ddd' }}
+            >
+              {downloadingDocx ? 'Generating...' : '⬇ Download Word (.docx)'}
+            </button>
+          )}
           <button
             className="btn btn-ghost"
             onClick={handleDownloadMd}

@@ -86,8 +86,11 @@ router.post('/bulk', upload.array('pdfs', 50), async (req, res) => {
       const isV2 = version === 'v2';
       const isV4 = version === 'v4';
       const isV5 = version === 'v5';
+      const isV7 = version === 'v7';
       const propertyAddress = isV2
         ? extractedFields.property_info?.address
+        : isV7
+        ? extractedFields.order_info?.property_address || ''
         : extractedFields.order_info?.property_address || '';
 
       const [job] = await db
@@ -98,6 +101,8 @@ router.post('/bulk', upload.array('pdfs', 50), async (req, res) => {
           propertyAddress: propertyAddress || 'PENDING ADDRESS',
           borrowerNames: isV2
             ? extractedFields.property_info?.current_owner || ''
+            : isV7
+            ? extractedFields.order_info?.borrower_owner || ''
             : isV4
             ? extractedFields.order_info?.current_owner || ''
             : isV5

@@ -4,7 +4,7 @@ const path = require('path');
 
 /**
  * Native Google AI Service
- * Supports v1 (Legacy), v4 (Hazelwood), v5 (Standard), and v6 (Enhanced) extraction.
+ * Supports v1 (Legacy), v4 (Hazelwood), v5 (Standard), v6 (Enhanced), and v7 (Enhanced Report) extraction.
  * Prompts are loaded from docs/prompts/ at startup for auditability.
  */
 
@@ -29,9 +29,11 @@ function loadSchema(filename) {
 const V4_SCHEMA = loadSchema('v4-schema.json');
 const V5_SCHEMA = loadSchema('v5-schema.json');
 const V6_SCHEMA = loadSchema('v6-schema.json');
+const V7_SCHEMA = loadSchema('v7-schema.json');
 const SYSTEM_PROMPT_V4 = loadPrompt('v4-prompt.md').replace(/### SCHEMA REFERENCE:[\s\S]*?Return ONLY/, `### SCHEMA REFERENCE:\n${V4_SCHEMA}\n\nReturn ONLY`);
 const SYSTEM_PROMPT_V5 = loadPrompt('v5-prompt.md').replace(/### SCHEMA REFERENCE:[\s\S]*?Return ONLY/, `### SCHEMA REFERENCE:\n${V5_SCHEMA}\n\nReturn ONLY`);
 const SYSTEM_PROMPT_V6 = loadPrompt('v6-prompt.md').replace(/### SCHEMA REFERENCE:[\s\S]*?Return ONLY/, `### SCHEMA REFERENCE:\n${V6_SCHEMA}\n\nReturn ONLY`);
+const SYSTEM_PROMPT_V7 = loadPrompt('v7-prompt.md').replace(/### SCHEMA REFERENCE:[\s\S]*?Return ONLY/, `### SCHEMA REFERENCE:\n${V7_SCHEMA}\n\nReturn ONLY`);
 
 function getModel() {
   const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
@@ -103,13 +105,15 @@ async function extractFromPDF(pdfPath, originalFilename = '', version = 'v4') {
   const pdfBuffer = fs.readFileSync(pdfPath);
 
   const prompt =
-    version === 'v6'
-      ? SYSTEM_PROMPT_V6
-      : version === 'v5'
-        ? SYSTEM_PROMPT_V5
-        : version === 'v4'
-          ? SYSTEM_PROMPT_V4
-          : SYSTEM_PROMPT_V4;
+    version === 'v7'
+      ? SYSTEM_PROMPT_V7
+      : version === 'v6'
+        ? SYSTEM_PROMPT_V6
+        : version === 'v5'
+          ? SYSTEM_PROMPT_V5
+          : version === 'v4'
+            ? SYSTEM_PROMPT_V4
+            : SYSTEM_PROMPT_V4;
 
   const promptParts = [
     { text: `Filename: "${originalFilename}"` },
@@ -128,7 +132,14 @@ async function extractFromPDF(pdfPath, originalFilename = '', version = 'v4') {
     const rawText = response.text();
     const parsed = parseJsonResponse(rawText, originalFilename);
     
-    if (version === 'v6') {
+    if (version === 'v7') {
+      console.log('🔍 [V7 Extraction] Raw response length:', rawText.length);
+      console.log('🔍 [V7 Extraction] Parsed keys:', Object.keys(parsed));
+      console.log('🔍 [V7 Extraction] order_info:', parsed.order_info);
+      console.log('🔍 [V7 Extraction] chain_of_title count:', parsed.chain_of_title?.length || 0);
+      console.log('🔍 [V7 Extraction] mortgages count:', parsed.mortgages?.length || 0);
+      console.log('🔍 [V7 Extraction] tax_information:', parsed.tax_information);
+    } else if (version === 'v6') {
       console.log('🔍 [V6 Extraction] Raw response length:', rawText.length);
       console.log('🔍 [V6 Extraction] Parsed keys:', Object.keys(parsed));
       console.log('🔍 [V6 Extraction] order_info:', parsed.order_info);

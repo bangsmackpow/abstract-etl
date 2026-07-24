@@ -86,6 +86,38 @@ export const downloadDocx = async (jobId, propertyAddress) => {
   URL.revokeObjectURL(url);
 };
 
+export const downloadDocxText = async (jobId, propertyAddress) => {
+  const response = await api.get(`/generate/${jobId}/docx-text`, { responseType: 'blob' });
+  const url = URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  const addr = (propertyAddress || 'abstract')
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .replace(/\s+/g, '_')
+    .toLowerCase();
+  a.download = `abstract_text_${addr}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+export const downloadDocxTable = async (jobId, propertyAddress) => {
+  const response = await api.get(`/generate/${jobId}/docx-table`, { responseType: 'blob' });
+  const url = URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  const addr = (propertyAddress || 'abstract')
+    .replace(/[^a-zA-Z0-9 ]/g, '')
+    .replace(/\s+/g, '_')
+    .toLowerCase();
+  a.download = `abstract_table_${addr}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 export const downloadMarkdown = async (jobId, propertyAddress) => {
   const response = await api.get(`/generate/${jobId}/markdown`, { responseType: 'blob' });
   const url = URL.createObjectURL(response.data);

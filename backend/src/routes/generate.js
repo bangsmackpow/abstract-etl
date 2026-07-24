@@ -4,10 +4,10 @@ const { db } = require('../db');
 const { jobs } = require('../db/schema');
 const { eq } = require('drizzle-orm');
 const { requireAuth } = require('../middleware/requireAuth');
-const { generateDocx } = require('../services/docxGenerator');
+const { generateDocx, generateV7TextDocx, generateV7TableDocx } = require('../services/docxGenerator');
 const { generateMarkdown } = require('../services/markdownGenerator');
 const { generateV4Report } = require('../services/pdfGenerator');
-const { generateV5Report, generateV6Report } = require('../services/v5PdfGenerator');
+const { generateV5Report, generateV6Report, generateV7Report } = require('../services/v5PdfGenerator');
 const { createError } = require('../middleware/errorHandler');
 
 router.use(requireAuth);
@@ -24,7 +24,9 @@ router.get('/:jobId/pdf', async (req, res, next) => {
 
     const tempPath = `/tmp/report-${job.id}.pdf`;
     
-    if (job.templateVersion === 'v6') {
+    if (job.templateVersion === 'v7') {
+        await generateV7Report(job, tempPath);
+    } else if (job.templateVersion === 'v6') {
         await generateV6Report(job, tempPath);
     } else if (job.templateVersion === 'v5') {
         await generateV5Report(job, tempPath);
@@ -70,6 +72,40 @@ router.get('/:jobId', async (req, res) => {
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   );
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
+});
+
+/**
+ * GET /api/generate/:jobId/docx-text
+ * Generates and downloads a v7 text-format .docx.
+ */
+router.get('/:jobId/docx-text', async (req, res, next) => {
+  const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
+  if (!job) return next(createError('Not found', 404));
+  if (req.user.role !== 'admin' && job.createdBy !== req.user.id) return next(createError('Not found', 404));
+  const fields = job.fieldsJson || {};
+  const buffer = await generateV7TextDocx(fields);
+  const addr = (job.propertyAddress || 'abstract').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_').toLowerCase().substring(0, 60);
+  const filename = `abstract_text_${addr}.docx`;
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buffer);
+});
+
+/**
+ * GET /api/generate/:jobId/docx-table
+ * Generates and downloads a v7 table-format .docx.
+ */
+router.get('/:jobId/docx-table', async (req, res, next) => {
+  const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
+  if (!job) return next(createError('Not found', 404));
+  if (req.user.role !== 'admin' && job.createdBy !== req.user.id) return next(createError('Not found', 404));
+  const fields = job.fieldsJson || {};
+  const buffer = await generateV7TableDocx(fields);
+  const addr = (job.propertyAddress || 'abstract').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_').toLowerCase().substring(0, 60);
+  const filename = `abstract_table_${addr}.docx`;
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(buffer);
 });

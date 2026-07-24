@@ -9,3 +9,5 @@ frontend/dist/
 Thumbs.db
 backend/src/uploads/
 v4/
+.eslintcache
+.antigravitycli/

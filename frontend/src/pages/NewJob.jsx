@@ -9,7 +9,7 @@ export default function NewJob() {
   const [stage, setStage] = useState('upload'); // upload | processing | done
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
-  const [version, setVersion] = useState('v1'); // v1 | v4 | v5
+  const [version, setVersion] = useState('v1'); // v1 | v4 | v5 | v6 | v7
 
   const handleFile = (f) => {
     if (f?.type !== 'application/pdf') {
@@ -121,6 +121,13 @@ export default function NewJob() {
                     style={{ flex: 1 }}
                   >
                     V6 (Enhanced)
+                  </button>
+                  <button
+                    className={`btn ${version === 'v7' ? 'btn-primary' : 'btn-outline'}`}
+                    onClick={() => setVersion('v7')}
+                    style={{ flex: 1 }}
+                  >
+                    V7 (Enhanced Report)
                   </button>
                 </div>
               </div>
