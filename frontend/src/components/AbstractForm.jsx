@@ -1427,7 +1427,7 @@ function V7Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) 
             </Section>
 
             <Section title={`NAMES SEARCHED (${namesSearched.length})`}>
-                <ArrayField label="NAMES SEARCHED (one per line)" path="names_searched" {...fieldProps} />
+                <Field label="NAMES SEARCHED (comma-separated)" path="names_searched" multiline {...fieldProps} />
             </Section>
         </div>
     );
@@ -1463,21 +1463,6 @@ function V7ChainEntry({ index, fields, aiFlags, alternatives, onFieldChange, onF
             <div style={v7Row}><Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} /></div>
             <div style={v7Row}><Field label="BOOK / PAGE OR INSTRUMENT" path={`${base}.book_page_instrument`} {...fp} /></div>
             <div style={v7Row}><Field label="CONSIDERATION" path={`${base}.consideration`} {...fp} /></div>
-            <div style={v7Row}>
-                <div>
-                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#4a5568', textTransform: 'uppercase', marginBottom: '8px' }}>
-                        IN/OUT SALE
-                    </div>
-                    <label style={s.checkbox}>
-                        <input
-                            type="checkbox"
-                            checked={!!entry.in_out_sale}
-                            onChange={(e) => onFieldChange(`${base}.in_out_sale`, e.target.checked)}
-                        />
-                        IN SALE
-                    </label>
-                </div>
-            </div>
             <div style={v7Row}><Field label="NOTES" path={`${base}.notes`} multiline {...fp} /></div>
             {supportingDocs.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>

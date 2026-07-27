@@ -3015,31 +3015,35 @@ async function generateV7TextDocx(fields) {
   children.push(fieldPara('ASSESSMENT', oi.assessment));
   children.push(fieldPara('ORDER / VERIFICATION NOTES', oi.order_verification_notes));
 
-  // ── TAX INFORMATION ──
-  const taxYear = val(ti.year) || new Date().getFullYear();
-  children.push(sectionHeaderPara(`${taxYear} TAX INFORMATION`));
-  const fh = ti.first_half || {};
-  children.push(boldPara('FIRST HALF'));
-  children.push(fieldPara('DUE DATE', fh.due_date));
-  children.push(fieldPara('ORIGINAL BILL', fh.original_bill ? `$${fh.original_bill}` : fh.original_bill));
-  children.push(fieldPara('PAID DATE', fh.paid_date));
-  children.push(fieldPara('AMOUNT PAID', fh.amount_paid ? `$${fh.amount_paid}` : fh.amount_paid));
-  children.push(fieldPara('PENALTY', fh.penalty ? `$${fh.penalty}` : fh.penalty));
-  children.push(fieldPara('INTEREST', fh.interest ? `$${fh.interest}` : fh.interest));
-  children.push(fieldPara('BALANCE DUE', fh.balance_due ? `$${fh.balance_due}` : fh.balance_due));
-
-  const sh = ti.second_half || {};
-  children.push(boldPara('SECOND HALF'));
-  children.push(fieldPara('DUE DATE', sh.due_date));
-  children.push(fieldPara('ORIGINAL BILL', sh.original_bill ? `$${sh.original_bill}` : sh.original_bill));
-  children.push(fieldPara('PAID DATE', sh.paid_date));
-  children.push(fieldPara('AMOUNT PAID', sh.amount_paid ? `$${sh.amount_paid}` : sh.amount_paid));
-  children.push(fieldPara('PENALTY', sh.penalty ? `$${sh.penalty}` : sh.penalty));
-  children.push(fieldPara('INTEREST', sh.interest ? `$${sh.interest}` : sh.interest));
-  children.push(fieldPara('BALANCE DUE', sh.balance_due ? `$${sh.balance_due}` : sh.balance_due));
-
-  if (ti.total_tax) children.push(fieldPara(`TOTAL ${taxYear} TAX`, ti.total_tax ? `$${ti.total_tax}` : ti.total_tax));
-  if (ti.total_delinquent_amount) children.push(fieldPara('TOTAL DELINQUENT / OPEN AMOUNT SHOWN', ti.total_delinquent_amount ? `$${ti.total_delinquent_amount}` : ti.total_delinquent_amount));
+  // Tax information rendered within ORDER INFORMATION (not a standalone section)
+  if (ti.year || ti.first_half || ti.second_half || ti.total_tax || ti.total_delinquent_amount) {
+    const taxYear = val(ti.year) || new Date().getFullYear();
+    children.push(boldPara(`TAX INFORMATION (${taxYear})`));
+    const fh = ti.first_half || {};
+    if (fh.due_date || fh.original_bill || fh.paid_date || fh.amount_paid || fh.penalty || fh.interest || fh.balance_due) {
+      children.push(boldPara('FIRST HALF', 18));
+      if (fh.due_date) children.push(fieldPara('DUE DATE', fh.due_date));
+      if (fh.original_bill) children.push(fieldPara('ORIGINAL BILL', `$${fh.original_bill}`));
+      if (fh.paid_date) children.push(fieldPara('PAID DATE', fh.paid_date));
+      if (fh.amount_paid) children.push(fieldPara('AMOUNT PAID', `$${fh.amount_paid}`));
+      if (fh.penalty) children.push(fieldPara('PENALTY', `$${fh.penalty}`));
+      if (fh.interest) children.push(fieldPara('INTEREST', `$${fh.interest}`));
+      if (fh.balance_due) children.push(fieldPara('BALANCE DUE', `$${fh.balance_due}`));
+    }
+    const sh = ti.second_half || {};
+    if (sh.due_date || sh.original_bill || sh.paid_date || sh.amount_paid || sh.penalty || sh.interest || sh.balance_due) {
+      children.push(boldPara('SECOND HALF', 18));
+      if (sh.due_date) children.push(fieldPara('DUE DATE', sh.due_date));
+      if (sh.original_bill) children.push(fieldPara('ORIGINAL BILL', `$${sh.original_bill}`));
+      if (sh.paid_date) children.push(fieldPara('PAID DATE', sh.paid_date));
+      if (sh.amount_paid) children.push(fieldPara('AMOUNT PAID', `$${sh.amount_paid}`));
+      if (sh.penalty) children.push(fieldPara('PENALTY', `$${sh.penalty}`));
+      if (sh.interest) children.push(fieldPara('INTEREST', `$${sh.interest}`));
+      if (sh.balance_due) children.push(fieldPara('BALANCE DUE', `$${sh.balance_due}`));
+    }
+    if (ti.total_tax) children.push(fieldPara(`TOTAL ${taxYear} TAX`, `$${ti.total_tax}`));
+    if (ti.total_delinquent_amount) children.push(fieldPara('TOTAL DELINQUENT / OPEN AMOUNT SHOWN', `$${ti.total_delinquent_amount}`));
+  }
 
   // ── CHAIN OF TITLE ──
   children.push(sectionHeaderPara('CHAIN OF TITLE'));
@@ -3196,10 +3200,6 @@ async function generateV7TextDocx(fields) {
   children.push(new Paragraph({
     spacing: { before: 20, after: 20 },
     children: [new TextRun({ text: (names || []).join(', ') || 'NONE PROVIDED.', size: 18, font: 'Arial' })],
-  }));
-  children.push(new Paragraph({
-    spacing: { before: 20, after: 20 },
-    children: [new TextRun({ text: 'Performed by: Patrick Hazelwood', size: 16, italics: true, font: 'Arial', color: '555555' })],
   }));
 
   // ── Build Document ──
@@ -3875,9 +3875,6 @@ async function generateV7TableDocx(fields) {
               new Paragraph({
                 children: [new TextRun({ text: namesText, size: 18, font: 'Arial' })],
               }),
-              new Paragraph({
-                children: [new TextRun({ text: 'Performed by: Patrick Hazelwood', size: 16, italics: true, font: 'Arial', color: '555555' })],
-              }),
             ],
           }),
         ],
@@ -3895,7 +3892,6 @@ async function generateV7TableDocx(fields) {
           sectionHeader('ORDER INFORMATION'),
           orderTable,
           spacerTable(),
-          sectionHeader('TAX INFORMATION'),
           taxTable,
           spacerTable(),
           sectionHeader('CHAIN OF TITLE'),

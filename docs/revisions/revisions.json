@@ -12,7 +12,19 @@
       },
       "notes": "Baseline snapshot. V4 extraction live with 12-section Hazelwood run sheet format, ALL CAPS output, order number fallback for Eastman Credit Union & Clear Choice Abstracting. V1 uses same prompt as V4. V2 deprecated from UI.",
       "status": "superseded"
+    },
+    {
+      "id": "rev-002",
+      "timestamp": "2026-07-26T00:00:00Z",
+      "label": "V7 July 2026 Rule Update",
+      "files": {
+        "rules": "docs/rules.md",
+        "v7_prompt": "docs/prompts/v7-prompt.md",
+        "v7_schema": "docs/schemas/v7-schema.json"
+      },
+      "notes": "V7 rules updated: tax info merged into ORDER INFORMATION (no standalone section), IN/OUT SALE removed from chain entries, life estate format changed to list only actual grantees with NOTES explanation, Names Searched restricted to direct chain + heirs with compact comma-separated format, outsales require full copy-and-paste block when deed is included, multi-parcel order support, maturity/MIN rules, new quality control checks.",
+      "status": "active"
     }
   ],
-  "active": "rev-001"
+  "active": "rev-002"
 }

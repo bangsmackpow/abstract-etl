@@ -830,31 +830,39 @@ function generateV7Markdown(f) {
   md += `**ASSESSMENT:** ${dash(oi.assessment)}\n`;
   md += `**ORDER / VERIFICATION NOTES:** ${dash(oi.order_verification_notes)}\n\n`;
 
-  // ── TAX INFORMATION ──
+  // ── TAX INFORMATION (rendered within ORDER INFORMATION) ──
   const ti = f.tax_information || {};
-  const taxYear = val(ti.year) || '—';
-  md += `## ${taxYear} TAX INFORMATION\n`;
-  const fh = ti.first_half || {};
-  md += '**FIRST HALF**\n';
-  md += `**DUE DATE:** ${dash(fh.due_date)}\n`;
-  md += `**ORIGINAL BILL:** ${fh.original_bill ? `$${dash(fh.original_bill)}` : dash(fh.original_bill)}\n`;
-  md += `**PAID DATE:** ${dash(fh.paid_date)}\n`;
-  md += `**AMOUNT PAID:** ${fh.amount_paid ? `$${dash(fh.amount_paid)}` : dash(fh.amount_paid)}\n`;
-  md += `**PENALTY:** ${fh.penalty ? `$${dash(fh.penalty)}` : dash(fh.penalty)}\n`;
-  md += `**INTEREST:** ${fh.interest ? `$${dash(fh.interest)}` : dash(fh.interest)}\n`;
-  md += `**BALANCE DUE:** ${fh.balance_due ? `$${dash(fh.balance_due)}` : dash(fh.balance_due)}\n`;
-  const sh = ti.second_half || {};
-  md += '**SECOND HALF**\n';
-  md += `**DUE DATE:** ${dash(sh.due_date)}\n`;
-  md += `**ORIGINAL BILL:** ${sh.original_bill ? `$${dash(sh.original_bill)}` : dash(sh.original_bill)}\n`;
-  md += `**PAID DATE:** ${dash(sh.paid_date)}\n`;
-  md += `**AMOUNT PAID:** ${sh.amount_paid ? `$${dash(sh.amount_paid)}` : dash(sh.amount_paid)}\n`;
-  md += `**PENALTY:** ${sh.penalty ? `$${dash(sh.penalty)}` : dash(sh.penalty)}\n`;
-  md += `**INTEREST:** ${sh.interest ? `$${dash(sh.interest)}` : dash(sh.interest)}\n`;
-  md += `**BALANCE DUE:** ${sh.balance_due ? `$${dash(sh.balance_due)}` : dash(sh.balance_due)}\n`;
-  if (ti.total_tax) md += `**TOTAL ${taxYear} TAX:** $${dash(ti.total_tax)}\n`;
-  if (ti.total_delinquent_amount) md += `**TOTAL DELINQUENT / OPEN AMOUNT SHOWN:** $${dash(ti.total_delinquent_amount)}\n`;
-  md += '\n';
+  if (ti.year || ti.first_half || ti.second_half || ti.total_tax || ti.total_delinquent_amount) {
+    const taxYear = val(ti.year) || '—';
+    md += `**TAX INFORMATION (${taxYear})**\n\n`;
+    const fh = ti.first_half || {};
+    if (fh.due_date || fh.original_bill || fh.paid_date || fh.amount_paid || fh.penalty || fh.interest || fh.balance_due) {
+      md += '**FIRST HALF**\n';
+      if (fh.due_date) md += `**DUE DATE:** ${dash(fh.due_date)}\n`;
+      if (fh.original_bill) md += `**ORIGINAL BILL:** $${dash(fh.original_bill)}\n`;
+      if (fh.paid_date) md += `**PAID DATE:** ${dash(fh.paid_date)}\n`;
+      if (fh.amount_paid) md += `**AMOUNT PAID:** $${dash(fh.amount_paid)}\n`;
+      if (fh.penalty) md += `**PENALTY:** $${dash(fh.penalty)}\n`;
+      if (fh.interest) md += `**INTEREST:** $${dash(fh.interest)}\n`;
+      if (fh.balance_due) md += `**BALANCE DUE:** $${dash(fh.balance_due)}\n`;
+      md += '\n';
+    }
+    const sh = ti.second_half || {};
+    if (sh.due_date || sh.original_bill || sh.paid_date || sh.amount_paid || sh.penalty || sh.interest || sh.balance_due) {
+      md += '**SECOND HALF**\n';
+      if (sh.due_date) md += `**DUE DATE:** ${dash(sh.due_date)}\n`;
+      if (sh.original_bill) md += `**ORIGINAL BILL:** $${dash(sh.original_bill)}\n`;
+      if (sh.paid_date) md += `**PAID DATE:** ${dash(sh.paid_date)}\n`;
+      if (sh.amount_paid) md += `**AMOUNT PAID:** $${dash(sh.amount_paid)}\n`;
+      if (sh.penalty) md += `**PENALTY:** $${dash(sh.penalty)}\n`;
+      if (sh.interest) md += `**INTEREST:** $${dash(sh.interest)}\n`;
+      if (sh.balance_due) md += `**BALANCE DUE:** $${dash(sh.balance_due)}\n`;
+      md += '\n';
+    }
+    if (ti.total_tax) md += `**TOTAL ${taxYear} TAX:** $${dash(ti.total_tax)}\n`;
+    if (ti.total_delinquent_amount) md += `**TOTAL DELINQUENT / OPEN AMOUNT SHOWN:** $${dash(ti.total_delinquent_amount)}\n`;
+    md += '\n';
+  }
 
   // ── CHAIN OF TITLE ──
   md += '## CHAIN OF TITLE\n';
@@ -1009,7 +1017,6 @@ function generateV7Markdown(f) {
   // ── NAMES SEARCHED ──
   md += '## NAMES SEARCHED\n';
   md += `${(f.names_searched || []).join(', ') || 'NONE PROVIDED.'}\n`;
-  md += '*Performed by: Patrick Hazelwood*\n';
 
   return md;
 }

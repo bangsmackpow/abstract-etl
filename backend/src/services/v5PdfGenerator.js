@@ -734,42 +734,44 @@ async function generateV7Report(jobData, outputPath) {
       kv('Order / Verification Notes', oi.order_verification_notes);
     }
 
-    // ========================================================================
-    // TAX INFORMATION
-    // ========================================================================
-    checkSpace(80);
-    const taxYear = ti.year || new Date().getFullYear();
-    sectionHeader(`${taxYear} TAX INFORMATION`);
+    // Tax information rendered within ORDER INFORMATION (not a standalone section)
+    if (ti.year || ti.first_half || ti.second_half || ti.total_tax || ti.total_delinquent_amount) {
+      hr();
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(LABEL_COLOR).text(`TAX INFORMATION (${ti.year || new Date().getFullYear()})`);
+      doc.moveDown(0.2);
 
-    const fh = ti.first_half || {};
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(LABEL_COLOR).text('FIRST HALF');
-    doc.moveDown(0.2);
-    kv('Due Date', fh.due_date);
-    kv('Original Bill', fh.original_bill ? `$${fh.original_bill}` : fh.original_bill);
-    kv('Paid Date', fh.paid_date);
-    kv('Amount Paid', fh.amount_paid ? `$${fh.amount_paid}` : fh.amount_paid);
-    kv('Penalty', fh.penalty ? `$${fh.penalty}` : fh.penalty);
-    kv('Interest', fh.interest ? `$${fh.interest}` : fh.interest);
-    kv('Balance Due', fh.balance_due ? `$${fh.balance_due}` : fh.balance_due);
+      const fh = ti.first_half || {};
+      if (fh.due_date || fh.original_bill || fh.paid_date || fh.amount_paid || fh.penalty || fh.interest || fh.balance_due) {
+        doc.font('Helvetica-Bold').fontSize(9).fillColor(LABEL_COLOR).text('FIRST HALF');
+        if (fh.due_date) kv('Due Date', fh.due_date);
+        if (fh.original_bill) kv('Original Bill', `$${fh.original_bill}`);
+        if (fh.paid_date) kv('Paid Date', fh.paid_date);
+        if (fh.amount_paid) kv('Amount Paid', `$${fh.amount_paid}`);
+        if (fh.penalty) kv('Penalty', `$${fh.penalty}`);
+        if (fh.interest) kv('Interest', `$${fh.interest}`);
+        if (fh.balance_due) kv('Balance Due', `$${fh.balance_due}`);
+      }
 
-    const sh = ti.second_half || {};
-    checkSpace(60);
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(LABEL_COLOR).text('SECOND HALF');
-    doc.moveDown(0.2);
-    kv('Due Date', sh.due_date);
-    kv('Original Bill', sh.original_bill ? `$${sh.original_bill}` : sh.original_bill);
-    kv('Paid Date', sh.paid_date);
-    kv('Amount Paid', sh.amount_paid ? `$${sh.amount_paid}` : sh.amount_paid);
-    kv('Penalty', sh.penalty ? `$${sh.penalty}` : sh.penalty);
-    kv('Interest', sh.interest ? `$${sh.interest}` : sh.interest);
-    kv('Balance Due', sh.balance_due ? `$${sh.balance_due}` : sh.balance_due);
+      const sh = ti.second_half || {};
+      if (sh.due_date || sh.original_bill || sh.paid_date || sh.amount_paid || sh.penalty || sh.interest || sh.balance_due) {
+        checkSpace(40);
+        doc.font('Helvetica-Bold').fontSize(9).fillColor(LABEL_COLOR).text('SECOND HALF');
+        if (sh.due_date) kv('Due Date', sh.due_date);
+        if (sh.original_bill) kv('Original Bill', `$${sh.original_bill}`);
+        if (sh.paid_date) kv('Paid Date', sh.paid_date);
+        if (sh.amount_paid) kv('Amount Paid', `$${sh.amount_paid}`);
+        if (sh.penalty) kv('Penalty', `$${sh.penalty}`);
+        if (sh.interest) kv('Interest', `$${sh.interest}`);
+        if (sh.balance_due) kv('Balance Due', `$${sh.balance_due}`);
+      }
 
-    if (ti.total_tax) {
-      checkSpace(20);
-      kv(`Total ${taxYear} Tax`, ti.total_tax ? `$${ti.total_tax}` : ti.total_tax);
-    }
-    if (ti.total_delinquent_amount) {
-      kv('Total Delinquent / Open Amount Shown', ti.total_delinquent_amount ? `$${ti.total_delinquent_amount}` : ti.total_delinquent_amount);
+      if (ti.total_tax) {
+        checkSpace(20);
+        kv(`Total ${ti.year || ''} Tax`, `$${ti.total_tax}`);
+      }
+      if (ti.total_delinquent_amount) {
+        kv('Total Delinquent / Open Amount Shown', `$${ti.total_delinquent_amount}`);
+      }
     }
 
     // ========================================================================
@@ -972,9 +974,6 @@ async function generateV7Report(jobData, outputPath) {
       const namesText = (names || []).join(', ');
       bodyText(namesText, 9);
     }
-
-    checkSpace(20);
-    doc.font('Helvetica-Oblique').fontSize(8).fillColor('#666666').text('Performed by: Patrick Hazelwood', MARGIN + 6);
 
     // Final footer
     const finalFooterY = doc.page.height - 60;

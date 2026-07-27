@@ -280,6 +280,7 @@ The V6 Enhanced report contains these sections in order (same as V5, with expand
 | `v4` | Hazelwood & Associates — run sheet format, ALL CAPS, Times-Roman | ✅ Active |
 | `v5` | Standard — clean format, 8 sections, ALL CAPS where practical | ✅ Active |
 | `v6` | Enhanced — extends V5 with additional fields, document accounting, complete document review rules | ✅ Active |
+| `v7` | Enhanced Report — text-based report format, separate tax section, supporting documents for chain entries, extended field coverage | ✅ Active |
 
 ---
 
@@ -343,26 +344,33 @@ The V6 Enhanced report contains these sections in order (same as V5, with expand
 ## V7 Extraction Rules (Enhanced Report)
 
 ### Overview
-V7 (Enhanced Report) is a new text-based report format defined by `docs/v7/blank.docx`. It replaces the JSON-style v5/v6 table layout with a cleaner labeled-field format. Tax information is a separate section from Order Information. Chain of Title supports *-prefixed supporting documents (WILL, LOH, REA, PROBATE) under numbered entries.
+V7 (Enhanced Report) is a text-based report format defined by `docs/v7/blank.docx`. Tax information is captured in the JSON but rendered within ORDER INFORMATION (not as a standalone section). Chain of Title supports *-prefixed supporting documents (WILL, LOH, REA, PROBATE) under numbered entries. Names Searched is restricted to the direct subject chain and title-relevant heirs.
 
 ### Section Order
-1. ORDER INFORMATION
-2. TAX INFORMATION
-3. CHAIN OF TITLE
-4. MORTGAGES / DEEDS OF TRUST
-5. JUDGMENTS / LIENS
-6. MISCELLANEOUS DOCUMENTS
-7. LEGAL DESCRIPTION
-8. ADDITIONAL INFORMATION
-9. NAMES SEARCHED
+1. ORDER INFORMATION (tax info captured in JSON, rendered within this section)
+2. CHAIN OF TITLE
+3. MORTGAGES / DEEDS OF TRUST
+4. JUDGMENTS / LIENS
+5. MISCELLANEOUS DOCUMENTS
+6. LEGAL DESCRIPTION
+7. ADDITIONAL INFORMATION
+8. NAMES SEARCHED
 
 ### V7-Specific Rules
 - **CLIENT / ORDER**: Single combined field containing company name, order case numbers, and reference numbers.
-- **TAX INFORMATION**: Separate section from order_info. Captures FIRST HALF and SECOND HALF installment details (due date, original bill, paid date, amount paid, penalty, interest, balance due) plus totals.
+- **TAX INFORMATION**: Captured in `tax_information` JSON object. Rendered within ORDER INFORMATION in output, NOT as a standalone section. Do NOT repeat assessment figures already in ORDER INFORMATION. Use tax-ticket figures over assessor card when they conflict.
+- **NO IN/OUT SALE FIELD**: Chain of Title entries do not include an IN/OUT SALE field.
+- **CONSIDERATION**: Must come from the operative consideration clause in the deed itself, not from a cover sheet, index, tax stamp, or assessor record.
+- **LIFE ESTATES**: List only actual grantee(s) in GRANTEE(S) field. Explain the life estate in NOTES. Do NOT add "RESERVES LIFE ESTATE" or "REMAINDERMENT" to grantee line.
+- **OUTSALES**: When an outsale deed is included in the PDF, index it as a complete copy-and-paste block in MISCELLANEOUS DOCUMENTS. Shorthand references only when the underlying deed is not included.
+- **DECEASED PERSONS**: When a deed states a person is deceased with no estate reference, add note: "NO WILL OR LIST OF HEIRS FOR [NAME]".
 - **SUPPORTING DOCUMENTS**: Chain of Title entries support a `supporting_documents` sub-array for *-prefixed entries (WILL, LOH, REA, PROBATE) with decedent, heirs, devisees/beneficiaries fields.
+- **MATURITY**: Report the final payment date from full mortgage review. If none found: "MATURITY: NOT SHOWN".
+- **PLATS & SURVEYS**: Every plat and survey page must be reviewed and indexed separately in MISCELLANEOUS DOCUMENTS.
 - **MORTGAGES/JUDGMENTS**: When empty, show "NONE — NO [DOCUMENT TYPE] WAS INCLUDED OR CLEARLY IDENTIFIED" as the status. Include the last release/satisfaction information in the status when no open mortgage exists.
 - **MISCELLANEOUS DOCUMENTS**: Supports two sub-types — estate-type (WILL, LOH, REA, PROBATE with decedent/heirs) and document-type (PLAT, EASEMENT, RESTRICTIONS with grantor/assignor fields).
-- **NAMES SEARCHED**: Single comma-separated line with all names, plus "Performed by: Patrick Hazelwood".
+- **MULTI-PARCEL ORDERS**: One combined report unless separate requested. Each parcel's order info, taxes, chain, and legal description kept separate. Shared documents indexed once as "BOTH PARCELS". Chain numbering continues consecutively.
+- **NAMES SEARCHED**: Restricted to direct subject chain + title-relevant heirs. Excludes persons appearing only in mortgages, judgments, liens, misc docs, or outsales unless independently in the direct chain. Compact comma-separated format.
 - **ADDITIONAL INFORMATION**: References and PDF Document Accounting are combined in a single `additional_information` object with `references[]` and `document_accounting[]` arrays.
 
 ### Schema
@@ -379,5 +387,5 @@ V7 supports four output formats:
 
 ---
 
-*Last updated: 2026-07-23*
-*Version: 1.2*
+*Last updated: 2026-07-26*
+*Version: 1.3*
