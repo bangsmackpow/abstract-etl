@@ -11,3 +11,18 @@ backend/src/uploads/
 v4/
 .eslintcache
 .antigravitycli/
+
+# Real data samples — never commit
+docs/samples/
+docs/samples_05102026/
+docs/04242026/
+docs/05152026/
+docs/v2_report/
+docs/v7/*.pdf
+docs/v7/*.docx
+
+# Keep these tracked: docs/prompts/ docs/schemas/ docs/revisions/ docs/logo/ docs/rules.md docs/v5_rules.md docs/v6_rules.md docs/v7/blank.docx
+
+# Uncategorized — check for real data before tracking
+docs/IMG_0836.png
+docs/UPDATED NEW RULES FOR AI - DATA EXTRACTION AND REPORTING.docx
