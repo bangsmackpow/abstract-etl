@@ -16,8 +16,8 @@ COPY backend/src/ ./src/
 COPY backend/drizzle/ ./drizzle/
 COPY docs/ ./docs/
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-RUN mkdir -p /app/src/uploads /app/docs /app/data && chown -R appuser:appgroup /app/src/uploads /app/docs /app/data
+RUN addgroup -S -g 10001 appgroup && adduser -S -u 10001 -G appgroup appuser
+RUN mkdir -p /app/src/uploads /app/docs /app/data /app/backups && chown -R appuser:appgroup /app/src/uploads /app/docs /app/data /app/backups
 USER appuser
 
 EXPOSE 3001
