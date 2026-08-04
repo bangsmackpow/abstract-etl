@@ -4,9 +4,10 @@ require('express-async-errors');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
+const { logger, requestIdFromHeaders } = require('./services/logger');
 
 const jobRoutes = require('./routes/jobs');
 const extractRoutes = require('./routes/extract');
@@ -36,7 +37,40 @@ app.use(
     credentials: true,
   })
 );
-app.use(morgan('dev'));
+// ── Request logging (structured JSON, health-check noise suppressed) ─────────
+app.use((req, res, next) => {
+  // Accept request id from nginx (X-Request-Id), else generate one per request
+  const requestId = requestIdFromHeaders(req.headers) || crypto.randomUUID();
+  req.id = requestId;
+  res.setHeader('x-request-id', requestId);
+
+  const start = process.hrtime.bigint();
+
+  res.on('finish', () => {
+    const status = res.statusCode;
+    // Skip health checks and 404 scanner noise (e.g. favicon.ico, /etc/passwd probes)
+    const isHealth = req.path.startsWith('/api/health');
+    const isNoise = status === 404 && !req.path.startsWith('/api/');
+    if (isHealth || isNoise) return;
+
+    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+    logger.info(
+      {
+        method: req.method,
+        path: req.originalUrl,
+        status,
+        ms: Number(ms.toFixed(1)),
+        ip: req.ip,
+        user: req.user?.id || null,
+        requestId: req.id,
+      },
+      'request'
+    );
+  });
+
+  next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 

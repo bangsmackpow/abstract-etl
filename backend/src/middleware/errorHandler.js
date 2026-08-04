@@ -2,14 +2,25 @@
  * Global error handler — returns consistent JSON errors.
  * Catches both thrown errors and async rejections (express-async-errors).
  */
+const { logger } = require('../services/logger');
+
 function errorHandler(err, req, res, _next) {
-  console.error(
-    `[ERROR] ${req.method} ${req.path}:`,
-    err.message,
-    err.status,
-    JSON.stringify(err.data || {})
+  logger.error(
+    {
+      method: req.method,
+      path: req.originalUrl,
+      status: err.status || err.statusCode || 500,
+      requestId: req.id || req.headers['x-request-id'] || null,
+      user: req.user?.id || null,
+      err: {
+        name: err.name,
+        message: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+        data: err.data,
+      },
+    },
+    'unhandled error'
   );
-  if (process.env.NODE_ENV === 'development') console.error(err.stack);
 
   const status = err.status || err.statusCode || 500;
   const message = err.message || 'Internal server error';
