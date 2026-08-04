@@ -4,6 +4,8 @@ services:
     pull_policy: always
     container_name: abstract_backend
     restart: unless-stopped
+    labels:
+      logging: promtail
     ports:
       - '3003:3001'
     environment:
@@ -44,6 +46,8 @@ services:
     pull_policy: always
     container_name: abstract_frontend
     restart: unless-stopped
+    labels:
+      logging: promtail
     ports:
       - '5173:8080'
     depends_on:

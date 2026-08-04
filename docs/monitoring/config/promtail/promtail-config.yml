@@ -1,0 +1,59 @@
+# Promtail config — scrapes Docker container stdout/stderr via the Docker socket
+# and ships to Loki. DROP-IN REPLACEMENT for the promtail config on your server
+# (matches your existing setup: scrapes all containers, adds service label +
+# pipeline stages that your current config is missing).
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        regex: '(.+)'
+        target_label: 'service'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'stream'
+
+    # ── Backend: pino JSON lines → parse into structured labels ─────────────
+    pipeline_stages:
+      - match:
+          selector: '{service="backend"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+                  method: method
+                  path: path
+                  status: status
+                  request_id: requestId
+                  ms: ms
+                  msg: msg
+            - labels:
+                level:
+                method:
+                status:
+                request_id:
+
+      # ── Frontend: nginx access log → extract status + request_id ──────────
+      - match:
+          selector: '{service="frontend"}'
+          stages:
+            - regex:
+                expression: '^(?P<remote>\S+) - (?P<request_id>\S+) \[[^\]]+\] "(?P<method>\S+)(?: (?P<path>[^"]*))?" (?P<status>\d{3})'
+            - labels:
+                method:
+                status:
+                request_id:
