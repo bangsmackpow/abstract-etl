@@ -9,7 +9,6 @@ export default function NewJob() {
   const [stage, setStage] = useState('upload'); // upload | processing | done
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
-  const [version, setVersion] = useState('v1'); // v1 | v4 | v5 | v6 | v7
 
   const handleFile = (f) => {
     if (f?.type !== 'application/pdf') {
@@ -32,31 +31,19 @@ export default function NewJob() {
     setError('');
     try {
       // 1. Upload PDF + run AI extraction
-      const { fields, aiFlags, processingTimeMs } = await extractPDF(
-        file,
-        (evt) => {
-          setProgress(Math.round((evt.loaded / evt.total) * 40)); // upload = 0-40%
-        },
-        version
-      );
+      const { fields, aiFlags, processingTimeMs } = await extractPDF(file, (evt) => {
+        setProgress(Math.round((evt.loaded / evt.total) * 40)); // upload = 0-40%
+      });
       setProgress(90);
 
       // 2. Create job record with extracted data
-      const isV4 = version === 'v4';
-      const isV5 = version === 'v5';
       const job = await createJob({
-        property_address: isV4
-          ? fields.order_info?.property_address || ''
-          : fields.order_info?.property_address || '',
-        borrower_names: isV4
-          ? fields.order_info?.current_owner
-          : isV5
-            ? fields.order_info?.current_vesting_owner || ''
-            : fields.order_info?.current_vesting_owner || '',
+        property_address: fields.order_info?.property_address || '',
+        borrower_names: fields.order_info?.borrower_owner || '',
         county: fields.order_info?.county || '',
         fields_json: fields,
         ai_flags_json: aiFlags,
-        template_version: version,
+        template_version: 'v7',
         processing_time_ms: processingTimeMs,
       });
       setProgress(100);
@@ -91,45 +78,8 @@ export default function NewJob() {
             <>
               <div className="mb-4">
                 <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>
-                  Select Extraction Standard:
+                  Extraction Standard: <strong>V7 (Enhanced Report)</strong>
                 </label>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button
-                    className={`btn ${version === 'v1' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v1')}
-                    style={{ flex: 1 }}
-                  >
-                    V1 (Legacy)
-                  </button>
-                  <button
-                    className={`btn ${version === 'v4' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v4')}
-                    style={{ flex: 1 }}
-                  >
-                    V4 (Hazelwood)
-                  </button>
-                  <button
-                    className={`btn ${version === 'v5' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v5')}
-                    style={{ flex: 1 }}
-                  >
-                    V5 (Standard)
-                  </button>
-                  <button
-                    className={`btn ${version === 'v6' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v6')}
-                    style={{ flex: 1 }}
-                  >
-                    V6 (Enhanced)
-                  </button>
-                  <button
-                    className={`btn ${version === 'v7' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v7')}
-                    style={{ flex: 1 }}
-                  >
-                    V7 (Enhanced Report)
-                  </button>
-                </div>
               </div>
 
               <div

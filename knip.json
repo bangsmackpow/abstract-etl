@@ -10,10 +10,6 @@
   "ignore": ["**/uploads/**", "**/data/**"],
   "ignoreDependencies": [
     "husky",
-    "sharp",
-    "pdf2pic",
-    "pocketbase",
-    "mammoth",
     "@google/generative-ai"
   ]
 }

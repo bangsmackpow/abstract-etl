@@ -4,17 +4,16 @@ const { db } = require('../db');
 const { jobs } = require('../db/schema');
 const { eq } = require('drizzle-orm');
 const { requireAuth } = require('../middleware/requireAuth');
-const { generateDocx, generateV7TextDocx, generateV7TableDocx } = require('../services/docxGenerator');
-const { generateMarkdown } = require('../services/markdownGenerator');
-const { generateV4Report } = require('../services/pdfGenerator');
-const { generateV5Report, generateV6Report, generateV7Report } = require('../services/v5PdfGenerator');
+const { generateV7TextDocx, generateV7TableDocx } = require('../services/v7DocxGenerator');
+const { generateV7Markdown } = require('../services/v7MarkdownGenerator');
+const { generateV7Report } = require('../services/v7PdfGenerator');
 const { createError } = require('../middleware/errorHandler');
 
 router.use(requireAuth);
 
 /**
  * GET /api/generate/:jobId/pdf
- * Generates and downloads a .pdf for a v2, v4, or v5 job.
+ * Generates and downloads the v7 PDF report.
  */
 router.get('/:jobId/pdf', async (req, res, next) => {
     const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
@@ -23,57 +22,15 @@ router.get('/:jobId/pdf', async (req, res, next) => {
     if (req.user.role !== 'admin' && job.createdBy !== req.user.id) return next(createError('Not found', 404));
 
     const tempPath = `/tmp/report-${job.id}.pdf`;
-    
-    if (job.templateVersion === 'v7') {
-        await generateV7Report(job, tempPath);
-    } else if (job.templateVersion === 'v6') {
-        await generateV6Report(job, tempPath);
-    } else if (job.templateVersion === 'v5') {
-        await generateV5Report(job, tempPath);
-    } else {
-        await generateV4Report(job, tempPath);
-    }
-    
+
+    await generateV7Report(job, tempPath);
+
     res.download(tempPath, `report_${job.id}.pdf`, (_err) => {
         // Cleanup temp file
         if (require('fs').existsSync(tempPath)) {
             require('fs').unlinkSync(tempPath);
         }
     });
-});
-
-/**
- * GET /api/generate/:jobId
- * Generates and downloads a .docx for the given job.
- */
-router.get('/:jobId', async (req, res) => {
-  const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
-
-  if (!job) {
-    throw createError('Not found', 404);
-  }
-
-  if (req.user.role !== 'admin' && job.createdBy !== req.user.id) {
-    throw createError('Not found', 404);
-  }
-
-  const fields = job.fieldsJson || {};
-  const buffer = await generateDocx(fields, job.templateVersion);
-
-  // Sanitize address for filename
-  const addr = (job.propertyAddress || 'abstract')
-    .replace(/[^a-zA-Z0-9 ]/g, '')
-    .replace(/\s+/g, '_')
-    .toLowerCase()
-    .substring(0, 60);
-  const filename = `abstract_${addr}.docx`;
-
-  res.setHeader(
-    'Content-Type',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  );
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(buffer);
 });
 
 /**
@@ -126,7 +83,7 @@ router.get('/:jobId/markdown', async (req, res) => {
   }
 
   const fields = job.fieldsJson || {};
-  const mdContent = generateMarkdown(fields, job.templateVersion);
+  const mdContent = generateV7Markdown(fields);
 
   const addr = (job.propertyAddress || 'abstract')
     .replace(/[^a-zA-Z0-9 ]/g, '')

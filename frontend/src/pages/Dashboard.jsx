@@ -99,7 +99,6 @@ export default function Dashboard() {
                 <th>Property Address</th>
                 <th>Borrower(s)</th>
                 <th>County</th>
-                <th>Standard</th>
                 <th>Status</th>
                 <th>Created</th>
                 <th style={{ width: 120 }}>Actions</th>
@@ -115,13 +114,6 @@ export default function Dashboard() {
                   <td style={{ fontWeight: 500 }}>{job.propertyAddress || '—'}</td>
                   <td>{job.borrowerNames || '—'}</td>
                   <td>{job.county || '—'}</td>
-                  <td>
-                    <span
-                      className={`status-badge status-${job.templateVersion === 'v6' ? 'v6' : job.templateVersion === 'v5' ? 'v5' : job.templateVersion === 'v4' ? 'v4' : 'v1'}`}
-                    >
-                      {job.templateVersion || 'v1'}
-                    </span>
-                  </td>
                   <td>
                     <span className={`status-badge status-${job.status}`}>
                       {STATUS_LABELS[job.status] || job.status}

@@ -21,7 +21,7 @@ docs/v2_report/
 docs/v7/*.pdf
 docs/v7/*.docx
 
-# Keep these tracked: docs/prompts/ docs/schemas/ docs/revisions/ docs/logo/ docs/rules.md docs/v5_rules.md docs/v6_rules.md docs/v7/blank.docx
+# Keep these tracked: docs/prompts/v7-prompt.md docs/schemas/v7-schema.json docs/rules.md docs/v7/blank.docx docs/sample_output/
 
 # Uncategorized — check for real data before tracking
 docs/IMG_0836.png

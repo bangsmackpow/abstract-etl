@@ -45,10 +45,9 @@ export const changePassword = (id, password) =>
 export const deleteUser = (id) => api.delete(`/admin/users/${id}`).then((r) => r.data);
 
 // ── Extract ───────────────────────────────────────────────────────────────────
-export const extractPDF = (file, onUploadProgress, version = 'v1') => {
+export const extractPDF = (file, onUploadProgress) => {
   const form = new FormData();
   form.append('pdf', file);
-  form.append('version', version);
   return api
     .post('/extract', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -57,10 +56,9 @@ export const extractPDF = (file, onUploadProgress, version = 'v1') => {
     .then((r) => r.data);
 };
 
-export const extractBulkPDFs = (files, version = 'v2', onUploadProgress) => {
+export const extractBulkPDFs = (files, onUploadProgress) => {
   const form = new FormData();
   files.forEach((f) => form.append('pdfs', f));
-  form.append('version', version);
   return api
     .post('/extract/bulk', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -70,22 +68,6 @@ export const extractBulkPDFs = (files, version = 'v2', onUploadProgress) => {
 };
 
 // ── Generate ──────────────────────────────────────────────────────────────────
-export const downloadDocx = async (jobId, propertyAddress) => {
-  const response = await api.get(`/generate/${jobId}`, { responseType: 'blob' });
-  const url = URL.createObjectURL(response.data);
-  const a = document.createElement('a');
-  a.href = url;
-  const addr = (propertyAddress || 'abstract')
-    .replace(/[^a-zA-Z0-9 ]/g, '')
-    .replace(/\s+/g, '_')
-    .toLowerCase();
-  a.download = `abstract_${addr}.docx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-};
-
 export const downloadDocxText = async (jobId, propertyAddress) => {
   const response = await api.get(`/generate/${jobId}/docx-text`, { responseType: 'blob' });
   const url = URL.createObjectURL(response.data);

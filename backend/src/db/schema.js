@@ -30,7 +30,7 @@ const jobs = sqliteTable(
     orderDate: text('order_date'),
     fieldsJson: text('fields_json', { mode: 'json' }),
     aiFlagsJson: text('ai_flags_json', { mode: 'json' }),
-    templateVersion: text('template_version').default('v1'),
+    templateVersion: text('template_version').default('v7'),
     emailSent: integer('email_sent', { mode: 'boolean' }).default(false),
     notes: text('notes'),
 

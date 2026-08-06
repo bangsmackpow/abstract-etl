@@ -121,7 +121,7 @@ router.post('/', async (req, res) => {
       orderDate: order_date || null,
       fieldsJson: fields_json || {},
       aiFlagsJson: ai_flags_json || {},
-      templateVersion: template_version || 'v1',
+      templateVersion: template_version || 'v7',
       emailSent: false,
       notes: '',
       processingTimeMs: processing_time_ms || null,

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getJob, updateJob, downloadDocx, downloadMarkdown, deleteJob, downloadPdf, downloadDocxText, downloadDocxTable } from '../services/api';
-import AbstractForm from '../components/AbstractForm';
+import { getJob, updateJob, downloadMarkdown, deleteJob, downloadPdf, downloadDocxText, downloadDocxTable } from '../services/api';
+import V7Form from '../components/V7Form';
 import { useAuth } from '../hooks/useAuth';
 
 export default function EditJob() {
@@ -14,7 +14,6 @@ export default function EditJob() {
   const [status, setStatus] = useState('draft');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-  const [downloadingDocx, setDownloadingDocx] = useState(false);
   const [downloadingDocxText, setDownloadingDocxText] = useState(false);
   const [downloadingDocxTable, setDownloadingDocxTable] = useState(false);
   const [downloadingMd, setDownloadingMd] = useState(false);
@@ -37,8 +36,6 @@ export default function EditJob() {
   const handleFieldChange = (path, value) => {
     setFields((prev) => {
       const newFields = { ...prev };
-      // This is a simplified setter. A real implementation would use a library
-      // like 'immer' or a more robust nested property setter.
       const parts = path.split('.');
       let current = newFields;
       for (let i = 0; i < parts.length - 1; i++) {
@@ -58,21 +55,13 @@ export default function EditJob() {
     setError('');
     setSaved(false);
     try {
-      const tv = job?.templateVersion;
-      const isV4 = tv === 'v4';
-      const addr = isV4
-        ? fields.order_info?.property_address
-        : fields.order_info?.property_address;
-      const cnty = isV4
-        ? fields.order_info?.county
-        : fields.order_info?.county;
       await updateJob(id, {
         fields_json: fields,
         ai_flags_json: aiFlags,
         status,
         notes,
-        property_address: addr,
-        county: cnty,
+        property_address: fields.order_info?.property_address,
+        county: fields.order_info?.county,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -80,18 +69,6 @@ export default function EditJob() {
       setError('Save failed. Please try again.');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDownloadDocx = async () => {
-    setDownloadingDocx(true);
-    try {
-      await handleSave(); // Save latest changes before downloading
-      await downloadDocx(id, fields.order_info?.property_address || job.propertyAddress);
-    } catch {
-      setError('Word download failed.');
-    } finally {
-      setDownloadingDocx(false);
     }
   };
 
@@ -125,11 +102,7 @@ export default function EditJob() {
     setDownloadingMd(true);
     try {
       await handleSave();
-      const tv = job?.templateVersion;
-      const isV4 = tv === 'v4';
-      const addr = isV4
-        ? fields.order_info?.property_address
-        : fields.order_info?.property_address || job.propertyAddress;
+      const addr = fields.order_info?.property_address || job.propertyAddress;
       await downloadMarkdown(id, addr);
     } catch {
       setError('Markdown download failed.');
@@ -142,7 +115,7 @@ export default function EditJob() {
     setDownloadingPdf(true);
     try {
         await handleSave(); // Save latest changes before downloading
-        await downloadPdf(id, fields.property_info?.address || job.propertyAddress);
+        await downloadPdf(id, fields.order_info?.property_address || job.propertyAddress);
     } catch (err) {
         setError(err.response?.data?.message || 'PDF download failed.');
     } finally {
@@ -168,11 +141,7 @@ export default function EditJob() {
       </div>
     );
 
-  const tv = job?.templateVersion;
-  const isV4 = tv === 'v4';
-  const headerAddress = isV4
-    ? fields.order_info?.property_address || job?.propertyAddress
-    : fields.order_info?.property_address || job?.propertyAddress;
+  const headerAddress = fields.order_info?.property_address || job?.propertyAddress;
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -211,48 +180,33 @@ export default function EditJob() {
       </div>
 
       <div className="flex gap-3 mb-6">
-        <>
-          <button className="btn btn-success" onClick={handleDownloadPdf} disabled={downloadingPdf}>
-            {downloadingPdf ? 'Generating...' : '⬇ Download PDF Report'}
-          </button>
-          {tv === 'v7' ? (
-            <>
-              <button
-                className="btn btn-ghost"
-                onClick={handleDownloadDocxText}
-                disabled={downloadingDocxText}
-                style={{ border: '1px solid #ddd' }}
-              >
-                {downloadingDocxText ? 'Generating...' : '⬇ Download Word (Text)'}
-              </button>
-              <button
-                className="btn btn-ghost"
-                onClick={handleDownloadDocxTable}
-                disabled={downloadingDocxTable}
-                style={{ border: '1px solid #ddd' }}
-              >
-                {downloadingDocxTable ? 'Generating...' : '⬇ Download Word (Table)'}
-              </button>
-            </>
-          ) : (
-            <button
-              className="btn btn-ghost"
-              onClick={handleDownloadDocx}
-              disabled={downloadingDocx}
-              style={{ border: '1px solid #ddd' }}
-            >
-              {downloadingDocx ? 'Generating...' : '⬇ Download Word (.docx)'}
-            </button>
-          )}
-          <button
-            className="btn btn-ghost"
-            onClick={handleDownloadMd}
-            disabled={downloadingMd}
-            style={{ border: '1px solid #ddd' }}
-          >
-            {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
-          </button>
-        </>
+        <button className="btn btn-success" onClick={handleDownloadPdf} disabled={downloadingPdf}>
+          {downloadingPdf ? 'Generating...' : '⬇ Download PDF Report'}
+        </button>
+        <button
+          className="btn btn-ghost"
+          onClick={handleDownloadDocxText}
+          disabled={downloadingDocxText}
+          style={{ border: '1px solid #ddd' }}
+        >
+          {downloadingDocxText ? 'Generating...' : '⬇ Download Word (Text)'}
+        </button>
+        <button
+          className="btn btn-ghost"
+          onClick={handleDownloadDocxTable}
+          disabled={downloadingDocxTable}
+          style={{ border: '1px solid #ddd' }}
+        >
+          {downloadingDocxTable ? 'Generating...' : '⬇ Download Word (Table)'}
+        </button>
+        <button
+          className="btn btn-ghost"
+          onClick={handleDownloadMd}
+          disabled={downloadingMd}
+          style={{ border: '1px solid #ddd' }}
+        >
+          {downloadingMd ? 'Generating...' : '⬇ Download Markdown (.md)'}
+        </button>
       </div>
 
       <div className="alert alert-info text-sm mb-6">
@@ -261,12 +215,12 @@ export default function EditJob() {
       </div>
       <div className="card mb-6">
         <div className="card-body">
-          <AbstractForm
+          <V7Form
             fields={fields}
             aiFlags={aiFlags}
             onFieldChange={handleFieldChange}
             onFlagChange={handleFlagChange}
-            templateVersion={job?.templateVersion}
+            templateVersion="v7"
           />
         </div>
       </div>
@@ -306,4 +260,3 @@ export default function EditJob() {
     </div>
   );
 }
-

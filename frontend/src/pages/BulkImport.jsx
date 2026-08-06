@@ -9,7 +9,6 @@ export default function BulkImport() {
   const [stage, setStage] = useState('upload');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
-  const [version, setVersion] = useState('v4');
   const [results, setResults] = useState(null);
 
   const addFiles = (newFiles) => {
@@ -38,7 +37,7 @@ export default function BulkImport() {
     setError('');
 
     try {
-      const result = await extractBulkPDFs(files, version);
+      const result = await extractBulkPDFs(files);
       setResults(result);
       setProgress(100);
       setStage('done');
@@ -69,31 +68,8 @@ export default function BulkImport() {
             <>
               <div className="mb-4">
                 <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>
-                  Extraction Standard:
+                  Extraction Standard: <strong>V7 (Enhanced Report)</strong>
                 </label>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button
-                    className={`btn ${version === 'v1' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v1')}
-                    style={{ flex: 1 }}
-                  >
-                    V1 (Legacy)
-                  </button>
-                  <button
-                    className={`btn ${version === 'v4' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v4')}
-                    style={{ flex: 1 }}
-                  >
-                    V4 (Hazelwood)
-                  </button>
-                  <button
-                    className={`btn ${version === 'v5' ? 'btn-primary' : 'btn-outline'}`}
-                    onClick={() => setVersion('v5')}
-                    style={{ flex: 1 }}
-                  >
-                    V5 (Standard)
-                  </button>
-                </div>
               </div>
 
               <div

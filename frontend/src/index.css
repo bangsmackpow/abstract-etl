@@ -260,26 +260,6 @@ a:hover {
   background: #eafaf1;
   color: #1e8449;
 }
-.status-v1 {
-  background: #f0f0f0;
-  color: #555;
-}
-.status-v2 {
-  background: #ebf5fb;
-  color: #2980b9;
-}
-.status-v4 {
-  background: #f5f0ff;
-  color: #6c3fc0;
-}
-.status-v5 {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-.status-v6 {
-  background: #fff3e0;
-  color: #e65100;
-}
 
 /* Tables */
 .data-table {
