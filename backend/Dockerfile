@@ -11,7 +11,8 @@ COPY backend/package*.json ./
 RUN apk add --no-cache --virtual .build-deps make gcc g++ python3 \
     && npm install --omit=dev \
     && apk del .build-deps \
-    && npm cache clean --force
+    && npm cache clean --force \
+    && npm install -g npm@12.0.2
 
 COPY backend/src/ ./src/
 COPY backend/drizzle/ ./drizzle/
