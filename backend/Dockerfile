@@ -1,6 +1,7 @@
-FROM node:20-alpine
+FROM node:24-alpine
 
-RUN apk add --no-cache poppler-utils ghostscript graphicsmagick su-exec
+RUN apk add --no-cache poppler-utils ghostscript graphicsmagick su-exec \
+    && apk upgrade --no-cache
 
 WORKDIR /app
 
@@ -8,7 +9,7 @@ ENV DOCS_DIR=/app/docs
 
 COPY backend/package*.json ./
 RUN apk add --no-cache --virtual .build-deps make gcc g++ python3 \
-    && npm install \
+    && npm install --omit=dev \
     && apk del .build-deps \
     && npm cache clean --force
 
