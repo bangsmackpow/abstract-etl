@@ -26,5 +26,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 3001
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["node", "src/index.js"]
+# Entrypoint runs as root only to self-heal mounted volume ownership, then
+# drops to appuser via su-exec. Intentional pattern (see docker-entrypoint.sh).
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"] # nosemgrep: dockerfile.security.missing-user-entrypoint.missing-user-entrypoint
+CMD ["node", "src/index.js"] # nosemgrep: dockerfile.security.missing-user.missing-user
