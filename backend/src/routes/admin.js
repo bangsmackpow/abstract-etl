@@ -146,6 +146,8 @@ const SETTING_KEYS = [
   'backup_enabled', 'backup_interval_minutes', 'backup_retention_days',
 ];
 
+const POSITIVE_INT_KEYS = new Set(['backup_interval_minutes', 'backup_retention_days']);
+
 router.get('/settings', async (req, res) => {
   const rows = await db.select().from(settings);
   const map = {};
@@ -162,6 +164,12 @@ router.patch('/settings', async (req, res) => {
     if (value === null || value === '') {
       await db.delete(settings).where(eq(settings.key, key));
     } else {
+      if (POSITIVE_INT_KEYS.has(key)) {
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < 1) {
+          throw createError(`Setting "${key}" must be a positive integer`, 400);
+        }
+      }
       await db.delete(settings).where(eq(settings.key, key));
       await db.insert(settings).values({ key, value: String(value) });
     }

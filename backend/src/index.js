@@ -178,6 +178,11 @@ async function ensureSystemTables() {
     }
   }
 
+  const setSetting = sqlite.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
+  setSetting.run('backup_enabled', 'true');
+  setSetting.run('backup_interval_minutes', '60');
+  setSetting.run('backup_retention_days', '30');
+
   // ── Verify schema matches expectations ─────────────────────────────────
   const backupCols = sqlite.prepare('PRAGMA table_info(\'backups\')').all();
   const expectedBackupCols = ['id', 'filename', 'size_bytes', 'status', 'error_message', 'notes', 'created_at'];

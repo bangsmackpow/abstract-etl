@@ -8,6 +8,7 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 backend/src/uploads/
+backend/backups/
 v4/
 .eslintcache
 .antigravitycli/

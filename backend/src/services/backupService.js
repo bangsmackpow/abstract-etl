@@ -3,7 +3,7 @@ const path = require('path');
 const Database = require('better-sqlite3');
 const { db, sqlite } = require('../db');
 const { backups, settings } = require('../db/schema');
-const { eq, desc } = require('drizzle-orm');
+const { eq, desc, lt } = require('drizzle-orm');
 const { sendBackupNotification } = require('./emailService');
 
 const BACKUP_DIR = path.resolve(__dirname, '../../backups');
@@ -14,13 +14,13 @@ function ensureBackupDir() {
 
 async function manualBackup(notes) {
   ensureBackupDir();
-  const dbPath = process.env.DB_PATH || path.resolve(__dirname, '../../data/sqlite.db');
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `abstract-backup-${timestamp}.db`;
   const dest = path.join(BACKUP_DIR, filename);
 
   try {
-    fs.copyFileSync(dbPath, dest);
+    const result = sqlite.backup(dest);
+    if (result && typeof result.then === 'function') await result;
     const stats = fs.statSync(dest);
     const [record] = await db
       .insert(backups)
@@ -82,17 +82,17 @@ async function getBackupPath(id) {
 }
 
 async function cleanupOldBackups() {
-  const retentionDays = parseInt(await getSetting('backup_retention_days') || '30', 10);
-  const cutoff = Math.floor(Date.now() / 1000) - retentionDays * 86400;
+  const retentionDays = parsePositiveInt(await getSetting('backup_retention_days'), 30);
+  const cutoff = new Date(Date.now() - retentionDays * 86400 * 1000);
   const oldRecords = await db
     .select()
     .from(backups)
-    .where(backups.createdAt < cutoff);
+    .where(lt(backups.createdAt, cutoff));
   for (const r of oldRecords) {
     const filePath = path.join(BACKUP_DIR, r.filename);
     try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch { /* ignore */ }
   }
-  await db.delete(backups).where(backups.createdAt < cutoff);
+  await db.delete(backups).where(lt(backups.createdAt, cutoff));
 }
 
 async function getSetting(key) {
@@ -100,28 +100,47 @@ async function getSetting(key) {
   return row ? row.value : null;
 }
 
+function parsePositiveInt(value, fallback) {
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+let backupRunning = false;
+
 async function scheduledBackup() {
+  if (backupRunning) {
+    console.warn('[Backup] Skipped — a previous backup is still in progress');
+    return;
+  }
+  backupRunning = true;
   try {
     await manualBackup('auto');
-    console.log(`[Backup] Auto-backup completed at ${new Date().toISOString()}`);
+    console.info(`[Backup] Auto-backup completed at ${new Date().toISOString()}`);
   } catch (err) {
     console.error('[Backup] Auto-backup failed:', err.message);
+  } finally {
+    backupRunning = false;
   }
 }
 
 let backupInterval = null;
 
 function startBackupScheduler() {
-  if (backupInterval) clearInterval(backupInterval);
+  stopBackupScheduler();
   checkInterval();
 }
 
 async function checkInterval() {
-  const enabled = await getSetting('backup_enabled');
-  if (enabled !== 'true') return;
-  const minutes = parseInt(await getSetting('backup_interval_minutes') || '60', 10);
+  const enabled = (await getSetting('backup_enabled')) ?? 'true';
+  if (enabled !== 'true') {
+    console.info('[Backup] Scheduler NOT started — auto-backup is disabled (settings backup_enabled != "true")');
+    return;
+  }
+  const minutes = parsePositiveInt(await getSetting('backup_interval_minutes'), 60);
+  if (backupInterval) clearInterval(backupInterval);
   backupInterval = setInterval(scheduledBackup, minutes * 60 * 1000);
-  console.log(`[Backup] Scheduler started — every ${minutes} minute(s)`);
+  console.info(`[Backup] Scheduler started — every ${minutes} minute(s); running initial backup now`);
+  scheduledBackup();
 }
 
 function stopBackupScheduler() {
