@@ -1,9 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getJobs, deleteJob } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
 const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 'Complete' };
+
+const REFRESH_INTERVALS = { 60: 60000, 30: 30000, 5: 5000, off: null };
+const REFRESH_STORAGE_KEY = 'printQueueRefreshInterval';
+
+const getInitialRefreshInterval = () => {
+  try {
+    const stored = localStorage.getItem(REFRESH_STORAGE_KEY);
+    if (stored && stored in REFRESH_INTERVALS) return stored;
+  } catch {
+    return '60';
+  }
+  return '60';
+};
 
 export default function Dashboard() {
   const { isAdmin } = useAuth();
@@ -12,20 +25,27 @@ export default function Dashboard() {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [refreshInterval, setRefreshInterval] = useState(getInitialRefreshInterval);
+  const [countdown, setCountdown] = useState(() => (REFRESH_INTERVALS[getInitialRefreshInterval()] || 0) / 1000);
   const navigate = useNavigate();
 
-  const fetchJobs = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await getJobs({ search: search || undefined, status: status || undefined });
-      setJobs(data.items || []);
-    } catch (err) {
-      setError('Failed to load jobs.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchJobs = useCallback(
+    async ({ silent = false } = {}) => {
+      if (!silent) {
+        setLoading(true);
+        setError('');
+      }
+      try {
+        const data = await getJobs({ search: search || undefined, status: status || undefined });
+        setJobs(data.items || []);
+      } catch (err) {
+        if (!silent) setError('Failed to load jobs.');
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [search, status]
+  );
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
@@ -41,7 +61,34 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchJobs();
-  }, [search, status]);
+  }, [fetchJobs]);
+
+  useEffect(() => {
+    localStorage.setItem(REFRESH_STORAGE_KEY, refreshInterval);
+  }, [refreshInterval]);
+
+  useEffect(() => {
+    const ms = REFRESH_INTERVALS[refreshInterval];
+    if (!ms) {
+      setCountdown(0);
+      return undefined;
+    }
+    setCountdown(ms / 1000);
+    const tick = setInterval(() => {
+      setCountdown((c) => (c > 0 ? c - 1 : 0));
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [refreshInterval, fetchJobs]);
+
+  useEffect(() => {
+    const ms = REFRESH_INTERVALS[refreshInterval];
+    if (!ms) return undefined;
+    const id = setInterval(() => {
+      fetchJobs({ silent: true });
+      setCountdown(ms / 1000);
+    }, ms);
+    return () => clearInterval(id);
+  }, [refreshInterval, fetchJobs]);
 
   return (
     <div>
@@ -54,10 +101,13 @@ export default function Dashboard() {
 
       {/* Filters */}
       <div className="card mb-4">
-        <div className="card-body" style={{ display: 'flex', gap: 12 }}>
+        <div
+          className="card-body"
+          style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}
+        >
           <input
             className="form-input"
-            style={{ flex: 1 }}
+            style={{ flex: 1, minWidth: 220 }}
             placeholder="Search by address, borrower, or county..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -73,6 +123,33 @@ export default function Dashboard() {
             <option value="needs_review">Needs Review</option>
             <option value="complete">Complete</option>
           </select>
+          <div className="flex" style={{ gap: 8, marginLeft: 'auto', alignItems: 'center' }}>
+            <select
+              className="form-select"
+              style={{ width: 165 }}
+              value={refreshInterval}
+              onChange={(e) => setRefreshInterval(e.target.value)}
+              title="Auto-refresh the job list"
+            >
+              <option value="60">Auto-refresh: 60s</option>
+              <option value="30">Auto-refresh: 30s</option>
+              <option value="5">Auto-refresh: 5s</option>
+              <option value="off">Auto-refresh: Off</option>
+            </select>
+            {refreshInterval !== 'off' && (
+              <span style={{ fontSize: 13, color: 'var(--gray-mid)', whiteSpace: 'nowrap' }}>
+                Refresh in {countdown}s
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => fetchJobs({ silent: true })}
+              title="Refresh now"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
