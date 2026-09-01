@@ -1,11 +1,15 @@
-// V7 (Enhanced Report) Markdown Generator
-// Renders the v7 schema (docs/schemas/v7-schema.json) as Markdown.
+// V9 (REVISION 9 rules) Markdown Generator
+// Renders the v9 schema (docs/schemas/v9-schema.json) as Markdown per
+// docs/v9/v9_rules.md. ALL CAPS content (Legal Description preserves case),
+// packet-order chain with numbered deeds and starred supporting entries,
+// mandatory CONSIDERATION/RECORDED/MIN/MATURITY fields, verification notes.
 
 function generateV7Markdown(f) {
-  const val = (v) => (v !== null && v !== undefined && v !== '' ? String(v).toUpperCase() : '');
-  const dash = (v) => val(v) || '—';
+  const up = (v) => (v !== null && v !== undefined && v !== '' ? String(v).toUpperCase() : '');
+  const val = (v) => (v !== null && v !== undefined && v !== '' ? String(v) : '');
+  const dash = (v) => up(v) || '—';
 
-  let md = '# V7 PROPERTY ABSTRACT REPORT\n\n';
+  let md = '# V9 PROPERTY ABSTRACT REPORT\n\n';
 
   // ── ORDER INFORMATION ──
   const oi = f.order_info || {};
@@ -25,13 +29,18 @@ function generateV7Markdown(f) {
   md += `**LEGAL / ASSESSOR DESCRIPTION:** ${dash(oi.legal_assessor_description)}\n`;
   md += `**ACREAGE:** ${dash(oi.acreage)}\n`;
   md += `**ASSESSMENT:** ${dash(oi.assessment)}\n`;
-  md += `**ORDER / VERIFICATION NOTES:** ${dash(oi.order_verification_notes)}\n\n`;
+  if (val(oi.land_value)) md += `**LAND VALUE:** ${dash(oi.land_value)}\n`;
+  if (val(oi.improvement_value)) md += `**IMPROVEMENT VALUE:** ${dash(oi.improvement_value)}\n`;
+  if (val(oi.total_value)) md += `**TOTAL VALUE:** ${dash(oi.total_value)}\n`;
+  if (val(oi.order_verification_notes)) md += `**VERIFICATION NOTES:** ${dash(oi.order_verification_notes)}\n\n`;
+  else md += '\n';
 
   // ── TAX INFORMATION (rendered within ORDER INFORMATION) ──
   const ti = f.tax_information || {};
-  if (ti.year || ti.first_half || ti.second_half || ti.total_tax || ti.total_delinquent_amount) {
-    const taxYear = val(ti.year) || '—';
+  if (ti.year || ti.first_half || ti.second_half || ti.total_tax || ti.total_delinquent_amount || ti.status) {
+    const taxYear = up(ti.year) || '—';
     md += `**TAX INFORMATION (${taxYear})**\n\n`;
+    if (val(ti.status)) md += `**STATUS:** ${dash(ti.status)}\n`;
     const fh = ti.first_half || {};
     if (fh.due_date || fh.original_bill || fh.paid_date || fh.amount_paid || fh.penalty || fh.interest || fh.balance_due) {
       md += '**FIRST HALF**\n';
@@ -61,36 +70,72 @@ function generateV7Markdown(f) {
     md += '\n';
   }
 
-  // ── CHAIN OF TITLE ──
+  // ── CHAIN OF TITLE (packet order; only deeds numbered; supporting starred) ──
   md += '## CHAIN OF TITLE\n';
   const chain = f.chain_of_title || [];
   if (chain.length === 0) {
-    md += 'NO CHAIN ENTRIES FOUND.\n\n';
+    md += 'NONE — NO CHAIN INSTRUMENTS WERE PROVIDED OR CLEARLY IDENTIFIED.\n\n';
   } else {
-    chain.forEach((e, i) => {
-      md += `**(${i + 1}) ${dash(e.deed_type)}**\n`;
-      md += `**GRANTOR(S):** ${(e.grantors || []).map((g) => val(g)).join(', ') || '—'}\n`;
-      md += `**GRANTEE(S):** ${(e.grantees || []).map((g) => val(g)).join(', ') || '—'}\n`;
-      md += `**DATED:** ${dash(e.dated)}\n`;
-      md += `**RECORDED:** ${dash(e.recorded)}\n`;
-      md += `**BOOK / PAGE OR INSTRUMENT:** ${dash(e.book_page_instrument)}\n`;
-      md += `**CONSIDERATION:** ${dash(e.consideration)}\n`;
-      if (e.notes) md += `**NOTES:** ${val(e.notes)}\n`;
-      const sd = e.supporting_documents || [];
-      sd.forEach((s) => {
-        md += `* **${dash(s.document_type) || '* SUPPORTING DOCUMENT'}**\n`;
-        if (s.decedent) md += `  **DECEDENT:** ${val(s.decedent)}\n`;
-        if (s.date_of_death) md += `  **DATE OF DEATH:** ${val(s.date_of_death)}\n`;
-        if (s.will_date) md += `  **WILL DATE:** ${val(s.will_date)}\n`;
-        if (s.recorded) md += `  **RECORDED:** ${val(s.recorded)}\n`;
-        if (s.book_page_instrument) md += `  **BOOK / PAGE OR INSTRUMENT:** ${val(s.book_page_instrument)}\n`;
-        if ((s.heirs || []).length > 0) md += `  **HEIRS:** ${(s.heirs || []).map((h) => val(h)).join(', ')}\n`;
-        if ((s.devisees_beneficiaries || []).length > 0) md += `  **DEVISEES / BENEFICIARIES:** ${(s.devisees_beneficiaries || []).map((d) => val(d)).join(', ')}\n`;
-        if (s.notes) md += `  **NOTES:** ${val(s.notes)}\n`;
-      });
-      if (i < chain.length - 1) md += '\n';
+    let deedNo = 0;
+    chain.forEach((e) => {
+      const isSupporting = up(e.entry_type) === 'SUPPORTING';
+      if (isSupporting) {
+        const typeLabel = up(e.supporting_documents?.[0]?.document_type) || dash(e.deed_type) || dash(e.document_title) || 'SUPPORTING DOCUMENT';
+        const decedent = up(e.supporting_documents?.[0]?.decedent) || dash(e.deceased_person);
+        md += `* ${typeLabel}${decedent ? ` — ${decedent}` : ''}\n`;
+        const sd = e.supporting_documents && e.supporting_documents.length ? e.supporting_documents : (e.deed_type ? [e] : []);
+        sd.forEach((s) => {
+          if (val(s.decedent)) md += `  **DECEDENT:** ${dash(s.decedent)}\n`;
+          if (val(s.date_of_death)) md += `  **DATE OF DEATH:** ${dash(s.date_of_death)}\n`;
+          if (val(s.will_date)) md += `  **WILL DATE:** ${dash(s.will_date)}\n`;
+          if (val(s.recorded)) md += `  **RECORDED:** ${dash(s.recorded)}\n`;
+          if (val(s.book_page_instrument)) md += `  **BOOK / PAGE OR INSTRUMENT:** ${dash(s.book_page_instrument)}\n`;
+          if ((s.heirs || []).length > 0) md += `  **HEIRS:** ${(s.heirs || []).map((h) => up(h)).join(', ')}\n`;
+          if ((s.devisees_beneficiaries || []).length > 0) md += `  **DEVISEES / BENEFICIARIES:** ${(s.devisees_beneficiaries || []).map((d) => up(d)).join(', ')}\n`;
+          if (val(s.notes)) md += `  **NOTES:** ${dash(s.notes)}\n`;
+        });
+        if (val(e.recorded)) md += `**RECORDED:** ${dash(e.recorded)}\n`;
+        if (val(e.book_page_instrument)) md += `**BOOK / PAGE OR INSTRUMENT:** ${dash(e.book_page_instrument)}\n`;
+        if (val(e.notes)) md += `**NOTES:** ${dash(e.notes)}\n`;
+      } else {
+        deedNo += 1;
+        const title = dash(e.document_title) || dash(e.deed_type) || 'DEED';
+        md += `**(${deedNo}) ${title}**\n`;
+        md += `**GRANTOR(S):** ${(e.grantors || []).map((g) => up(g)).join(', ') || '—'}\n`;
+        md += `**GRANTEE(S):** ${(e.grantees || []).map((g) => up(g)).join(', ') || '—'}\n`;
+        md += `**DATED:** ${dash(e.dated)}\n`;
+        md += `**RECORDED / RECORDING DATE:** ${dash(e.recorded)}\n`;
+        if (val(e.recording_time)) md += `**RECORDING TIME:** ${dash(e.recording_time)}\n`;
+        md += `**BOOK / PAGE OR INSTRUMENT:** ${dash(e.book_page_instrument)}\n`;
+        md += `**CONSIDERATION:** ${dash(e.consideration)}\n`;
+        if (val(e.deceased_person)) {
+          md += `**DECEASED PERSON:** ${dash(e.deceased_person)}\n`;
+          if (val(e.deceased_note)) md += `**NOTE:** ${dash(e.deceased_note)}\n`;
+        }
+        if (val(e.third_party_party)) {
+          md += `**PARTY OF THE THIRD PART:** ${dash(e.third_party_party)}\n`;
+          if (val(e.third_party_reason)) md += `**PARTICIPATION REASON:** ${dash(e.third_party_reason)}\n`;
+        }
+        if (val(e.partition_deed_notes)) md += `**PARTITION DEED NOTES:** ${dash(e.partition_deed_notes)}\n`;
+        if (val(e.notes)) md += `**NOTES:** ${dash(e.notes)}\n`;
+        (e.foreclosure_sequence || []).forEach((d, di) => {
+          const ref = [d.book_page_instrument, d.dated, d.recorded].filter(Boolean).join(' | ');
+          md += `**FORECLOSURE (${di + 1}): ${dash(d.document_type)}${ref ? ` — ${ref}` : ''}**\n`;
+        });
+        (e.supporting_documents || []).forEach((s) => {
+          md += `* **${dash(s.document_type) || '* SUPPORTING DOCUMENT'}**\n`;
+          if (val(s.decedent)) md += `  **DECEDENT:** ${dash(s.decedent)}\n`;
+          if (val(s.date_of_death)) md += `  **DATE OF DEATH:** ${dash(s.date_of_death)}\n`;
+          if (val(s.will_date)) md += `  **WILL DATE:** ${dash(s.will_date)}\n`;
+          if (val(s.recorded)) md += `  **RECORDED:** ${dash(s.recorded)}\n`;
+          if (val(s.book_page_instrument)) md += `  **BOOK / PAGE OR INSTRUMENT:** ${dash(s.book_page_instrument)}\n`;
+          if ((s.heirs || []).length > 0) md += `  **HEIRS:** ${(s.heirs || []).map((h) => up(h)).join(', ')}\n`;
+          if ((s.devisees_beneficiaries || []).length > 0) md += `  **DEVISEES / BENEFICIARIES:** ${(s.devisees_beneficiaries || []).map((d) => up(d)).join(', ')}\n`;
+          if (val(s.notes)) md += `  **NOTES:** ${dash(s.notes)}\n`;
+        });
+      }
+      md += '\n';
     });
-    md += '\n';
   }
 
   // ── MORTGAGES / DEEDS OF TRUST ──
@@ -101,7 +146,7 @@ function generateV7Markdown(f) {
   } else {
     mortgages.forEach((m, i) => {
       md += `**(${i + 1}) ${dash(m.document_title)}**\n`;
-      md += `**BORROWER(S):** ${(m.borrowers || []).map((b) => val(b)).join(', ') || '—'}\n`;
+      md += `**BORROWER(S):** ${(m.borrowers || []).map((b) => up(b)).join(', ') || '—'}\n`;
       md += `**LENDER:** ${dash(m.lender)}\n`;
       md += `**TRUSTEE:** ${dash(m.trustee)}\n`;
       md += `**BENEFICIARY / NOMINEE:** ${dash(m.beneficiary_nominee)}\n`;
@@ -109,19 +154,17 @@ function generateV7Markdown(f) {
       md += `**RECORDED:** ${dash(m.recorded)}\n`;
       md += `**BOOK / PAGE OR INSTRUMENT:** ${dash(m.book_page_instrument)}\n`;
       md += `**AMOUNT:** ${m.amount ? `$${dash(m.amount)}` : dash(m.amount)}\n`;
-      md += `**MATURITY:** ${dash(m.maturity)}\n`;
+      md += `**MATURITY:** ${dash(m.maturity || 'NOT SHOWN')}\n`;
       md += `**LOAN NUMBER:** ${dash(m.loan_number)}\n`;
-      md += `**MIN:** ${dash(m.min)}\n`;
+      md += `**MIN:** ${dash(m.min || 'NOT SHOWN')}\n`;
       md += `**OPEN / CLOSED ENDED:** ${dash(m.open_closed_ended)}\n`;
       md += `**STATUS:** ${dash(m.status)}\n`;
-      if (m.notes) md += `**NOTES:** ${val(m.notes)}\n`;
+      if (m.notes) md += `**NOTES:** ${dash(m.notes)}\n`;
       const ad = m.associated_documents || [];
       ad.forEach((a, ai) => {
-        md += `* **ASSOCIATED DOCUMENT ${ai + 1}: ${dash(a.document_type)}**\n`;
-        if (a.book_page_instrument) md += `  **BOOK / PAGE OR INSTRUMENT:** ${val(a.book_page_instrument)}\n`;
-        if (a.dated) md += `  **DATED:** ${val(a.dated)}\n`;
-        if (a.recorded) md += `  **RECORDED:** ${val(a.recorded)}\n`;
-        if (a.notes) md += `  **NOTES:** ${val(a.notes)}\n`;
+        const ref = [a.book_page_instrument, a.dated, a.recorded].filter(Boolean).join(' | ');
+        md += `* **ASSOCIATED DOCUMENT ${ai + 1}: ${dash(a.document_type)}${ref ? ` — ${ref}` : ''}**\n`;
+        if (a.notes) md += `  **NOTES:** ${dash(a.notes)}\n`;
       });
       if (i < mortgages.length - 1) md += '\n';
     });
@@ -147,7 +190,7 @@ function generateV7Markdown(f) {
       md += `**COSTS:** ${l.costs ? `$${dash(l.costs)}` : dash(l.costs)}\n`;
       md += `**ATTORNEY'S FEES:** ${l.attorneys_fees ? `$${dash(l.attorneys_fees)}` : dash(l.attorneys_fees)}\n`;
       md += `**STATUS:** ${dash(l.status)}\n`;
-      if (l.notes) md += `**NOTES:** ${val(l.notes)}\n`;
+      if (l.notes) md += `**NOTES:** ${dash(l.notes)}\n`;
       if (i < liens.length - 1) md += '\n';
     });
     md += '\n';
@@ -157,33 +200,33 @@ function generateV7Markdown(f) {
   md += '## MISCELLANEOUS DOCUMENTS\n';
   const misc = f.misc_documents || [];
   if (misc.length === 0) {
-    md += 'NO MISCELLANEOUS DOCUMENTS FOUND.\n\n';
+    md += 'NO MISCELLANEOUS DOCUMENTS WERE PROVIDED OR CLEARLY IDENTIFIED.\n\n';
   } else {
     misc.forEach((m, i) => {
       const typeLabel = dash(m.document_type || m.document_title);
       md += `**(${i + 1}) ${typeLabel}**\n`;
-      if (m.decedent) md += `**DECEDENT:** ${val(m.decedent)}\n`;
-      if (m.date_of_death) md += `**DATE OF DEATH:** ${val(m.date_of_death)}\n`;
-      if (m.will_date) md += `**WILL DATE:** ${val(m.will_date)}\n`;
-      if (m.probate_date) md += `**PROBATE DATE:** ${val(m.probate_date)}\n`;
-      if (m.recorded) md += `**RECORDED:** ${val(m.recorded)}\n`;
-      if (m.book_page_instrument) md += `**BOOK / PAGE OR INSTRUMENT:** ${val(m.book_page_instrument)}\n`;
-      if ((m.heirs || []).length > 0) md += `**HEIRS:** ${(m.heirs || []).map((h) => val(h)).join(', ')}\n`;
-      if ((m.devisees_beneficiaries || []).length > 0) md += `**DEVISEES / BENEFICIARIES:** ${(m.devisees_beneficiaries || []).map((d) => val(d)).join(', ')}\n`;
-      if (m.grantor_assignor) md += `**GRANTOR / ASSIGNOR:** ${val(m.grantor_assignor)}\n`;
-      if (m.grantee_assignee) md += `**GRANTEE / ASSIGNEE:** ${val(m.grantee_assignee)}\n`;
-      if (m.dated) md += `**DATED:** ${val(m.dated)}\n`;
-      if (m.consideration) md += `**CONSIDERATION:** ${val(m.consideration)}\n`;
-      if (m.area_or_width) md += `**AREA / WIDTH:** ${val(m.area_or_width)}\n`;
-      if (m.notes) md += `**NOTES:** ${val(m.notes)}\n`;
+      if (m.decedent) md += `**DECEDENT:** ${dash(m.decedent)}\n`;
+      if (m.date_of_death) md += `**DATE OF DEATH:** ${dash(m.date_of_death)}\n`;
+      if (m.will_date) md += `**WILL DATE:** ${dash(m.will_date)}\n`;
+      if (m.probate_date) md += `**PROBATE DATE:** ${dash(m.probate_date)}\n`;
+      if (m.recorded) md += `**RECORDED:** ${dash(m.recorded)}\n`;
+      if (m.book_page_instrument) md += `**BOOK / PAGE OR INSTRUMENT:** ${dash(m.book_page_instrument)}\n`;
+      if ((m.heirs || []).length > 0) md += `**HEIRS:** ${(m.heirs || []).map((h) => up(h)).join(', ')}\n`;
+      if ((m.devisees_beneficiaries || []).length > 0) md += `**DEVISEES / BENEFICIARIES:** ${(m.devisees_beneficiaries || []).map((d) => up(d)).join(', ')}\n`;
+      if (m.grantor_assignor) md += `**GRANTOR / ASSIGNOR:** ${dash(m.grantor_assignor)}\n`;
+      if (m.grantee_assignee) md += `**GRANTEE / ASSIGNEE:** ${dash(m.grantee_assignee)}\n`;
+      if (m.dated) md += `**DATED:** ${dash(m.dated)}\n`;
+      if (m.consideration) md += `**CONSIDERATION:** ${dash(m.consideration)}\n`;
+      if (m.area_or_width) md += `**AREA / WIDTH:** ${dash(m.area_or_width)}\n`;
+      if (m.notes) md += `**NOTES:** ${dash(m.notes)}\n`;
       if (i < misc.length - 1) md += '\n';
     });
     md += '\n';
   }
 
-  // ── LEGAL DESCRIPTION ──
+  // ── LEGAL DESCRIPTION (preserve recorded case) ──
   md += '## LEGAL DESCRIPTION\n';
-  md += `${dash(f.legal_description)}\n\n`;
+  md += `${val(f.legal_description) || '—'}\n\n`;
 
   // ── ADDITIONAL INFORMATION ──
   md += '## ADDITIONAL INFORMATION\n';
@@ -192,11 +235,11 @@ function generateV7Markdown(f) {
   if (refs.length > 0 && typeof refs[0] !== 'string') {
     refs.forEach((r, ri) => {
       const refText = `${r.book_page_instrument || ''} - ${r.document_type || r.label || ''}`;
-      md += `${ri + 1}. ${val(refText)}\n`;
+      md += `${ri + 1}. ${up(refText)}\n`;
     });
   } else if (refs.length > 0) {
     refs.forEach((r, ri) => {
-      md += `${ri + 1}. ${val(r)}\n`;
+      md += `${ri + 1}. ${up(r)}\n`;
     });
   }
   const docAccounting = addInfo.document_accounting || [];
@@ -206,7 +249,17 @@ function generateV7Markdown(f) {
       md += `${di + 1}. PAGE(S) ${dash(da.page_range)}: ${dash(da.document_label)}\n`;
     });
   }
-  if (refs.length === 0 && docAccounting.length === 0) {
+  const update = f.update_report || {};
+  if (update.is_update) {
+    md += '\n**UPDATE / CONTINUATION SUMMARY**\n';
+    if (val(update.prior_effective_date)) md += `PRIOR EFFECTIVE DATE: ${dash(update.prior_effective_date)}\n`;
+    if (val(update.current_effective_date)) md += `CURRENT EFFECTIVE DATE: ${dash(update.current_effective_date)}\n`;
+    if ((update.actual_documents_recorded || []).length > 0) md += `ACTUAL DOCUMENTS RECORDED: ${(update.actual_documents_recorded || []).map((x) => up(x)).join(', ')}\n`;
+    if ((update.carried_forward_open_matters || []).length > 0) md += `CARRIED-FORWARD OPEN MATTERS: ${(update.carried_forward_open_matters || []).map((x) => up(x)).join(', ')}\n`;
+    if ((update.proposed_unrecorded_items || []).length > 0) md += `PROPOSED / UNRECORDED ITEMS: ${(update.proposed_unrecorded_items || []).map((x) => up(x)).join(', ')}\n`;
+    if (val(update.summary_notes)) md += `SUMMARY: ${dash(update.summary_notes)}\n`;
+  }
+  if (refs.length === 0 && docAccounting.length === 0 && !update.is_update) {
     md += 'NO ADDITIONAL INFORMATION.\n';
   }
   md += '\n';
@@ -214,6 +267,9 @@ function generateV7Markdown(f) {
   // ── NAMES SEARCHED ──
   md += '## NAMES SEARCHED\n';
   md += `${(f.names_searched || []).join(', ') || 'NONE PROVIDED.'}\n`;
+
+  // ── Performed by (rule 19.x) ──
+  md += '\nPerformed by: Patrick Hazelwood\n';
 
   return md;
 }

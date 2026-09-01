@@ -1,0 +1,161 @@
+{
+  "order_info": {
+    "file_number": null,
+    "client_order": null,
+    "company_name": null,
+    "effective_date": null,
+    "borrower_owner": null,
+    "property_address": null,
+    "county": null,
+    "township_city": null,
+    "parcel_id_tax_map": null,
+    "account_number": null,
+    "current_vesting_owner": null,
+    "assessor_owner": null,
+    "legal_assessor_description": null,
+    "acreage": null,
+    "assessment": null,
+    "land_value": null,
+    "improvement_value": null,
+    "total_value": null,
+    "order_verification_notes": null
+  },
+  "tax_information": {
+    "year": null,
+    "first_half": {
+      "due_date": null,
+      "original_bill": null,
+      "paid_date": null,
+      "amount_paid": null,
+      "penalty": null,
+      "interest": null,
+      "balance_due": null
+    },
+    "second_half": {
+      "due_date": null,
+      "original_bill": null,
+      "paid_date": null,
+      "amount_paid": null,
+      "penalty": null,
+      "interest": null,
+      "balance_due": null
+    },
+    "total_tax": null,
+    "total_delinquent_amount": null,
+    "status": null
+  },
+  "chain_of_title": [{
+    "entry_type": "DEED",
+    "document_title": null,
+    "deed_type": null,
+    "grantors": [],
+    "grantees": [],
+    "dated": null,
+    "recorded": null,
+    "recording_time": null,
+    "book_page_instrument": null,
+    "consideration": null,
+    "notes": null,
+    "deceased_person": null,
+    "deceased_note": null,
+    "third_party_party": null,
+    "third_party_reason": null,
+    "partition_deed_notes": null,
+    "foreclosure_sequence": [{
+      "document_type": null,
+      "book_page_instrument": null,
+      "dated": null,
+      "recorded": null,
+      "notes": null
+    }],
+    "supporting_documents": [{
+      "document_type": null,
+      "decedent": null,
+      "date_of_death": null,
+      "will_date": null,
+      "recorded": null,
+      "book_page_instrument": null,
+      "heirs": [],
+      "devisees_beneficiaries": [],
+      "notes": null
+    }]
+  }],
+  "mortgages": [{
+    "document_title": null,
+    "borrowers": [],
+    "lender": null,
+    "trustee": null,
+    "beneficiary_nominee": null,
+    "dated": null,
+    "recorded": null,
+    "book_page_instrument": null,
+    "amount": null,
+    "maturity": null,
+    "maturity_not_shown": false,
+    "loan_number": null,
+    "min": null,
+    "min_not_shown": false,
+    "open_closed_ended": null,
+    "status": null,
+    "associated_documents": [{
+      "document_type": null,
+      "book_page_instrument": null,
+      "dated": null,
+      "recorded": null,
+      "notes": null
+    }],
+    "notes": null
+  }],
+  "judgments_liens": [{
+    "document_title": null,
+    "plaintiff_lienholder": null,
+    "defendant_debtor": null,
+    "case_number": null,
+    "date_of_judgment_lien": null,
+    "recorded": null,
+    "book_page_instrument": null,
+    "amount": null,
+    "interest": null,
+    "costs": null,
+    "attorneys_fees": null,
+    "status": null,
+    "notes": null
+  }],
+  "misc_documents": [{
+    "document_type": null,
+    "document_title": null,
+    "decedent": null,
+    "date_of_death": null,
+    "will_date": null,
+    "probate_date": null,
+    "recorded": null,
+    "book_page_instrument": null,
+    "heirs": [],
+    "devisees_beneficiaries": [],
+    "grantor_assignor": null,
+    "grantee_assignee": null,
+    "dated": null,
+    "consideration": null,
+    "area_or_width": null,
+    "notes": null
+  }],
+  "legal_description": null,
+  "additional_information": {
+    "references": [],
+    "document_accounting": [{
+      "page_range": null,
+      "document_label": null
+    }]
+  },
+  "names_searched": [],
+  "update_report": {
+    "is_update": false,
+    "prior_effective_date": null,
+    "current_effective_date": null,
+    "actual_documents_recorded": [],
+    "carried_forward_open_matters": [],
+    "proposed_unrecorded_items": [],
+    "revised_order_data": null,
+    "summary_notes": null
+  }
+}

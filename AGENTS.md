@@ -1,6 +1,6 @@
 # AGENTS.md — Abstract ETL v3
 
-AI-powered ETL system for property abstracts. **V7-only** (Enhanced Report). Read `docs/rules.md` before touching extraction or output formatting.
+AI-powered ETL system for property abstracts. **V9 rules** (REVISION 9 of the Enhanced Report) — active extraction/formatting contract. Read `docs/rules.md` before touching extraction or output formatting.
 
 ## Quick commands (run from repo root unless noted)
 
@@ -20,8 +20,8 @@ AI-powered ETL system for property abstracts. **V7-only** (Enhanced Report). Rea
 
 ## Core services (`backend/src/services/`)
 
-- `googleAiService.js` — primary AI engine. Native PDF pass-through to Gemini 2.5 Flash, structured JSON (`responseMimeType: "application/json"`), brace-depth JSON sanitization + fallback parse. Loads `docs/prompts/v7-prompt.md` and `docs/schemas/v7-schema.json` at startup (`DOCS_DIR`, default repo `docs/`) — server throws if either is missing.
-- `v7PdfGenerator.js`, `v7DocxGenerator.js` (`generateV7TextDocx` text layout matching `blank.docx`, `generateV7TableDocx` table layout), `v7MarkdownGenerator.js` — v7 outputs. Tax info renders inside ORDER INFORMATION (no standalone section).
+- `googleAiService.js` — primary AI engine. Native PDF pass-through to Gemini 2.5 Flash, structured JSON (`responseMimeType: "application/json"`), brace-depth JSON sanitization + fallback parse. Loads `docs/prompts/v9-prompt.md` and `docs/schemas/v9-schema.json` at startup (`DOCS_DIR`, default repo `docs/`) — server throws if either is missing.
+- `v7PdfGenerator.js`, `v7DocxGenerator.js` (`generateV7TextDocx` text layout matching `blank.docx`, `generateV7TableDocx` 30/70 table layout), `v7MarkdownGenerator.js` — v9-rule outputs (ALL CAPS, packet-order chain with starred supporting entries, warning-red `C00000`, MIN/MATURITY NOT SHOWN, Segoe Script signature). Tax info renders inside ORDER INFORMATION (no standalone section).
 - `emailService.js` / `backupService.js` — SMTP + SQLite backups; DB `settings` table overrides env at runtime (`smtp_host`, `backup_enabled`, `backup_interval_minutes`, `backup_retention_days`).
 - `logger.js` — pino, one JSON object per line with `requestId` for Loki/Grafana. Health checks and non-API 404 scanner noise are suppressed at the source. See `docs/monitoring/README.md`.
 
@@ -38,7 +38,7 @@ Required at startup: `JWT_SECRET` (min 10 chars), `ADMIN_EMAIL`, `ADMIN_PASSWORD
 3. **Native PDF only**: do NOT use `pdf2pic` or `sharp` for extraction.
 4. **Native APIs**: prefer Web APIs (fetch, crypto) over Node-specific ones (Cloudflare migration).
 5. **JSON mode**: AI must return structured JSON with `responseMimeType: "application/json"`.
-6. **templateVersion**: persisted as `v7`; all jobs render/export via v7 regardless of stored value. Review form is `frontend/src/components/V7Form.jsx`.
+6. **templateVersion**: persisted as `v7`; all jobs render/export via the current v9 rules regardless of stored value. Review form is `frontend/src/components/V7Form.jsx`.
 7. **Settings table** (key-value) overrides env at runtime. Update via `PATCH /api/admin/settings`.
 8. **Backups**: snapshots in `backend/backups/` (volume `/app/backups`). Manual via admin UI or `POST /api/admin/backup`; restore via `POST /api/admin/backups/:id/restore`.
 9. **Dead code**: all v1–v6 code is removed. Do not reintroduce legacy version dispatch, forms, or generators.

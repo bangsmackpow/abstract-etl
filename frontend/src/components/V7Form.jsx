@@ -23,7 +23,7 @@ function Section({ title, children }) {
 }
 
 // Field helper component
-function Field({ label, path, placeholder, multiline, masterList, value: overrideValue, onChange: overrideOnChange, ...rest }) {
+function Field({ label, path, multiline, masterList, value: overrideValue, onChange: overrideOnChange, ...rest }) {
     const { fields, aiFlags, alternatives, onChange, onFlagChange } = rest;
     const value = overrideValue !== undefined ? overrideValue : getNestedValue(fields, path);
     const handleChange = overrideOnChange || onChange;
@@ -66,13 +66,13 @@ function V7Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) 
     const miscDocs = fields?.misc_documents || [];
     const namesSearched = fields?.names_searched || [];
     const docAccounting = fields?.additional_information?.document_accounting || [];
-    const references = fields?.additional_information?.references || [];
 
     return (
         <div>
             <Section title="ORDER INFORMATION">
                 <div style={v7Row}><Field label="FILE NUMBER" path="order_info.file_number" {...fieldProps} /></div>
                 <div style={v7Row}><Field label="CLIENT / ORDER" path="order_info.client_order" {...fieldProps} /></div>
+                <div style={v7Row}><Field label="COMPANY NAME" path="order_info.company_name" {...fieldProps} /></div>
                 <div style={v7Row}><Field label="EFFECTIVE DATE" path="order_info.effective_date" placeholder="MM/DD/YYYY" {...fieldProps} /></div>
                 <div style={v7Row}><Field label="BORROWER / OWNER" path="order_info.borrower_owner" {...fieldProps} /></div>
                 <div style={v7Row}><Field label="PROPERTY ADDRESS" path="order_info.property_address" {...fieldProps} /></div>
@@ -85,11 +85,15 @@ function V7Form({ fields, aiFlags, alternatives, onFieldChange, onFlagChange }) 
                 <div style={v7Row}><Field label="LEGAL / ASSESSOR DESCRIPTION" path="order_info.legal_assessor_description" {...fieldProps} /></div>
                 <div style={v7Row}><Field label="ACREAGE" path="order_info.acreage" {...fieldProps} /></div>
                 <div style={v7Row}><Field label="ASSESSMENT" path="order_info.assessment" {...fieldProps} /></div>
-                <div style={v7Row}><Field label="ORDER / VERIFICATION NOTES" path="order_info.order_verification_notes" multiline {...fieldProps} /></div>
+                <div style={v7Row}><Field label="LAND VALUE" path="order_info.land_value" {...fieldProps} /></div>
+                <div style={v7Row}><Field label="IMPROVEMENT VALUE" path="order_info.improvement_value" {...fieldProps} /></div>
+                <div style={v7Row}><Field label="TOTAL VALUE" path="order_info.total_value" {...fieldProps} /></div>
+                <div style={v7Row}><Field label="VERIFICATION NOTES" path="order_info.order_verification_notes" multiline {...fieldProps} /></div>
             </Section>
 
             <Section title="TAX INFORMATION">
                 <div style={v7Row}><Field label="YEAR" path="tax_information.year" {...fieldProps} /></div>
+                <div style={v7Row}><Field label="STATUS" path="tax_information.status" {...fieldProps} /></div>
                 <div style={{ fontWeight: 700, fontSize: 13, color: '#4a5568', marginBottom: 8 }}>FIRST HALF</div>
                 <div style={v7Row}><Field label="  DUE DATE" path="tax_information.first_half.due_date" placeholder="MM/DD/YYYY" {...fieldProps} /></div>
                 <div style={v7Row}><Field label="  ORIGINAL BILL" path="tax_information.first_half.original_bill" {...fieldProps} /></div>
@@ -163,32 +167,54 @@ function V7ChainEntry({ index, fields, aiFlags, alternatives, onFieldChange, onF
     const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
     const entry = fields?.chain_of_title?.[index] || {};
     const supportingDocs = entry.supporting_documents || [];
+    const foreclosureSeq = entry.foreclosure_sequence || [];
+    const isSupporting = (entry.entry_type || '').toUpperCase() === 'SUPPORTING';
 
     return (
         <div style={s.entryCard}>
             <div style={s.entryNum}>ENTRY {index + 1}</div>
-            <div style={v7Row}><Field label="DEED TYPE" path={`${base}.deed_type`} {...fp} /></div>
-            <Field
-                label="GRANTOR(S)"
-                path={`${base}.grantors`}
-                multiline
-                {...fp}
-                value={Array.isArray(entry.grantors) ? entry.grantors.join('\n') : (entry.grantors || '')}
-                onChange={(k, v) => onFieldChange(k, v.split('\n').map(x => x.trim()).filter(Boolean))}
-            />
-            <Field
-                label="GRANTEE(S)"
-                path={`${base}.grantees`}
-                multiline
-                {...fp}
-                value={Array.isArray(entry.grantees) ? entry.grantees.join('\n') : (entry.grantees || '')}
-                onChange={(k, v) => onFieldChange(k, v.split('\n').map(x => x.trim()).filter(Boolean))}
-            />
-            <div style={v7Row}><Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} /></div>
-            <div style={v7Row}><Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} /></div>
-            <div style={v7Row}><Field label="BOOK / PAGE OR INSTRUMENT" path={`${base}.book_page_instrument`} {...fp} /></div>
-            <div style={v7Row}><Field label="CONSIDERATION" path={`${base}.consideration`} {...fp} /></div>
-            <div style={v7Row}><Field label="NOTES" path={`${base}.notes`} multiline {...fp} /></div>
+            <div style={v7Row}><Field label="ENTRY TYPE (DEED / SUPPORTING)" path={`${base}.entry_type`} {...fp} /></div>
+            {!isSupporting && (
+                <>
+                    <div style={v7Row}><Field label="DOCUMENT TITLE" path={`${base}.document_title`} {...fp} /></div>
+                    <div style={v7Row}><Field label="DEED TYPE" path={`${base}.deed_type`} {...fp} /></div>
+                    <Field
+                        label="GRANTOR(S)"
+                        path={`${base}.grantors`}
+                        multiline
+                        {...fp}
+                        value={Array.isArray(entry.grantors) ? entry.grantors.join('\n') : (entry.grantors || '')}
+                        onChange={(k, v) => onFieldChange(k, v.split('\n').map(x => x.trim()).filter(Boolean))}
+                    />
+                    <Field
+                        label="GRANTEE(S)"
+                        path={`${base}.grantees`}
+                        multiline
+                        {...fp}
+                        value={Array.isArray(entry.grantees) ? entry.grantees.join('\n') : (entry.grantees || '')}
+                        onChange={(k, v) => onFieldChange(k, v.split('\n').map(x => x.trim()).filter(Boolean))}
+                    />
+                    <div style={v7Row}><Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} /></div>
+                    <div style={v7Row}><Field label="RECORDED / RECORDING DATE" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} /></div>
+                    <div style={v7Row}><Field label="RECORDING TIME" path={`${base}.recording_time`} {...fp} /></div>
+                    <div style={v7Row}><Field label="BOOK / PAGE OR INSTRUMENT" path={`${base}.book_page_instrument`} {...fp} /></div>
+                    <div style={v7Row}><Field label="CONSIDERATION" path={`${base}.consideration`} {...fp} /></div>
+                    <div style={v7Row}><Field label="DECEASED PERSON" path={`${base}.deceased_person`} {...fp} /></div>
+                    <div style={v7Row}><Field label="DECEASED NOTE" path={`${base}.deceased_note`} multiline {...fp} /></div>
+                    <div style={v7Row}><Field label="PARTY OF THE THIRD PART" path={`${base}.third_party_party`} {...fp} /></div>
+                    <div style={v7Row}><Field label="PARTICIPATION REASON" path={`${base}.third_party_reason`} multiline {...fp} /></div>
+                    <div style={v7Row}><Field label="PARTITION DEED NOTES" path={`${base}.partition_deed_notes`} multiline {...fp} /></div>
+                    <div style={v7Row}><Field label="NOTES" path={`${base}.notes`} multiline {...fp} /></div>
+                    {foreclosureSeq.length > 0 && (
+                        <div style={{ marginTop: '1rem' }}>
+                            <div style={s.entryNum}>FORECLOSURE SEQUENCE (IN PACKET ORDER)</div>
+                            {foreclosureSeq.map((_, fIdx) => (
+                                <V7ChainForeclosureDoc key={fIdx} parentBase={base} index={fIdx} {...fp} />
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
             {supportingDocs.length > 0 && (
                 <div style={{ marginTop: '1rem' }}>
                     <div style={s.entryNum}>SUPPORTING DOCUMENTS</div>
@@ -201,6 +227,21 @@ function V7ChainEntry({ index, fields, aiFlags, alternatives, onFieldChange, onF
     );
 }
 
+function V7ChainForeclosureDoc({ parentBase, index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
+    const base = `${parentBase}.foreclosure_sequence.${index}`;
+    const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
+    return (
+        <div style={{ ...s.entryCard, background: '#fff', border: '1px solid #d1d5db' }}>
+            <div style={s.entryNum}>FORECLOSURE DOCUMENT {index + 1}</div>
+            <div style={v7Row}><Field label="DOCUMENT TYPE" path={`${base}.document_type`} {...fp} /></div>
+            <div style={v7Row}><Field label="BOOK / PAGE OR INSTRUMENT" path={`${base}.book_page_instrument`} {...fp} /></div>
+            <div style={v7Row}><Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} /></div>
+            <div style={v7Row}><Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} /></div>
+            <div style={v7Row}><Field label="NOTES" path={`${base}.notes`} multiline {...fp} /></div>
+        </div>
+    );
+}
+
 function V7ChainSupportingDoc({ parentBase, index, fields, aiFlags, alternatives, onFieldChange, onFlagChange }) {
     const base = `${parentBase}.supporting_documents.${index}`;
     const fp = { fields, aiFlags, alternatives, onChange: onFieldChange, onFlagChange };
@@ -208,7 +249,7 @@ function V7ChainSupportingDoc({ parentBase, index, fields, aiFlags, alternatives
     return (
         <div style={{ ...s.entryCard, background: '#fff', border: '1px solid #d1d5db' }}>
             <div style={s.entryNum}>DOCUMENT {index + 1}</div>
-            <div style={v7Row}><Field label="TYPE" path={`${base}.type`} {...fp} /></div>
+            <div style={v7Row}><Field label="TYPE" path={`${base}.document_type`} {...fp} /></div>
             <div style={v7Row}><Field label="DECEDENT" path={`${base}.decedent`} {...fp} /></div>
             <div style={v7Row}><Field label="DATE OF DEATH" path={`${base}.date_of_death`} placeholder="MM/DD/YYYY" {...fp} /></div>
             <div style={v7Row}><Field label="WILL DATE" path={`${base}.will_date`} placeholder="MM/DD/YYYY" {...fp} /></div>
@@ -284,7 +325,7 @@ function V7MortgageAssocDoc({ parentBase, index, fields, aiFlags, alternatives, 
     return (
         <div style={{ ...s.entryCard, background: '#fff', border: '1px solid #d1d5db' }}>
             <div style={s.entryNum}>DOCUMENT {index + 1}</div>
-            <div style={v7Row}><Field label="DOCUMENT TITLE" path={`${base}.document_title`} {...fp} /></div>
+            <div style={v7Row}><Field label="DOCUMENT TITLE" path={`${base}.document_type`} {...fp} /></div>
             <div style={v7Row}><Field label="DATED" path={`${base}.dated`} placeholder="MM/DD/YYYY" {...fp} /></div>
             <div style={v7Row}><Field label="RECORDED" path={`${base}.recorded`} placeholder="MM/DD/YYYY" {...fp} /></div>
             <div style={v7Row}><Field label="BOOK/PAGE OR INSTRUMENT" path={`${base}.book_page_instrument`} {...fp} /></div>
@@ -327,6 +368,7 @@ function V7MiscDocEntry({ index, fields, aiFlags, alternatives, onFieldChange, o
         <div style={s.entryCard}>
             <div style={s.entryNum}>MISCELLANEOUS DOCUMENT {index + 1}</div>
             <div style={v7Row}><Field label="DOCUMENT TYPE" path={`${base}.document_type`} {...fp} /></div>
+            <div style={v7Row}><Field label="DOCUMENT TITLE" path={`${base}.document_title`} {...fp} /></div>
             {isEstate ? (
                 <>
                     <div style={v7Row}><Field label="DECEDENT" path={`${base}.decedent`} {...fp} /></div>
