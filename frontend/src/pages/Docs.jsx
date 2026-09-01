@@ -5,8 +5,8 @@ const API = '';
 export default function Docs() {
   const [activeTab, setActiveTab] = useState('rules');
   const [rules, setRules] = useState('');
-  const [v7Prompt, setV7Prompt] = useState('');
-  const [v7Schema, setV7Schema] = useState('');
+  const [prompts, setPrompts] = useState({ v7: '', v9: '' });
+  const [schemas, setSchemas] = useState({ v7: '', v9: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -18,15 +18,19 @@ export default function Docs() {
     try {
       setLoading(true);
       setError('');
-      const [rulesRes, promptRes, schemaRes] = await Promise.all([
+      const [rulesRes, v7p, v9p, v7s, v9s] = await Promise.all([
         fetch(`${API}/api/docs/rules`),
         fetch(`${API}/api/docs/prompts/v7`),
+        fetch(`${API}/api/docs/prompts/v9`),
         fetch(`${API}/api/docs/schema/v7`),
+        fetch(`${API}/api/docs/schema/v9`),
       ]);
 
       if (rulesRes.ok) { const d = await rulesRes.json(); setRules(d.content); }
-      if (promptRes.ok) { const d = await promptRes.json(); setV7Prompt(d.content); }
-      if (schemaRes.ok) { const d = await schemaRes.json(); setV7Schema(JSON.stringify(d.schema, null, 2)); }
+      if (v7p.ok) { const d = await v7p.json(); setPrompts((p) => ({ ...p, v7: d.content })); }
+      if (v9p.ok) { const d = await v9p.json(); setPrompts((p) => ({ ...p, v9: d.content })); }
+      if (v7s.ok) { const d = await v7s.json(); setSchemas((s) => ({ ...s, v7: JSON.stringify(d.schema, null, 2) })); }
+      if (v9s.ok) { const d = await v9s.json(); setSchemas((s) => ({ ...s, v9: JSON.stringify(d.schema, null, 2) })); }
     } catch (err) {
       setError(`Failed to load docs: ${err.message}`);
     } finally {
@@ -39,15 +43,31 @@ export default function Docs() {
 
   const tabs = [
     { key: 'rules', label: 'Extraction Rules' },
-    { key: 'prompts', label: 'V7 Prompt' },
-    { key: 'schema', label: 'V7 Schema' },
+    { key: 'prompts', label: 'Prompts' },
+    { key: 'schema', label: 'Schemas' },
   ];
+
+  const VersionBadge = ({ version }) => (
+    <span className={`docs-badge ${version === 'v9' ? '' : ''}`}>
+      {version === 'v9' ? 'Current (V9)' : 'V7 (Legacy)'}
+    </span>
+  );
+
+  const Panel = ({ title, badge, content, json = false }) => (
+    <div className="docs-panel">
+      <div className="docs-panel-header">
+        <h2>{title}</h2>
+        {badge}
+      </div>
+      <pre className={json ? 'docs-json' : 'docs-markdown'}>{content}</pre>
+    </div>
+  );
 
   return (
     <div className="docs-page">
       <div className="docs-header">
         <h1>System Documentation</h1>
-        <p className="docs-subtitle">Read-only view of active extraction rules, prompts, and schema</p>
+        <p className="docs-subtitle">Read-only view of extraction rules, prompts, and schemas — V9 (current) and V7 (legacy) side by side</p>
       </div>
 
       <div className="docs-tabs">
@@ -64,32 +84,42 @@ export default function Docs() {
 
       <div className="docs-content">
         {activeTab === 'rules' && (
-          <div className="docs-panel">
-            <div className="docs-panel-header">
-              <h2>Extraction Rules</h2>
-              <span className="docs-badge">Current</span>
-            </div>
-            <pre className="docs-markdown">{rules}</pre>
-          </div>
+          <Panel
+            title="Extraction Rules"
+            badge={<span className="docs-badge">Current (V9)</span>}
+            content={rules}
+          />
         )}
 
         {activeTab === 'prompts' && (
-          <div className="docs-panel">
-            <div className="docs-panel-header">
-              <h2>V7 Extraction Prompt</h2>
-              <span className="docs-badge">Active</span>
-            </div>
-            <pre className="docs-markdown">{v7Prompt}</pre>
+          <div className="docs-split">
+            <Panel
+              title="V9 Extraction Prompt"
+              badge={<VersionBadge version="v9" />}
+              content={prompts.v9 || 'V9 prompt not available.'}
+            />
+            <Panel
+              title="V7 Extraction Prompt"
+              badge={<VersionBadge version="v7" />}
+              content={prompts.v7 || 'V7 prompt not available.'}
+            />
           </div>
         )}
 
         {activeTab === 'schema' && (
-          <div className="docs-panel">
-            <div className="docs-panel-header">
-              <h2>V7 JSON Schema</h2>
-              <span className="docs-badge">Current</span>
-            </div>
-            <pre className="docs-json">{v7Schema}</pre>
+          <div className="docs-split">
+            <Panel
+              title="V9 JSON Schema"
+              badge={<VersionBadge version="v9" />}
+              content={schemas.v9 || 'V9 schema not available.'}
+              json
+            />
+            <Panel
+              title="V7 JSON Schema"
+              badge={<VersionBadge version="v7" />}
+              content={schemas.v7 || 'V7 schema not available.'}
+              json
+            />
           </div>
         )}
       </div>

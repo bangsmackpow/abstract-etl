@@ -2,7 +2,7 @@
 
 Reference audit + remediation tracker for the Abstract ETL v3 codebase. Re-run the 40-point checklist after any auth, data-access, or deployment change.
 
-**Audit date:** 2026-08-16
+**Audit date:** 2026-08-16 (updated 2026-09-01 — items 4, 7, 38 resolved by multi-tenant implementation)
 **Scope:** Full-stack (Express + React + SQLite/Drizzle + Gemini), Docker deployment, CI/CD.
 
 ---
@@ -14,10 +14,10 @@ Reference audit + remediation tracker for the Abstract ETL v3 codebase. Re-run t
 | 1 | Hide API keys (client bundles & public dirs) | ✅ PASSED | `frontend/src/services/api.js`, `frontend/index.html`, `backend/src/env.js:9` |
 | 2 | Purge Git secrets | ⚠️ PARTIAL | `stack.env` (tracked), `.gitignore`, `.gitleaksignore` |
 | 3 | Public DB key for client / service keys restricted to backend | ⛔ N/A | `backend/src/db/index.js` (local SQLite) |
-| 4 | Row-level security (RLS) | ⚠️ PARTIAL | `backend/src/routes/jobs.js:34-38,90,142` |
+| 4 | Row-level security (RLS) | ✅ PASSED | `backend/src/services/tenantRepo.js` (tenant-scoped queries), `db/tenantInit.js` |
 | 5 | Sensitive data encryption at rest | ❌ FAILED | `backend/src/db/schema.js:31`, `backupService.js:23`, `admin.js:144-146` |
 | 6 | Server-side authentication enforcement | ✅ PASSED | `backend/src/middleware/requireAuth.js`, all routes |
-| 7 | Object-level access control / IDOR | ⚠️ PARTIAL | `backend/src/routes/jobs.js:82-95,135-182`, `generate.js` |
+| 7 | Object-level access control / IDOR | ✅ PASSED | `tenantRepo.js`, `jobs.js`/`generate.js` return 404 for foreign tenant IDs |
 | 8 | Field tampering / Mass assignment protection | ⚠️ PARTIAL | `backend/src/routes/jobs.js:146-154`, `admin.js:54-86` |
 | 9 | Secure session cookies | ⛔ N/A (flag: JWT in localStorage) | `frontend/src/hooks/useAuth.jsx:16-29` |
 | 10 | Password hashing strength | ✅ PASSED | `authService.js:11` (bcrypt, cost 10) |
@@ -46,9 +46,9 @@ Reference audit + remediation tracker for the Abstract ETL v3 codebase. Re-run t
 | 33 | Input sanitization before persistence | ⚠️ PARTIAL | `jobs.js:146-154`, `emailService.js`, `googleAiService.js` |
 | 34 | Strict CORS (no wildcards) | ✅ PASSED | `backend/src/index.js:30-39` |
 | 35 | Directory indexing disabled | ✅ PASSED | `frontend/nginx.conf:12-14` |
-| 36 | Secured default admin routes | ⚠️ PARTIAL | `admin.js:13-14` gated; `docs.js:1-33` **public** |
+| 36 | Secured default admin routes | ⚠️ PARTIAL | `admin.js:13-14` gated; `docs.js:1-33` **public** (rules/prompts/schemas for v7 + v9) |
 | 37 | Account lockout / backoff | ❌ FAILED | `backend/src/routes/auth.js`, `authService.js` |
-| 38 | Security event logging & audit trail | ⚠️ PARTIAL | `index.js:41-72`, `errorHandler.js`, auth uses `console.error` |
+| 38 | Security event logging & audit trail | ✅ PASSED | `index.js:41-72` (incl. `tenantId`), `errorHandler.js` |
 | 39 | Secure flags on all cookies | ⛔ N/A (flag: localStorage JWT) | `useAuth.jsx`, `api.js:9-13` |
 | 40 | DB least-privilege / file perms | ⚠️ PARTIAL | `db/index.js:11` (0o777), `docker-entrypoint.sh:7` |
 
@@ -67,16 +67,16 @@ Reference audit + remediation tracker for the Abstract ETL v3 codebase. Re-run t
   Rotate any value that was ever real.
 
 ### Item 4 — Row-level security
-- **Findings:** SQLite has no native RLS. Non-admins are filtered by `createdBy`; admins see all rows; no tenant boundary.
-- **Remediation:** Per `docs/multi-tenant-plan.md` — add `tenant_id` to `users`/`jobs`, introduce a tenant-scoped repo layer (`tenantRepo`) that always injects `tenant_id`, and add an ownership guard returning 404.
+- **Findings (resolved 2026-09-01):** `users`/`jobs` now carry `tenant_id`; every query goes through `tenantRepo` which injects `eq(table.tenantId, tenantId)`; `tenantId` is derived only from the JWT. See `docs/multi-tenant-plan.md`.
+- **Remaining:** no at-rest encryption of the SQLite file (see Item 5).
 
 ### Item 5 — Sensitive data encryption at rest
 - **Findings:** Full abstracts (owner names, addresses, tax) in plaintext `fieldsJson`; `settings.smtp_pass` in plaintext; whole-DB backups are plaintext copies.
 - **Remediation:** Encrypt `smtp_pass` (AES-256-GCM, key from env); at-rest-encrypt DB/backups (SQLCipher) or document cloud-volume encryption (D1). Treat backups as a copy vector.
 
 ### Item 7 — IDOR prevention
-- **Findings:** Non-admin ownership checks on job GET/PATCH and all generate endpoints; admins bypass globally; no `tenant_id` ownership check.
-- **Remediation:** Add `record.tenantId === req.tenantId` guard (return **404**) to every id-scoped route; re-scope admin to tenant-admin.
+- **Findings (resolved 2026-09-01):** Every id-scoped route (`/jobs/:id`, `/generate/:jobId/*`, `/admin/*`) now queries via `tenantRepo` with the JWT `tenantId` and returns **404** for a foreign tenant's ID. `requirePlatformAdmin` gates global settings/backups/platform routes.
+- **Remaining:** consider per-user job ownership tightening for non-admin abstractors (already enforced via `createdBy` check).
 
 ### Item 8 — Mass assignment
 - **Findings:** PATCH/create whitelist fields manually; no Zod DTOs; `fields_json`/`ai_flags_json` accept arbitrary objects; `template_version` client-supplied on create.
@@ -150,7 +150,7 @@ Reference audit + remediation tracker for the Abstract ETL v3 codebase. Re-run t
 - **Remediation:** Tighten JSON body limit (5–10MB); enforce aggregate upload cap server-side (not just nginx).
 
 ### Item 36 — Public docs routes
-- **Findings:** `/api/docs/rules`, `/api/docs/prompts/v7`, `/api/docs/schema/v7` are unauthenticated — expose proprietary extraction rules/prompt/schema.
+- **Findings:** `/api/docs/rules`, `/api/docs/prompts/v7|v9`, `/api/docs/schema/v7|v9` are unauthenticated — expose proprietary extraction rules/prompts/schemas.
 - **Remediation:** Gate `/api/docs/*` behind auth (or an explicit read-only role) unless intentionally public.
 
 ### Item 37 — Account lockout

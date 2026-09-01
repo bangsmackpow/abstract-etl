@@ -1,29 +1,63 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../db');
-const { jobs } = require('../db/schema');
-const { eq } = require('drizzle-orm');
 const { requireAuth } = require('../middleware/requireAuth');
 const { generateV7TextDocx, generateV7TableDocx } = require('../services/v7DocxGenerator');
 const { generateV7Markdown } = require('../services/v7MarkdownGenerator');
 const { generateV7Report } = require('../services/v7PdfGenerator');
+const { generateV9TextDocx, generateV9TableDocx } = require('../services/v9DocxGenerator');
+const { generateV9Markdown } = require('../services/v9MarkdownGenerator');
+const { generateV9Report } = require('../services/v9PdfGenerator');
 const { createError } = require('../middleware/errorHandler');
+const { getJob } = require('../services/tenantRepo');
 
 router.use(requireAuth);
 
 /**
- * GET /api/generate/:jobId/pdf
- * Generates and downloads the v7 PDF report.
+ * Loads a job tenant-scoped. Returns 404 for a foreign tenant's ID so
+ * cross-tenant IDs never reveal existence (multi-tenant-plan.md §5.2).
  */
-router.get('/:jobId/pdf', async (req, res, next) => {
-    const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
+async function loadTenantJob(req, res, next) {
+  const job = await getJob(req.tenantId, req.params.jobId);
+  if (!job) return next(createError('Not found', 404));
+  // Abstractors can only render their own jobs
+  if (req.user.role !== 'admin' && job.createdBy !== req.user.id) {
+    return next(createError('Not found', 404));
+  }
+  req.job = job;
+  next();
+}
 
-    if (!job) return next(createError('Not found', 404));
-    if (req.user.role !== 'admin' && job.createdBy !== req.user.id) return next(createError('Not found', 404));
+// Version-aware generator selection: jobs extracted/created with templateVersion
+// 'v7' render with the legacy V7 generators; everything else uses V9 rules.
+function generatorsFor(job) {
+  const v = job.templateVersion;
+  if (v === 'v7') {
+    return {
+      text: generateV7TextDocx,
+      table: generateV7TableDocx,
+      markdown: generateV7Markdown,
+      pdf: generateV7Report,
+    };
+  }
+  return {
+    text: generateV9TextDocx,
+    table: generateV9TableDocx,
+    markdown: generateV9Markdown,
+    pdf: generateV9Report,
+  };
+}
+
+/**
+ * GET /api/generate/:jobId/pdf
+ * Generates and downloads the PDF report (v7 or v9 per job templateVersion).
+ */
+router.get('/:jobId/pdf', loadTenantJob, async (req, res, _next) => {
+    const job = req.job;
+    const gens = generatorsFor(job);
 
     const tempPath = `/tmp/report-${job.id}.pdf`;
 
-    await generateV7Report(job, tempPath);
+    await gens.pdf(job, tempPath);
 
     res.download(tempPath, `report_${job.id}.pdf`, (_err) => {
         // Cleanup temp file
@@ -35,14 +69,13 @@ router.get('/:jobId/pdf', async (req, res, next) => {
 
 /**
  * GET /api/generate/:jobId/docx-text
- * Generates and downloads a v7 text-format .docx.
+ * Generates and downloads a text-format .docx (v7 or v9 per job).
  */
-router.get('/:jobId/docx-text', async (req, res, next) => {
-  const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
-  if (!job) return next(createError('Not found', 404));
-  if (req.user.role !== 'admin' && job.createdBy !== req.user.id) return next(createError('Not found', 404));
+router.get('/:jobId/docx-text', loadTenantJob, async (req, res, _next) => {
+  const job = req.job;
+  const gens = generatorsFor(job);
   const fields = job.fieldsJson || {};
-  const buffer = await generateV7TextDocx(fields);
+  const buffer = await gens.text(fields);
   const addr = (job.propertyAddress || 'abstract').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_').toLowerCase().substring(0, 60);
   const filename = `abstract_text_${addr}.docx`;
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -52,14 +85,13 @@ router.get('/:jobId/docx-text', async (req, res, next) => {
 
 /**
  * GET /api/generate/:jobId/docx-table
- * Generates and downloads a v7 table-format .docx.
+ * Generates and downloads a table-format .docx (v7 or v9 per job).
  */
-router.get('/:jobId/docx-table', async (req, res, next) => {
-  const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
-  if (!job) return next(createError('Not found', 404));
-  if (req.user.role !== 'admin' && job.createdBy !== req.user.id) return next(createError('Not found', 404));
+router.get('/:jobId/docx-table', loadTenantJob, async (req, res, _next) => {
+  const job = req.job;
+  const gens = generatorsFor(job);
   const fields = job.fieldsJson || {};
-  const buffer = await generateV7TableDocx(fields);
+  const buffer = await gens.table(fields);
   const addr = (job.propertyAddress || 'abstract').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_').toLowerCase().substring(0, 60);
   const filename = `abstract_table_${addr}.docx`;
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -69,21 +101,13 @@ router.get('/:jobId/docx-table', async (req, res, next) => {
 
 /**
  * GET /api/generate/:jobId/markdown
- * Generates and downloads a .md for the given job.
+ * Generates and downloads a .md for the given job (v7 or v9 per job).
  */
-router.get('/:jobId/markdown', async (req, res) => {
-  const [job] = await db.select().from(jobs).where(eq(jobs.id, req.params.jobId)).limit(1);
-
-  if (!job) {
-    throw createError('Not found', 404);
-  }
-
-  if (req.user.role !== 'admin' && job.createdBy !== req.user.id) {
-    throw createError('Not found', 404);
-  }
-
+router.get('/:jobId/markdown', loadTenantJob, async (req, res) => {
+  const job = req.job;
+  const gens = generatorsFor(job);
   const fields = job.fieldsJson || {};
-  const mdContent = generateV7Markdown(fields);
+  const mdContent = gens.markdown(fields);
 
   const addr = (job.propertyAddress || 'abstract')
     .replace(/[^a-zA-Z0-9 ]/g, '')

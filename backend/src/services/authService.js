@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { db } = require('../db');
-const { users } = require('../db/schema');
+const { users, tenants } = require('../db/schema');
 const { eq } = require('drizzle-orm');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
@@ -22,6 +22,8 @@ function generateToken(user) {
       email: user.email,
       role: user.role,
       name: user.name,
+      tenantId: user.tenantId || null,
+      isPlatformAdmin: Boolean(user.isPlatformAdmin),
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
@@ -30,7 +32,6 @@ function generateToken(user) {
 
 async function login(email, password) {
   const cleanEmail = (email || '').trim().toLowerCase();
-  // console.log(`[AuthService] Querying for email: "${cleanEmail}"`);
 
   const [user] = await db.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
 
@@ -39,22 +40,37 @@ async function login(email, password) {
     throw new Error('Invalid email or password');
   }
 
-  // console.log(`[AuthService] User found: ${user.id}, role: ${user.role}. Verifying password...`);
-
   const isPasswordValid = comparePassword(password, user.password);
   if (!isPasswordValid) {
     console.warn(`[AuthService] Password mismatch for user: ${cleanEmail}`);
     throw new Error('Invalid email or password');
   }
 
-  // console.log(`[AuthService] Password verified for: ${cleanEmail}`);
+  // Tenant suspension is honored immediately — reject even fresh logins.
+  let tenant = null;
+  if (user.tenantId) {
+    [tenant] = await db
+      .select({ id: tenants.id, name: tenants.name, status: tenants.status })
+      .from(tenants)
+      .where(eq(tenants.id, user.tenantId))
+      .limit(1);
+    if (tenant && tenant.status === 'suspended') {
+      console.warn(`[AuthService] Login rejected: tenant ${user.tenantId} is suspended`);
+      throw new Error('Account access is suspended');
+    }
+  }
+
   const token = generateToken(user);
 
   // Don't return the password
   const { password: _password, ...userWithoutPassword } = user;
 
   return {
-    user: userWithoutPassword,
+    user: {
+      ...userWithoutPassword,
+      isPlatformAdmin: Boolean(user.isPlatformAdmin),
+      tenantName: tenant ? tenant.name : null,
+    },
     token,
   };
 }

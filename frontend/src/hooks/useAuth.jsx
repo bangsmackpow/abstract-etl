@@ -29,7 +29,16 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin: user?.role === 'admin' }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        isAdmin: user?.role === 'admin',
+        isPlatformAdmin: Boolean(user?.isPlatformAdmin),
+        tenant: user?.tenantId || null,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

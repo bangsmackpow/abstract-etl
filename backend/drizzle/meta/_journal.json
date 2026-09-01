@@ -8,6 +8,13 @@
       "when": 1775861547449,
       "tag": "0000_striped_morgan_stark",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788297039335,
+      "tag": "0001_quiet_sentinel",
+      "breakpoints": true
     }
   ]
 }

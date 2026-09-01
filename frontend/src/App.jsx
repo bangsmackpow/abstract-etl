@@ -6,13 +6,15 @@ import NewJob from './pages/NewJob';
 import BulkImport from './pages/BulkImport';
 import EditJob from './pages/EditJob';
 import Admin from './pages/Admin';
+import Platform from './pages/Platform';
 import Docs from './pages/Docs';
 import Navbar from './components/Navbar';
 
-function ProtectedRoute({ children, adminOnly = false }) {
-  const { user, isAdmin } = useAuth();
+function ProtectedRoute({ children, adminOnly = false, platformOnly = false }) {
+  const { user, isAdmin, isPlatformAdmin } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/" replace />;
+  if (platformOnly && !isPlatformAdmin) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -77,6 +79,16 @@ export default function App() {
               <ProtectedRoute adminOnly>
                 <AppLayout>
                   <Admin />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/platform"
+            element={
+              <ProtectedRoute platformOnly>
+                <AppLayout>
+                  <Platform />
                 </AppLayout>
               </ProtectedRoute>
             }

@@ -4,8 +4,10 @@ const path = require('path');
 
 /**
  * Native Google AI Service
- * Supports v9 (REVISION 9 rules) extraction only.
- * Prompt and schema are loaded from docs/ at startup for auditability.
+ * Supports both v7 (Enhanced Report) and v9 (REVISION 9 rules) extraction.
+ * The active contract is chosen per request via templateVersion, so both
+ * standards can be tested side by side. Prompt/schema are loaded from docs/
+ * at startup for auditability.
  */
 
 const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
@@ -26,8 +28,32 @@ function loadSchema(filename) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
-const V9_SCHEMA = loadSchema('v9-schema.json');
-const SYSTEM_PROMPT_V9 = loadPrompt('v9-prompt.md').replace(/### SCHEMA REFERENCE:[\s\S]*?Return ONLY/, `### SCHEMA REFERENCE:\n${V9_SCHEMA}\n\nReturn ONLY`);
+const PROMPTS = {
+  v7: loadPrompt('v7-prompt.md'),
+  v9: loadPrompt('v9-prompt.md'),
+};
+const SCHEMAS = {
+  v7: loadSchema('v7-schema.json'),
+  v9: loadSchema('v9-schema.json'),
+};
+
+// Build the final prompt (with the schema injected in place of the
+// SCHEMA REFERENCE placeholder) for each supported version.
+const SYSTEM_PROMPTS = {};
+for (const [version, prompt] of Object.entries(PROMPTS)) {
+  SYSTEM_PROMPTS[version] = prompt.replace(
+    /### SCHEMA REFERENCE:[\s\S]*?Return ONLY/,
+    `### SCHEMA REFERENCE:\n${SCHEMAS[version]}\n\nReturn ONLY`
+  );
+}
+
+/**
+ * Resolve the prompt for a template version. Defaults to v9 (the current
+ * active rules); falls back gracefully to v9 if an unknown version is passed.
+ */
+function promptForVersion(version) {
+  return SYSTEM_PROMPTS[version] || SYSTEM_PROMPTS.v9;
+}
 
 function getModel() {
   const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
@@ -94,13 +120,15 @@ function parseJsonResponse(rawText, pdfFilename) {
   }
 }
 
-async function extractFromPDF(pdfPath, originalFilename = '') {
+async function extractFromPDF(pdfPath, originalFilename = '', templateVersion = 'v9') {
   const model = getModel();
   const pdfBuffer = fs.readFileSync(pdfPath);
+  const version = templateVersion === 'v7' ? 'v7' : 'v9';
+  const prompt = promptForVersion(version);
 
   const promptParts = [
     { text: `Filename: "${originalFilename}"` },
-    { text: SYSTEM_PROMPT_V9 },
+    { text: prompt },
     {
       inlineData: {
         data: pdfBuffer.toString('base64'),
@@ -115,12 +143,12 @@ async function extractFromPDF(pdfPath, originalFilename = '') {
     const rawText = response.text();
     const parsed = parseJsonResponse(rawText, originalFilename);
 
-    console.log('🔍 [V9 Extraction] Raw response length:', rawText.length);
-    console.log('🔍 [V9 Extraction] Parsed keys:', Object.keys(parsed));
-    console.log('🔍 [V9 Extraction] order_info:', parsed.order_info);
-    console.log('🔍 [V9 Extraction] chain_of_title count:', parsed.chain_of_title?.length || 0);
-    console.log('🔍 [V9 Extraction] mortgages count:', parsed.mortgages?.length || 0);
-    console.log('🔍 [V9 Extraction] tax_information:', parsed.tax_information);
+    console.log(`🔍 [${version.toUpperCase()} Extraction] Raw response length:`, rawText.length);
+    console.log(`🔍 [${version.toUpperCase()} Extraction] Parsed keys:`, Object.keys(parsed));
+    console.log(`🔍 [${version.toUpperCase()} Extraction] order_info:`, parsed.order_info);
+    console.log(`🔍 [${version.toUpperCase()} Extraction] chain_of_title count:`, parsed.chain_of_title?.length || 0);
+    console.log(`🔍 [${version.toUpperCase()} Extraction] mortgages count:`, parsed.mortgages?.length || 0);
+    console.log(`🔍 [${version.toUpperCase()} Extraction] tax_information:`, parsed.tax_information);
 
     return parsed;
   } catch (err) {

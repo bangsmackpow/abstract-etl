@@ -13,8 +13,9 @@ abstract_frontend ─┼── Docker socket ── promtail ────┤
 ```
 
 - The backend emits **one JSON object per line** (pino): `level, method, path,
-  status, ms, requestId, msg`. Levels are strings (`info`, `error`) so LogQL
-  `{level="error"}` works.
+  status, ms, requestId, msg` plus `user` and `tenantId` (both null when
+  unauthenticated). Levels are strings (`info`, `error`) so LogQL
+  `{level="error"}` works. `tenantId` enables per-tenant tracing/usage in Loki.
 - nginx forwards `X-Request-Id` and logs `$request_id`, so a single request is
   traceable across both containers.
 - Health-check requests and non-API 404 scanner noise are **excluded at the
@@ -164,6 +165,12 @@ sum by (status) (rate({service="backend"} |= "request" | json [1m]))
 
 # Slow requests (> 5s) — great for finding long AI extractions
 {service="backend"} |= "request" | json | ms >= 5000 | line_format "{{.path}} took {{.ms}}ms requestId={{.requestId}}"
+
+# Per-tenant traffic (multi-tenant): filter by tenantId
+{service="backend"} |= "request" | json | tenantId == "REPLACE_WITH_TENANT_ID"
+
+# All errors for a given tenant
+{service="backend"} | json | level = "error" | tenantId == "REPLACE_WITH_TENANT_ID"
 
 # Top slowest endpoint (by average ms)
 {service="backend"} |= "request" | json | unwrap ms | avg_over_time(ms [1h]) by (path)

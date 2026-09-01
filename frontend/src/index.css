@@ -489,6 +489,21 @@ a:hover {
 .docs-content {
   min-height: 400px;
 }
+.docs-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+.docs-split .docs-panel {
+  max-height: 75vh;
+  overflow: auto;
+}
+@media (max-width: 860px) {
+  .docs-split {
+    grid-template-columns: 1fr;
+  }
+}
 .docs-panel {
   background: #fff;
   border: 1px solid var(--gray-light);

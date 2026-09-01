@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 const APP_VERSION = 'v1.2.0'; // Placeholder for current application version
 
 export default function Navbar() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isPlatformAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -31,10 +31,16 @@ export default function Navbar() {
           Admin
         </Link>
       )}
+      {isPlatformAdmin && (
+        <Link to="/platform" className="navbar-link">
+          Platform
+        </Link>
+      )}
       <Link to="/docs" className="navbar-link">
         Docs
       </Link>
       <div className="navbar-spacer" />
+      {user?.tenantName && <span className="navbar-tenant">{user.tenantName}</span>}
       <span className="navbar-user">{user?.name || user?.email}</span>
       <button
         className="navbar-link"

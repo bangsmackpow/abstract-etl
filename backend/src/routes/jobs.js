@@ -1,92 +1,55 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../db');
-const { jobs, users } = require('../db/schema');
-const { eq, and, or, like, desc, sql } = require('drizzle-orm');
-const { requireAuth, requireAdmin } = require('../middleware/requireAuth');
+const { requireAuth, requireTenantAdmin } = require('../middleware/requireAuth');
 const { sendCompletionEmail } = require('../services/emailService');
 const { createError } = require('../middleware/errorHandler');
+const {
+  listJobs,
+  getJob,
+  createJob,
+  updateJob,
+  deleteJob,
+  setJobEmailSent,
+  listUsersByTenant,
+  getUserByTenant,
+} = require('../services/tenantRepo');
 
 // All job routes require auth
 router.use(requireAuth);
 
-// GET /api/jobs/admin/users — admin: list all users for filter dropdown
-router.get('/admin/users', requireAdmin, async (req, res) => {
-  const allUsers = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      role: users.role,
-    })
-    .from(users);
+// GET /api/jobs/admin/users — tenant admin: list this tenant's users for filter dropdown
+router.get('/admin/users', requireTenantAdmin, async (req, res) => {
+  const allUsers = await listUsersByTenant(req.tenantId);
   res.json(allUsers);
 });
 
-// GET /api/jobs — list jobs (own jobs; admin sees all)
+// GET /api/jobs — list jobs (tenant-scoped; tenant admin may filter by user)
 router.get('/', async (req, res) => {
   const { search, status, page = 1, perPage = 25, userId } = req.query;
 
-  const offset = (Number(page) - 1) * Number(perPage);
-  const limit = Number(perPage);
+  // Tenant admin may filter by user; abstractors always see only their own
+  const effectiveUserId = req.user.role === 'admin' ? userId : req.user.id;
 
-  const filters = [];
-  if (req.user.role !== 'admin') {
-    filters.push(eq(jobs.createdBy, req.user.id));
-  } else if (userId) {
-    filters.push(eq(jobs.createdBy, userId));
-  }
-
-  if (status) {
-    filters.push(eq(jobs.status, status));
-  }
-
-  if (search) {
-    filters.push(
-      or(
-        like(jobs.propertyAddress, `%${search}%`),
-        like(jobs.borrowerNames, `%${search}%`),
-        like(jobs.county, `%${search}%`)
-      )
-    );
-  }
-
-  const whereClause = filters.length > 0 ? and(...filters) : undefined;
-
-  const records = await db
-    .select()
-    .from(jobs)
-    .where(whereClause)
-    .orderBy(desc(jobs.createdAt))
-    .limit(limit)
-    .offset(offset);
-
-  // Get total count for pagination
-  const [countResult] = await db
-    .select({
-      count: sql`count(*)`,
-    })
-    .from(jobs)
-    .where(whereClause);
-
-  res.json({
-    items: records,
-    page: Number(page),
-    perPage: Number(perPage),
-    totalItems: Number(countResult.count),
-    totalPages: Math.ceil(Number(countResult.count) / limit),
+  const result = await listJobs(req.tenantId, {
+    search,
+    status,
+    userId: effectiveUserId,
+    page,
+    perPage,
   });
+
+  res.json(result);
 });
 
-// GET /api/jobs/:id — get single job
+// GET /api/jobs/:id — get single job (tenant-scoped, 404 for foreign tenant)
 router.get('/:id', async (req, res) => {
-  const [record] = await db.select().from(jobs).where(eq(jobs.id, req.params.id)).limit(1);
+  const record = await getJob(req.tenantId, req.params.id);
 
   if (!record) {
     throw createError('Not found', 404);
   }
 
-  // Non-admins can only see their own jobs
+  // Abstractors can only see their own jobs
   if (req.user.role !== 'admin' && record.createdBy !== req.user.id) {
     throw createError('Not found', 404);
   }
@@ -107,33 +70,24 @@ router.post('/', async (req, res) => {
     template_version,
   } = req.body;
 
-  // Allow empty address on creation, default to PENDING so job can still be saved
-  const finalAddress = property_address || 'PENDING ADDRESS';
-
-  const [record] = await db
-    .insert(jobs)
-    .values({
-      createdBy: req.user.id,
-      status: 'draft',
-      propertyAddress: finalAddress,
-      borrowerNames: borrower_names || '',
-      county: county || '',
-      orderDate: order_date || null,
-      fieldsJson: fields_json || {},
-      aiFlagsJson: ai_flags_json || {},
-      templateVersion: template_version || 'v7',
-      emailSent: false,
-      notes: '',
-      processingTimeMs: processing_time_ms || null,
-    })
-    .returning();
+  const record = await createJob(req.tenantId, {
+    createdBy: req.user.id,
+    propertyAddress: property_address,
+    borrowerNames: borrower_names,
+    county,
+    orderDate: order_date,
+    fieldsJson: fields_json,
+    aiFlagsJson: ai_flags_json,
+    templateVersion: template_version,
+    processingTimeMs: processing_time_ms,
+  });
 
   res.status(201).json(record);
 });
 
-// PATCH /api/jobs/:id — update fields, status, notes
+// PATCH /api/jobs/:id — update fields, status, notes (tenant-scoped)
 router.patch('/:id', async (req, res) => {
-  const [existing] = await db.select().from(jobs).where(eq(jobs.id, req.params.id)).limit(1);
+  const existing = await getJob(req.tenantId, req.params.id);
 
   if (!existing) {
     throw createError('Not found', 404);
@@ -153,17 +107,11 @@ router.patch('/:id', async (req, res) => {
   if (req.body.ai_flags_json !== undefined) updates.aiFlagsJson = req.body.ai_flags_json;
   if (req.body.notes !== undefined) updates.notes = req.body.notes;
 
-  updates.updatedAt = sql`(strftime('%s', 'now'))`;
-
-  const [updated] = await db
-    .update(jobs)
-    .set(updates)
-    .where(eq(jobs.id, req.params.id))
-    .returning();
+  const updated = await updateJob(req.tenantId, req.params.id, updates);
 
   // Send completion email if status just became 'complete' and not yet sent
   if (updates.status === 'complete' && !existing.emailSent) {
-    const [user] = await db.select().from(users).where(eq(users.id, existing.createdBy)).limit(1);
+    const user = await getUserByTenant(req.tenantId, existing.createdBy);
     if (user) {
       const sent = await sendCompletionEmail({
         to: user.email,
@@ -173,7 +121,7 @@ router.patch('/:id', async (req, res) => {
         appUrl: process.env.APP_URL,
       });
       if (sent) {
-        await db.update(jobs).set({ emailSent: true }).where(eq(jobs.id, req.params.id));
+        await setJobEmailSent(req.tenantId, req.params.id);
       }
     }
   }
@@ -181,9 +129,13 @@ router.patch('/:id', async (req, res) => {
   res.json(updated);
 });
 
-// DELETE /api/jobs/:id — admin only
-router.delete('/:id', requireAdmin, async (req, res) => {
-  await db.delete(jobs).where(eq(jobs.id, req.params.id));
+// DELETE /api/jobs/:id — tenant admin only (tenant-scoped; 404 for foreign tenant)
+router.delete('/:id', requireTenantAdmin, async (req, res) => {
+  const existing = await getJob(req.tenantId, req.params.id);
+  if (!existing) {
+    throw createError('Not found', 404);
+  }
+  await deleteJob(req.tenantId, req.params.id);
   res.json({ success: true });
 });
 

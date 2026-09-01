@@ -2,17 +2,36 @@ const { sqliteTable, text, integer, index } = require('drizzle-orm/sqlite-core')
 const { sql } = require('drizzle-orm');
 const { v4: uuidv4 } = require('uuid');
 
-const users = sqliteTable('users', {
+const tenants = sqliteTable('tenants', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => uuidv4()),
   name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  password: text('password').notNull(), // Hashed
-  role: text('role').notNull().default('abstractor'), // 'admin' or 'abstractor'
+  slug: text('slug').unique(),
+  status: text('status').notNull().default('active'), // 'active' | 'suspended'
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
+
+const users = sqliteTable(
+  'users',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv4()),
+    tenantId: text('tenant_id').references(() => tenants.id),
+    name: text('name').notNull(),
+    email: text('email').notNull().unique(),
+    password: text('password').notNull(), // Hashed
+    role: text('role').notNull().default('abstractor'), // 'admin' (tenant admin) or 'abstractor'
+    isPlatformAdmin: integer('is_platform_admin', { mode: 'boolean' }).default(false),
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+    updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  },
+  (table) => ({
+    tenantIndex: index('users_tenant_idx').on(table.tenantId),
+  })
+);
 
 const jobs = sqliteTable(
   'jobs',
@@ -20,6 +39,7 @@ const jobs = sqliteTable(
     id: text('id')
       .primaryKey()
       .$defaultFn(() => uuidv4()),
+    tenantId: text('tenant_id').references(() => tenants.id),
     createdBy: text('created_by')
       .notNull()
       .references(() => users.id),
@@ -43,6 +63,9 @@ const jobs = sqliteTable(
   (table) => ({
     userIndex: index('user_idx').on(table.createdBy),
     statusIndex: index('status_idx').on(table.status),
+    tenantUserIndex: index('jobs_tenant_created_by_idx').on(table.tenantId, table.createdBy),
+    tenantStatusIndex: index('jobs_tenant_status_idx').on(table.tenantId, table.status),
+    tenantIndex: index('jobs_tenant_idx').on(table.tenantId),
   })
 );
 
@@ -64,6 +87,7 @@ const backups = sqliteTable('backups', {
 });
 
 module.exports = {
+  tenants,
   users,
   jobs,
   settings,

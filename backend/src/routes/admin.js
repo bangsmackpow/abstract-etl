@@ -2,56 +2,67 @@ const express = require('express');
 const path = require('path');
 const router = express.Router();
 const { db } = require('../db');
-const { users, jobs, settings } = require('../db/schema');
-const { eq, sql, avg, count } = require('drizzle-orm');
-const { requireAuth, requireAdmin } = require('../middleware/requireAuth');
+const { jobs, settings } = require('../db/schema');
+const { avg, count, eq } = require('drizzle-orm');
+const { requireAuth, requireTenantAdmin, requirePlatformAdmin } = require('../middleware/requireAuth');
 const { hashPassword } = require('../services/authService');
 const { createError } = require('../middleware/errorHandler');
 const { manualBackup, listBackups, restoreBackup, getBackupPath, restartScheduler } = require('../services/backupService');
 const { resetTransporter } = require('../services/emailService');
+const {
+  listUsersByTenant,
+  createUserForTenant,
+  updateUserPassword,
+  deleteUserByTenant,
+} = require('../services/tenantRepo');
 
 router.use(requireAuth);
-router.use(requireAdmin);
 
-router.get('/metrics', async (req, res) => {
+// ── Tenant-scoped routes (requireTenantAdmin) ──────────────────────────────
+// Metrics: only this tenant's users and jobs.
+router.get('/metrics', requireTenantAdmin, async (req, res) => {
+  const tenantId = req.tenantId;
+
   const jobsPerUser = await db
     .select({
-      userId: users.id,
-      userName: users.name,
+      userId: jobs.createdBy,
       jobCount: count(jobs.id),
       avgProcessingTime: avg(jobs.processingTimeMs),
     })
-    .from(users)
-    .leftJoin(jobs, eq(users.id, jobs.createdBy))
-    .groupBy(users.id);
+    .from(jobs)
+    .where(eq(jobs.tenantId, tenantId))
+    .groupBy(jobs.createdBy);
 
   const [overall] = await db
     .select({
       totalJobs: count(jobs.id),
       avgProcessingTime: avg(jobs.processingTimeMs),
     })
-    .from(jobs);
+    .from(jobs)
+    .where(eq(jobs.tenantId, tenantId));
+
+  // Join user names from this tenant for the per-user table
+  const tenantUsers = await listUsersByTenant(tenantId);
+  const userMap = new Map(tenantUsers.map((u) => [u.id, u.name]));
+  const perUser = jobsPerUser.map((r) => ({
+    userId: r.userId,
+    userName: userMap.get(r.userId) || 'Unknown',
+    jobCount: r.jobCount,
+    avgProcessingTime: r.avgProcessingTime,
+  }));
 
   res.json({
-    perUser: jobsPerUser,
-    overall: overall,
+    perUser,
+    overall,
   });
 });
 
-router.get('/users', async (req, res) => {
-  const allUsers = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      role: users.role,
-      createdAt: users.createdAt,
-    })
-    .from(users);
+router.get('/users', requireTenantAdmin, async (req, res) => {
+  const allUsers = await listUsersByTenant(req.tenantId);
   res.json(allUsers);
 });
 
-router.post('/users', async (req, res) => {
+router.post('/users', requireTenantAdmin, async (req, res) => {
   const { name, email, password, role } = req.body;
 
   if (!name || !email || !password) {
@@ -61,20 +72,12 @@ router.post('/users', async (req, res) => {
   const hashedPassword = await hashPassword(password);
 
   try {
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        name,
-        email,
-        password: hashedPassword,
-        role: role || 'abstractor',
-      })
-      .returning({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        role: users.role,
-      });
+    const newUser = await createUserForTenant(req.tenantId, {
+      name,
+      email,
+      password: hashedPassword,
+      role: role || 'abstractor',
+    });
 
     res.status(201).json(newUser);
   } catch (err) {
@@ -85,7 +88,7 @@ router.post('/users', async (req, res) => {
   }
 });
 
-router.patch('/users/:id/password', async (req, res) => {
+router.patch('/users/:id/password', requireTenantAdmin, async (req, res) => {
   const { password } = req.body;
 
   if (!password) {
@@ -93,52 +96,47 @@ router.patch('/users/:id/password', async (req, res) => {
   }
 
   const hashedPassword = await hashPassword(password);
-
-  await db
-    .update(users)
-    .set({
-      password: hashedPassword,
-      updatedAt: sql`(strftime('%s', 'now'))`,
-    })
-    .where(eq(users.id, req.params.id));
+  await updateUserPassword(req.tenantId, req.params.id, hashedPassword);
 
   res.json({ success: true, message: 'Password updated successfully' });
 });
 
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/:id', requireTenantAdmin, async (req, res) => {
   if (req.params.id === req.user.id) {
     throw createError('Cannot delete your own account', 400);
   }
 
-  await db.delete(users).where(eq(users.id, req.params.id));
+  await deleteUserByTenant(req.tenantId, req.params.id);
   res.json({ success: true });
 });
 
-// ── Backup Routes ─────────────────────────────────────────────────────────────
+// ── Platform-only routes (requirePlatformAdmin) ─────────────────────────────
+// Global settings and whole-DB backups/restore must never be reachable by a
+// tenant admin (multi-tenant-plan.md §5.3).
 
-router.post('/backup', async (req, res) => {
+router.post('/backup', requirePlatformAdmin, async (req, res) => {
   const { notes } = req.body || {};
   const record = await manualBackup(notes);
   res.status(201).json(record);
 });
 
-router.get('/backups', async (req, res) => {
+router.get('/backups', requirePlatformAdmin, async (req, res) => {
   const list = await listBackups();
   res.json(list);
 });
 
-router.get('/backups/:id/download', async (req, res) => {
+router.get('/backups/:id/download', requirePlatformAdmin, async (req, res) => {
   const filePath = await getBackupPath(req.params.id);
   const filename = path.basename(filePath);
   res.download(filePath, filename);
 });
 
-router.post('/backups/:id/restore', async (req, res) => {
+router.post('/backups/:id/restore', requirePlatformAdmin, async (req, res) => {
   await restoreBackup(req.params.id);
   res.json({ success: true, message: 'Database restored successfully' });
 });
 
-// ── Settings Routes ───────────────────────────────────────────────────────────
+// ── Settings Routes (platform-only) ─────────────────────────────────────────
 
 const SETTING_KEYS = [
   'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from',
@@ -148,14 +146,14 @@ const SETTING_KEYS = [
 
 const POSITIVE_INT_KEYS = new Set(['backup_interval_minutes', 'backup_retention_days']);
 
-router.get('/settings', async (req, res) => {
+router.get('/settings', requirePlatformAdmin, async (req, res) => {
   const rows = await db.select().from(settings);
   const map = {};
   for (const r of rows) map[r.key] = r.value;
   res.json(map);
 });
 
-router.patch('/settings', async (req, res) => {
+router.patch('/settings', requirePlatformAdmin, async (req, res) => {
   const allowedKeys = new Set(SETTING_KEYS);
   const changedKeys = [];
 

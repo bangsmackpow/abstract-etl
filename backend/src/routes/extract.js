@@ -7,8 +7,7 @@ const { requireAuth } = require('../middleware/requireAuth');
 const googleAiService = require('../services/googleAiService');
 const { sendBulkImportNotification } = require('../services/emailService');
 const { createError } = require('../middleware/errorHandler');
-const { db } = require('../db');
-const { jobs } = require('../db/schema');
+const { createJob } = require('../services/tenantRepo');
 
 const upload = multer({
   dest: path.join(__dirname, '../uploads'),
@@ -26,10 +25,11 @@ router.post('/', upload.single('pdf'), async (req, res) => {
 
   const pdfPath = req.file.path;
   const startTime = Date.now();
+  const templateVersion = req.body.template_version === 'v7' ? 'v7' : 'v9';
 
   try {
     const filename = req.file.originalname || '';
-    const extractedFields = await googleAiService.extractFromPDF(pdfPath, filename);
+    const extractedFields = await googleAiService.extractFromPDF(pdfPath, filename, templateVersion);
     const processingTimeMs = Date.now() - startTime;
 
     const aiFlags = {};
@@ -59,6 +59,7 @@ router.post('/', upload.single('pdf'), async (req, res) => {
       aiFlags,
       filename: req.file.originalname,
       processingTimeMs,
+      templateVersion,
     });
   } catch (err) {
     console.error('Extract failed:', err);
@@ -76,34 +77,31 @@ router.post('/bulk', upload.array('pdfs', 50), async (req, res) => {
   }
 
   const results = [];
+  const templateVersion = req.body.template_version === 'v7' ? 'v7' : 'v9';
 
   for (const file of req.files) {
     const pdfPath = file.path;
     try {
-      const extractedFields = await googleAiService.extractFromPDF(pdfPath, file.originalname);
+      const extractedFields = await googleAiService.extractFromPDF(pdfPath, file.originalname, templateVersion);
       const oi = extractedFields.order_info || {};
       const propertyAddress = oi.property_address || '';
 
-      const [job] = await db
-        .insert(jobs)
-        .values({
-          createdBy: req.user.id,
-          status: 'draft',
-          propertyAddress: propertyAddress || 'PENDING ADDRESS',
-          borrowerNames: oi.borrower_owner || '',
-          county: oi.county || '',
-          fieldsJson: extractedFields,
-          templateVersion: 'v7',
-          emailSent: false,
-          notes: '',
-        })
-        .returning();
+      const job = await createJob(req.tenantId, {
+        createdBy: req.user.id,
+        propertyAddress: propertyAddress || 'PENDING ADDRESS',
+        borrowerNames: oi.borrower_owner || '',
+        county: oi.county || '',
+        fieldsJson: extractedFields,
+        templateVersion,
+        notes: '',
+      });
 
       results.push({
         filename: file.originalname,
         status: 'created',
         jobId: job.id,
         propertyAddress,
+        templateVersion,
       });
     } catch (err) {
       console.error(`Bulk import failed for ${file.originalname}:`, err.message);

@@ -14,6 +14,8 @@
     "validate": "npm run typecheck && npm run lint && (npm run knip || node -e \"process.exit(0)\")"
   },
   "dependencies": {
+    "better-sqlite3": "^12.8.0",
+    "drizzle-orm": "^0.45.2",
     "zod": "^3.22.0"
   },
   "devDependencies": {

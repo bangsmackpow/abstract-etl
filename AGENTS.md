@@ -20,8 +20,10 @@ AI-powered ETL system for property abstracts. **V9 rules** (REVISION 9 of the En
 
 ## Core services (`backend/src/services/`)
 
-- `googleAiService.js` — primary AI engine. Native PDF pass-through to Gemini 2.5 Flash, structured JSON (`responseMimeType: "application/json"`), brace-depth JSON sanitization + fallback parse. Loads `docs/prompts/v9-prompt.md` and `docs/schemas/v9-schema.json` at startup (`DOCS_DIR`, default repo `docs/`) — server throws if either is missing.
-- `v7PdfGenerator.js`, `v7DocxGenerator.js` (`generateV7TextDocx` text layout matching `blank.docx`, `generateV7TableDocx` 30/70 table layout), `v7MarkdownGenerator.js` — v9-rule outputs (ALL CAPS, packet-order chain with starred supporting entries, warning-red `C00000`, MIN/MATURITY NOT SHOWN, Segoe Script signature). Tax info renders inside ORDER INFORMATION (no standalone section).
+- `googleAiService.js` — primary AI engine. Native PDF pass-through to Gemini 2.5 Flash, structured JSON (`responseMimeType: "application/json"`), brace-depth JSON sanitization + fallback parse. Loads BOTH `v7-prompt.md`/`v7-schema.json` and `v9-prompt.md`/`v9-schema.json` at startup (`DOCS_DIR`, default repo `docs/`) — server throws if any is missing. `extractFromPDF(path, filename, templateVersion)` selects the contract: `v7` → V7 rules, else V9 (default).
+- `v7DocxGenerator.js`, `v7PdfGenerator.js`, `v7MarkdownGenerator.js` — **legacy V7** generators (restored originals: newest-to-oldest chain, legacy fields). `v9DocxGenerator.js`, `v9PdfGenerator.js`, `v9MarkdownGenerator.js` — **current V9-rule** generators (ALL CAPS, packet-order chain with starred supporting entries, warning-red `C00000`, MIN/MATURITY NOT SHOWN, Segoe Script signature, 30/70 label split, 7-pt spacers). `routes/generate.js` dispatches on `job.templateVersion` (`v7` → v7 generators, else v9). All generators embed the Hazelwood logo (DOCX/PDF) resolved via `DOCS_DIR` so it works locally and in Docker.
+- `tenantRepo.js` — **THE only** data-access layer for `jobs`/`users` (multi-tenant-plan.md §5.1). Every call takes `tenantId` and injects `eq(table.tenantId, tenantId)`. `tenantId` is derived ONLY from the JWT (`req.tenantId`) — never from request bodies or URL params. Also owns platform-level tenant CRUD (`listTenants`, `createTenant`, `setTenantStatus`).
+- `db/tenantInit.js` — startup mirror of the `tenants` table + `tenant_id` columns + one-time backfill of existing users/jobs into the `default` tenant (idempotent, runs every boot).
 - `emailService.js` / `backupService.js` — SMTP + SQLite backups; DB `settings` table overrides env at runtime (`smtp_host`, `backup_enabled`, `backup_interval_minutes`, `backup_retention_days`).
 - `logger.js` — pino, one JSON object per line with `requestId` for Loki/Grafana. Health checks and non-API 404 scanner noise are suppressed at the source. See `docs/monitoring/README.md`.
 
@@ -38,19 +40,24 @@ Required at startup: `JWT_SECRET` (min 10 chars), `ADMIN_EMAIL`, `ADMIN_PASSWORD
 3. **Native PDF only**: do NOT use `pdf2pic` or `sharp` for extraction.
 4. **Native APIs**: prefer Web APIs (fetch, crypto) over Node-specific ones (Cloudflare migration).
 5. **JSON mode**: AI must return structured JSON with `responseMimeType: "application/json"`.
-6. **templateVersion**: persisted as `v7`; all jobs render/export via the current v9 rules regardless of stored value. Review form is `frontend/src/components/V7Form.jsx`.
+6. **templateVersion**: persisted on each job (`v7` or `v9`). Extraction (`extractFromPDF`), generation (`routes/generate.js`), and the review form all honor the job's stored version. V9 (REVISION 9 rules) is the default/current contract; V7 remains available for side-by-side testing. Review form is `frontend/src/components/V7Form.jsx`.
 7. **Settings table** (key-value) overrides env at runtime. Update via `PATCH /api/admin/settings`.
 8. **Backups**: snapshots in `backend/backups/` (volume `/app/backups`). Manual via admin UI or `POST /api/admin/backup`; restore via `POST /api/admin/backups/:id/restore`.
 9. **Dead code**: all v1–v6 code is removed. Do not reintroduce legacy version dispatch, forms, or generators.
 10. **Real data security**: never commit real abstracts, owner names, addresses, or confidential documents. Fictional samples go in `docs/sample_output/`; real-data dirs are gitignored (see `.gitignore`). `stack.env` is **tracked in git** — keep placeholders only, never real secrets (CI's `env-audit` warns on this).
 11. **Docs policy**: extraction-rule, format, or major-architecture changes MUST update `docs/rules.md` (and this file when agent workflows change). Commit: `docs: update rules for [change description]`.
+12. **Tenant scoping (multi-tenant)**: `jobs`/`users` are queried ONLY through `tenantRepo.js` with `tenantId` from the JWT (`req.tenantId`). Never accept `tenant_id` from request bodies/params. Every `GET/PATCH/DELETE /jobs/:id` and `GET /generate/:jobId/*` must return **404** (not 403) for a foreign tenant's ID.
+13. **Authz split**: `role === 'admin'` = tenant admin (own tenant only). `is_platform_admin` = platform super-admin (global settings, backups, `/api/platform/tenants`). A tenant admin must NEVER reach global settings/backups/platform routes. Suspended tenants are rejected at `requireAuth` and at login.
+14. **Schema changes**: adding a tenant-scoped column/table → edit `backend/src/db/schema.js` → `npm run db:generate` (in `backend/`) AND mirror the same in `backend/src/db/tenantInit.js` raw SQL (idempotent, fresh-install path).
 
 ## Gotchas
 
 - **Docs conflict**: `CUSTOMER_RULES_SIGNOFF.md` documents an older V7 (standalone TAX INFORMATION section). `docs/rules.md` is authoritative — tax renders inside ORDER INFORMATION.
+- **Multi-tenant**: existing data backfills into the `default` tenant; the seeded `ADMIN_EMAIL` is the default tenant's admin AND `is_platform_admin`. New tenants are provisioned via `POST /api/platform/tenants` (platform admin only). See `docs/multi-tenant-plan.md`.
 - **Local dev proxy**: `frontend/vite.config.js` proxies `/api` → `http://abstract_backend:3001` (the Docker service name). Outside Docker this hostname won't resolve — change it to `localhost:3001` or run the backend via docker-compose, or all API calls fail.
 - **Pushing to `main` deploys to prod**: `build.yml` runs on every main push (validate → build/push ghcr.io images → trigger Portainer webhook). There is no PR gate on the build workflow. CI installs with `--legacy-peer-deps`.
 - **Security scans** run on main + PRs: gitleaks, trivy (SCA + images), semgrep, hadolint, compose/env audits (`.github/workflows/security.yml`).
+- **Drizzle codegen**: `drizzle-kit` + `drizzle-orm` must stay in compatible lockstep (both hoisted to root `node_modules`). `npm run db:generate` in `backend/` shows "No schema changes" when schema and migrations are in sync. Do not reintroduce the old 0.30/0.45 mismatch.
 
 ## RTK (mandatory command prefix)
 

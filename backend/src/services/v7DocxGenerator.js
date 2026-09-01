@@ -14,42 +14,15 @@ const {
 } = require('docx');
 const fs = require('fs');
 const path = require('path');
-/**
- * V7 (v9 rules) DOCX Generator
- * Implements docs/v9/v9_rules.md REVISION 9 formatting rules:
- *  - ALL CAPS report content (Legal Description preserves recorded case)
- *  - Red color C00000 ONLY for warning / review items (rule 16.3); routine notes black
- *  - 30/70 label:value split, full-page-width instrument tables (rules 18.3-18.5)
- *  - 7-pt editable blank spacer paragraph between every instrument table (18.9)
- *  - No repeated section headings inside a section's first block (18.10)
- *  - Mandatory visible CONSIDERATION + RECORDED fields on every deed
- *  - Mandatory visible MIN field on every deed of trust (NOT SHOWN when absent)
- *  - MATURITY immediately after AMOUNT (NOT SHOWN when absent)
- *  - Starred supporting entries as full-width merged rows (18.8)
- *  - Single "Performed by: Patrick Hazelwood" line, Segoe Script, once at bottom (19.x)
- *  - VERIFICATION NOTES block after ORDER INFORMATION (16.11)
- *  - Foreclosure sequence consolidated inside Trustee's Deed block (6.17)
- */
 
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-const REPORT_FONT = 'Arial';
-const WARNING_RED = 'C00000';
-const LABEL_SHADE = 'D9D9D9'; // light gray label cells
-const HEADER_SHADE = 'E8E8E8'; // light gray section-header rows
-const REPORT_WIDTH = 9360; // full-page table width in DXA
-const LABEL_WIDTH = 2810; // ~30% of 9360
-const VALUE_WIDTH = 6550; // ~70% of 9360
-
-// Hazelwood & Associates, LLC logo (rule 16.9). PNG chosen for transparency +
-// sufficient resolution at report size. Loaded lazily; report still renders if
-// the asset is missing.
-const LOGO_PATH = path.join(__dirname, '..', '..', '..', 'docs', 'HazelwoodLogo', 'HazelwoodLogoFinal.png');
+// Hazelwood & Associates, LLC logo (rule 16.9). Resolved via DOCS_DIR so it
+// works locally and inside the Docker image. Report still renders if missing.
+const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
+const LOGO_PATH = path.join(DOCS_DIR, 'HazelwoodLogo', 'HazelwoodLogoFinal.png');
 
 function logoParagraph() {
   if (!fs.existsSync(LOGO_PATH)) {
-    return new Paragraph({ children: [new TextRun({ text: '', size: 14, font: REPORT_FONT })] });
+    return new Paragraph({ children: [new TextRun({ text: '', size: 14, font: 'Arial' })] });
   }
   const logo = fs.readFileSync(LOGO_PATH);
   return new Paragraph({
@@ -64,165 +37,11 @@ function logoParagraph() {
     ],
   });
 }
-
-function val(v) {
-  return v !== null && v !== undefined && v !== '' ? String(v) : '';
-}
-
-function upper(v) {
-  return val(v).toUpperCase();
-}
-
-function dash(v) {
-  return val(v) || '—';
-}
-
-function isWarning(value) {
-  const text = upper(value);
-  const warnTokens = [
-    'COPY NOT INCLUDED',
-    'NOT SHOWN',
-    'UNABLE TO DETERMINE',
-    'STATUS UNCLEAR',
-    'NO WILL OR LIST OF HEIRS',
-    'REFERENCE ONLY',
-    'CONFLICT',
-    'VERIFY',
-    'MISSING',
-    'FORECLOSED',
-  ];
-  return warnTokens.some((t) => text.includes(t));
-}
-
 /**
- * Build the run for a value cell. Warning items render in C00000; ordinary
- * content stays black. Legal Description content is passed in exactly as
- * recorded (never uppercased).
+ * V7 Text-based DOCX Generator
+ * Matches blank.docx layout - labels on left/bold, values on right,
+ * no table borders, clean text-based format.
  */
-function contentRun(text, opts = {}) {
-  const {
-    bold = false,
-    italics = false,
-    size = 18,
-    preserveCase = false,
-    warn = null,
-    font = REPORT_FONT,
-  } = opts;
-  const raw = val(text);
-  const display = preserveCase ? raw : upper(raw);
-  const isWarn = warn !== null ? Boolean(warn) : isWarning(raw);
-  return new TextRun({
-    text: display || '',
-    bold,
-    italics,
-    size,
-    font,
-    ...(isWarn ? { color: WARNING_RED } : {}),
-  });
-}
-
-const fieldPara = (label, value, opts = {}) =>
-  new Paragraph({
-    spacing: { before: 20, after: 20 },
-    children: [
-      new TextRun({ text: `${upper(label)}: `, bold: true, size: 18, font: REPORT_FONT }),
-      contentRun(value, opts),
-    ],
-  });
-
-const valuePara = (value, opts = {}) =>
-  new Paragraph({
-    spacing: { before: 20, after: 20 },
-    children: [contentRun(value, opts)],
-  });
-
-const sectionHeaderPara = (title) =>
-  new Paragraph({
-    spacing: { before: 200, after: 80 },
-    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '1F4E79' } },
-    children: [new TextRun({ text: upper(title), bold: true, size: 22, font: REPORT_FONT, color: '1F4E79' })],
-  });
-
-const boldPara = (text, size = 20) =>
-  new Paragraph({
-    spacing: { before: 60, after: 20 },
-    children: [new TextRun({ text: upper(text), bold: true, size, font: REPORT_FONT })],
-  });
-
-// Rule 18.9: one ordinary editable blank paragraph between every instrument
-// table, set to the standard 7-pt report font with normal single-line spacing.
-const instrumentSpacer = () =>
-  new Paragraph({
-    spacing: { before: 0, after: 0 },
-    children: [new TextRun({ text: ' ', size: 14, font: REPORT_FONT })],
-  });
-
-// Rule 19.x: performed-by line, once, at bottom of the final page.
-const performedByPara = () =>
-  new Paragraph({
-    spacing: { before: 240, after: 0 },
-    children: [
-      new TextRun({ text: 'Performed by: ', size: 24, font: REPORT_FONT }),
-      new TextRun({ text: 'Patrick Hazelwood', size: 24, font: 'Segoe Script' }),
-    ],
-  });
-
-/**
- * Render the foreclosure sequence for a Trustee's Deed inside the deed block
- * (rule 6.17): list each document on its own line, in exact packet order,
- * identifying the FORECLOSED DEED OF TRUST. Returns paragraphs.
- */
-function foreclosureParagraphs(seq) {
-  const paras = [];
-  const docs = Array.isArray(seq) ? seq : [];
-  if (docs.length === 0) return paras;
-  paras.push(boldPara('FORECLOSURE SEQUENCE (IN PACKET ORDER)', 18));
-  docs.forEach((d, i) => {
-    const label = dash(d.document_type) || 'DOCUMENT';
-    const ref = [d.book_page_instrument, d.dated, d.recorded].filter(Boolean).join(' | ');
-    paras.push(
-      new Paragraph({
-        spacing: { before: 20, after: 20 },
-        children: [
-          contentRun(`(${i + 1}) ${label}${ref ? ` — ${ref}` : ''}`, { warn: upper(label).includes('FORECLOSED DEED OF TRUST') }),
-        ],
-      })
-    );
-  });
-  return paras;
-}
-
-function supportingParagraphs(sd, indent = '') {
-  const paras = [];
-  (Array.isArray(sd) ? sd : []).forEach((s) => {
-    const typeLabel = val(s.document_type) || 'SUPPORTING DOCUMENT';
-    const starLine = `* ${typeLabel}`;
-    paras.push(boldPara(`${indent}${starLine}`, 18));
-    if (val(s.decedent)) paras.push(fieldPara(`${indent}DECEDENT`, s.decedent));
-    if (val(s.date_of_death)) paras.push(fieldPara(`${indent}DATE OF DEATH`, s.date_of_death));
-    if (val(s.will_date)) paras.push(fieldPara(`${indent}WILL DATE`, s.will_date));
-    if (val(s.recorded)) paras.push(fieldPara(`${indent}RECORDED`, s.recorded));
-    if (val(s.book_page_instrument)) paras.push(fieldPara(`${indent}BOOK / PAGE OR INSTRUMENT`, s.book_page_instrument));
-    if ((s.heirs || []).length > 0) paras.push(fieldPara(`${indent}HEIRS`, (s.heirs || []).join(', ')));
-    if ((s.devisees_beneficiaries || []).length > 0) paras.push(fieldPara(`${indent}DEVISEES / BENEFICIARIES`, (s.devisees_beneficiaries || []).join(', ')));
-    if (val(s.notes)) paras.push(fieldPara(`${indent}NOTES`, s.notes));
-  });
-  return paras;
-}
-
-function verificationNotesParas(oi) {
-  const paras = [];
-  const vnotes = val(oi.order_verification_notes);
-  if (vnotes) {
-    paras.push(boldPara('VERIFICATION NOTES', 18));
-    paras.push(valuePara(vnotes, { warn: true }));
-  }
-  return paras;
-}
-
-// ---------------------------------------------------------------------------
-// generateV7TextDocx — text layout matching blank.docx
-// ---------------------------------------------------------------------------
 async function generateV7TextDocx(fields) {
   const f = fields;
   const oi = f.order_info || {};
@@ -234,18 +53,45 @@ async function generateV7TextDocx(fields) {
   const legal = f.legal_description;
   const addInfo = f.additional_information || {};
   const names = f.names_searched || [];
-  const update = f.update_report || {};
+
+  const val = (v) => (v !== null && v !== undefined && v !== '' ? String(v) : '');
+  const dash = (v) => val(v) || 'ΓÇö';
+
+  const boldPara = (text, size = 20) => new Paragraph({
+    spacing: { before: 60, after: 20 },
+    children: [new TextRun({ text: String(text).toUpperCase(), bold: true, size, font: 'Arial' })],
+  });
+
+  const fieldPara = (label, value) => new Paragraph({
+    spacing: { before: 20, after: 20 },
+    children: [
+      new TextRun({ text: `${label}: `, bold: true, size: 18, font: 'Arial' }),
+      new TextRun({ text: val(value) || 'ΓÇö', size: 18, font: 'Arial' }),
+    ],
+  });
+
+  const valuePara = (value) => new Paragraph({
+    spacing: { before: 20, after: 20 },
+    children: [new TextRun({ text: val(value) || 'ΓÇö', size: 18, font: 'Arial' })],
+  });
+
+  const spacer = () => new Paragraph({ spacing: { before: 40 } });
+
+  const sectionHeaderPara = (title) => new Paragraph({
+    spacing: { before: 200, after: 80 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '1F4E79' } },
+    children: [new TextRun({ text: title, bold: true, size: 22, font: 'Arial', color: '1F4E79' })],
+  });
 
   const children = [];
 
-  // ── Logo (rule 16.9) ──
+  // Logo (rule 16.9)
   children.push(logoParagraph());
 
-  // ── ORDER INFORMATION ──
+  // ΓöÇΓöÇ ORDER INFORMATION ΓöÇΓöÇ
   children.push(sectionHeaderPara('ORDER INFORMATION'));
   children.push(fieldPara('FILE NUMBER', oi.file_number));
   children.push(fieldPara('CLIENT / ORDER', oi.client_order));
-  children.push(fieldPara('COMPANY NAME', oi.company_name));
   children.push(fieldPara('EFFECTIVE DATE', oi.effective_date));
   children.push(fieldPara('BORROWER / OWNER', oi.borrower_owner));
   children.push(fieldPara('PROPERTY ADDRESS', oi.property_address));
@@ -258,16 +104,12 @@ async function generateV7TextDocx(fields) {
   children.push(fieldPara('LEGAL / ASSESSOR DESCRIPTION', oi.legal_assessor_description));
   children.push(fieldPara('ACREAGE', oi.acreage));
   children.push(fieldPara('ASSESSMENT', oi.assessment));
-  children.push(fieldPara('LAND VALUE', oi.land_value));
-  children.push(fieldPara('IMPROVEMENT VALUE', oi.improvement_value));
-  children.push(fieldPara('TOTAL VALUE', oi.total_value));
-  children.push(...verificationNotesParas(oi));
+  children.push(fieldPara('ORDER / VERIFICATION NOTES', oi.order_verification_notes));
 
   // Tax information rendered within ORDER INFORMATION (not a standalone section)
-  if (ti.year || ti.first_half || ti.second_half || ti.total_tax || ti.total_delinquent_amount || ti.status) {
+  if (ti.year || ti.first_half || ti.second_half || ti.total_tax || ti.total_delinquent_amount) {
     const taxYear = val(ti.year) || new Date().getFullYear();
     children.push(boldPara(`TAX INFORMATION (${taxYear})`));
-    if (val(ti.status)) children.push(fieldPara('STATUS', ti.status, { warn: isWarning(ti.status) }));
     const fh = ti.first_half || {};
     if (fh.due_date || fh.original_bill || fh.paid_date || fh.amount_paid || fh.penalty || fh.interest || fh.balance_due) {
       children.push(boldPara('FIRST HALF', 18));
@@ -291,58 +133,46 @@ async function generateV7TextDocx(fields) {
       if (sh.balance_due) children.push(fieldPara('BALANCE DUE', `$${sh.balance_due}`));
     }
     if (ti.total_tax) children.push(fieldPara(`TOTAL ${taxYear} TAX`, `$${ti.total_tax}`));
-    if (ti.total_delinquent_amount) children.push(fieldPara('TOTAL DELINQUENT / OPEN AMOUNT SHOWN', `$${ti.total_delinquent_amount}`, { warn: true }));
+    if (ti.total_delinquent_amount) children.push(fieldPara('TOTAL DELINQUENT / OPEN AMOUNT SHOWN', `$${ti.total_delinquent_amount}`));
   }
 
-  // ── CHAIN OF TITLE ──
+  // ΓöÇΓöÇ CHAIN OF TITLE ΓöÇΓöÇ
   children.push(sectionHeaderPara('CHAIN OF TITLE'));
   if (chain.length === 0) {
-    children.push(valuePara('NONE — NO CHAIN INSTRUMENTS WERE PROVIDED OR CLEARLY IDENTIFIED.'));
+    children.push(valuePara('NO CHAIN ENTRIES FOUND.'));
   } else {
-    let deedNo = 0;
     chain.forEach((e, i) => {
-      const isSupporting = upper(val(e.entry_type)) === 'SUPPORTING';
-      if (isSupporting) {
-        // Starred full-width supporting entry (rule 6.2A / 18.8)
-        const typeLabel = val(e.supporting_documents?.[0]?.document_type) || val(e.deed_type) || val(e.document_title) || 'SUPPORTING DOCUMENT';
-        const decedent = val(e.supporting_documents?.[0]?.decedent) || val(e.deceased_person);
-        children.push(boldPara(`* ${typeLabel}${decedent ? ` — ${decedent}` : ''}`, 18));
-        children.push(...supportingParagraphs(e.supporting_documents || (e.deed_type ? [e] : [])));
-        if (val(e.recorded)) children.push(fieldPara('RECORDED', e.recorded));
-        if (val(e.book_page_instrument)) children.push(fieldPara('BOOK / PAGE OR INSTRUMENT', e.book_page_instrument));
-        if (val(e.notes)) children.push(fieldPara('NOTES', e.notes));
-      } else {
-        deedNo += 1;
-        const title = val(e.document_title) || val(e.deed_type) || 'DEED';
-        children.push(boldPara(`(${deedNo}) ${title}`));
-        children.push(fieldPara('GRANTOR(S)', (e.grantors || []).join(', ')));
-        children.push(fieldPara('GRANTEE(S)', (e.grantees || []).join(', ')));
-        children.push(fieldPara('DATED', e.dated));
-        children.push(fieldPara('RECORDED / RECORDING DATE', e.recorded));
-        if (val(e.recording_time)) children.push(fieldPara('RECORDING TIME', e.recording_time));
-        children.push(fieldPara('BOOK / PAGE OR INSTRUMENT', e.book_page_instrument));
-        children.push(fieldPara('CONSIDERATION', e.consideration));
-        if (val(e.deceased_person)) {
-          children.push(fieldPara('DECEASED PERSON', e.deceased_person, { warn: true }));
-          if (val(e.deceased_note)) children.push(fieldPara('NOTE', e.deceased_note, { warn: true }));
-        }
-        if (val(e.third_party_party)) {
-          children.push(fieldPara('PARTY OF THE THIRD PART', e.third_party_party));
-          if (val(e.third_party_reason)) children.push(fieldPara('PARTICIPATION REASON', e.third_party_reason));
-        }
-        if (val(e.partition_deed_notes)) children.push(fieldPara('PARTITION DEED NOTES', e.partition_deed_notes));
-        if (val(e.notes)) children.push(fieldPara('NOTES', e.notes));
-        children.push(...foreclosureParagraphs(e.foreclosure_sequence));
-        children.push(...supportingParagraphs(e.supporting_documents));
-      }
-      if (i < chain.length - 1) children.push(instrumentSpacer());
+      children.push(boldPara(`(${i + 1}) ${val(e.deed_type) || 'ΓÇö'}`));
+      children.push(fieldPara('GRANTOR(S)', (e.grantors || []).join(', ')));
+      children.push(fieldPara('GRANTEE(S)', (e.grantees || []).join(', ')));
+      children.push(fieldPara('DATED', e.dated));
+      children.push(fieldPara('RECORDED', e.recorded));
+      children.push(fieldPara('BOOK / PAGE OR INSTRUMENT', e.book_page_instrument));
+      children.push(fieldPara('CONSIDERATION', e.consideration));
+      if (e.notes) children.push(fieldPara('NOTES', e.notes));
+
+      // Supporting documents (*-prefixed)
+      const sd = e.supporting_documents || [];
+      sd.forEach((s) => {
+        children.push(boldPara(`* ${val(s.document_type) || 'SUPPORTING DOCUMENT'}`, 18));
+        if (s.decedent) children.push(fieldPara('DECEDENT', s.decedent));
+        if (s.date_of_death) children.push(fieldPara('DATE OF DEATH', s.date_of_death));
+        if (s.will_date) children.push(fieldPara('WILL DATE', s.will_date));
+        if (s.recorded) children.push(fieldPara('RECORDED', s.recorded));
+        if (s.book_page_instrument) children.push(fieldPara('BOOK / PAGE OR INSTRUMENT', s.book_page_instrument));
+        if ((s.heirs || []).length > 0) children.push(fieldPara('HEIRS', s.heirs.join(', ')));
+        if ((s.devisees_beneficiaries || []).length > 0) children.push(fieldPara('DEVISEES / BENEFICIARIES', s.devisees_beneficiaries.join(', ')));
+        if (s.notes) children.push(fieldPara('NOTES', s.notes));
+      });
+
+      if (i < chain.length - 1) children.push(spacer());
     });
   }
 
-  // ── MORTGAGES / DEEDS OF TRUST ──
+  // ΓöÇΓöÇ MORTGAGES / DEEDS OF TRUST ΓöÇΓöÇ
   children.push(sectionHeaderPara('MORTGAGES / DEEDS OF TRUST'));
   if (mortgages.length === 0) {
-    children.push(valuePara('NONE — NO OPEN MORTGAGE OR DEED OF TRUST WAS INCLUDED OR CLEARLY IDENTIFIED IN THE PROVIDED DOCUMENTS.'));
+    children.push(valuePara('NONE ΓÇö NO OPEN MORTGAGE OR DEED OF TRUST WAS INCLUDED OR CLEARLY IDENTIFIED IN THE PROVIDED DOCUMENTS.'));
   } else {
     mortgages.forEach((m, i) => {
       children.push(boldPara(`(${i + 1}) ${val(m.document_title) || 'DOT / RFDT / DTCL'}`));
@@ -354,9 +184,9 @@ async function generateV7TextDocx(fields) {
       children.push(fieldPara('RECORDED', m.recorded));
       children.push(fieldPara('BOOK / PAGE OR INSTRUMENT', m.book_page_instrument));
       children.push(fieldPara('AMOUNT', m.amount ? `$${m.amount}` : m.amount));
-      children.push(fieldPara('MATURITY', m.maturity || 'NOT SHOWN', { warn: !val(m.maturity) }));
+      children.push(fieldPara('MATURITY', m.maturity));
       children.push(fieldPara('LOAN NUMBER', m.loan_number));
-      children.push(fieldPara('MIN', m.min || 'NOT SHOWN', { warn: !val(m.min) }));
+      children.push(fieldPara('MIN', m.min));
       children.push(fieldPara('OPEN / CLOSED ENDED', m.open_closed_ended));
       children.push(fieldPara('STATUS', m.status));
       if (m.notes) children.push(fieldPara('NOTES', m.notes));
@@ -370,14 +200,14 @@ async function generateV7TextDocx(fields) {
         if (a.notes) children.push(fieldPara('NOTES', a.notes));
       });
 
-      if (i < mortgages.length - 1) children.push(instrumentSpacer());
+      if (i < mortgages.length - 1) children.push(spacer());
     });
   }
 
-  // ── JUDGMENTS / LIENS ──
+  // ΓöÇΓöÇ JUDGMENTS / LIENS ΓöÇΓöÇ
   children.push(sectionHeaderPara('JUDGMENTS / LIENS'));
   if (liens.length === 0) {
-    children.push(valuePara('NONE — NO OPEN JUDGMENT, LIEN, UCC, STATE TAX LIEN, FEDERAL TAX LIEN, MECHANIC\'S LIEN, LIS PENDENS, BANKRUPTCY, OR FORECLOSURE DOCUMENT WAS INCLUDED OR CLEARLY IDENTIFIED IN THE PROVIDED DOCUMENTS.'));
+    children.push(valuePara('NONE ΓÇö NO OPEN JUDGMENT, LIEN, UCC, STATE TAX LIEN, FEDERAL TAX LIEN, MECHANIC\'S LIEN, LIS PENDENS, BANKRUPTCY, OR FORECLOSURE DOCUMENT WAS INCLUDED OR CLEARLY IDENTIFIED IN THE PROVIDED DOCUMENTS.'));
   } else {
     liens.forEach((l, i) => {
       children.push(boldPara(`(${i + 1}) ${val(l.document_title) || 'JUDGMENT / LIEN'}`));
@@ -391,16 +221,16 @@ async function generateV7TextDocx(fields) {
       children.push(fieldPara('INTEREST', l.interest));
       children.push(fieldPara('COSTS', l.costs ? `$${l.costs}` : l.costs));
       children.push(fieldPara("ATTORNEY'S FEES", l.attorneys_fees ? `$${l.attorneys_fees}` : l.attorneys_fees));
-      children.push(fieldPara('STATUS', l.status, { warn: isWarning(l.status) }));
+      children.push(fieldPara('STATUS', l.status));
       if (l.notes) children.push(fieldPara('NOTES', l.notes));
-      if (i < liens.length - 1) children.push(instrumentSpacer());
+      if (i < liens.length - 1) children.push(spacer());
     });
   }
 
-  // ── MISCELLANEOUS DOCUMENTS ──
+  // ΓöÇΓöÇ MISCELLANEOUS DOCUMENTS ΓöÇΓöÇ
   children.push(sectionHeaderPara('MISCELLANEOUS DOCUMENTS'));
   if (misc.length === 0) {
-    children.push(valuePara('NO MISCELLANEOUS DOCUMENTS WERE PROVIDED OR CLEARLY IDENTIFIED.'));
+    children.push(valuePara('NO MISCELLANEOUS DOCUMENTS FOUND.'));
   } else {
     misc.forEach((m, i) => {
       children.push(boldPara(`(${i + 1}) ${val(m.document_type || m.document_title) || 'DOCUMENT'}`));
@@ -418,18 +248,18 @@ async function generateV7TextDocx(fields) {
       if (m.consideration) children.push(fieldPara('CONSIDERATION', m.consideration));
       if (m.area_or_width) children.push(fieldPara('AREA / WIDTH', m.area_or_width));
       if (m.notes) children.push(fieldPara('NOTES', m.notes));
-      if (i < misc.length - 1) children.push(instrumentSpacer());
+      if (i < misc.length - 1) children.push(spacer());
     });
   }
 
-  // ── LEGAL DESCRIPTION ──
+  // ΓöÇΓöÇ LEGAL DESCRIPTION ΓöÇΓöÇ
   children.push(sectionHeaderPara('LEGAL DESCRIPTION'));
   children.push(new Paragraph({
     spacing: { before: 20, after: 20 },
-    children: [contentRun(dash(legal), { preserveCase: true })],
+    children: [new TextRun({ text: dash(legal), size: 18, font: 'Arial' })],
   }));
 
-  // ── ADDITIONAL INFORMATION ──
+  // ΓöÇΓöÇ ADDITIONAL INFORMATION ΓöÇΓöÇ
   children.push(sectionHeaderPara('ADDITIONAL INFORMATION'));
   const refs = addInfo.references || [];
   if (refs.length > 0) {
@@ -438,7 +268,7 @@ async function generateV7TextDocx(fields) {
       const refText = typeof r === 'string' ? r : `${r.book_page_instrument || ''} - ${r.document_type || r.label || ''}`;
       children.push(new Paragraph({
         spacing: { before: 20, after: 20 },
-        children: [contentRun(`${ri + 1}. ${refText}`)],
+        children: [new TextRun({ text: `${ri + 1}. ${refText}`, size: 18, font: 'Arial' })],
       }));
     });
   }
@@ -448,45 +278,34 @@ async function generateV7TextDocx(fields) {
     docAccounting.forEach((da) => {
       children.push(new Paragraph({
         spacing: { before: 20, after: 20 },
-        children: [contentRun(`PAGE(S) ${da.page_range || ''}: ${da.document_label || ''}`)],
+        children: [new TextRun({ text: `PAGE(S) ${da.page_range || ''}: ${da.document_label || ''}`, size: 18, font: 'Arial' })],
       }));
     });
   }
-  if (update.is_update) {
-    children.push(boldPara('UPDATE / CONTINUATION SUMMARY', 18));
-    if (val(update.prior_effective_date)) children.push(fieldPara('PRIOR EFFECTIVE DATE', update.prior_effective_date));
-    if (val(update.current_effective_date)) children.push(fieldPara('CURRENT EFFECTIVE DATE', update.current_effective_date));
-    if ((update.actual_documents_recorded || []).length > 0) children.push(fieldPara('ACTUAL DOCUMENTS RECORDED', (update.actual_documents_recorded || []).join(', ')));
-    if ((update.carried_forward_open_matters || []).length > 0) children.push(fieldPara('CARRIED-FORWARD OPEN MATTERS', (update.carried_forward_open_matters || []).join(', '), { warn: true }));
-    if ((update.proposed_unrecorded_items || []).length > 0) children.push(fieldPara('PROPOSED / UNRECORDED ITEMS', (update.proposed_unrecorded_items || []).join(', ')));
-    if (val(update.summary_notes)) children.push(fieldPara('SUMMARY', update.summary_notes));
-  }
-  if (refs.length === 0 && docAccounting.length === 0 && !update.is_update) {
+  if (refs.length === 0 && docAccounting.length === 0) {
     children.push(valuePara('NO ADDITIONAL INFORMATION.'));
   }
 
-  // ── NAMES SEARCHED ──
+  // ΓöÇΓöÇ NAMES SEARCHED ΓöÇΓöÇ
   children.push(sectionHeaderPara('NAMES SEARCHED'));
   children.push(new Paragraph({
     spacing: { before: 20, after: 20 },
-    children: [contentRun((names || []).join(', ') || 'NONE PROVIDED.')],
+    children: [new TextRun({ text: (names || []).join(', ') || 'NONE PROVIDED.', size: 18, font: 'Arial' })],
   }));
 
-  // ── Performed by (rule 19.x) ──
-  children.push(performedByPara());
-
-  // ── Build Document ──
+  // ΓöÇΓöÇ Build Document ΓöÇΓöÇ
   const doc = new Document({
-    styles: { default: { document: { run: { font: REPORT_FONT, size: 18 } } } },
+    styles: { default: { document: { run: { font: 'Arial', size: 18 } } } },
     sections: [{ properties: { margin: { top: 720, right: 720, bottom: 720, left: 720 } }, children }],
   });
 
   return await Packer.toBuffer(doc);
 }
 
-// ---------------------------------------------------------------------------
-// generateV7TableDocx — table-based layout (30/70 split, rules 18.x)
-// ---------------------------------------------------------------------------
+/**
+ * V7 Table-based DOCX Generator
+ * Uses table-based layout similar to v5/v6 style but with v7 fields.
+ */
 async function generateV7TableDocx(fields) {
   const f = fields;
   const oi = f.order_info || {};
@@ -498,24 +317,15 @@ async function generateV7TableDocx(fields) {
   const legal = f.legal_description;
   const addInfo = f.additional_information || {};
   const names = f.names_searched || [];
-  const update = f.update_report || {};
+
+  const val = (v) => (v !== null && v !== undefined && v !== '' ? String(v) : '');
+  const dash = (v) => val(v) || 'ΓÇö';
 
   const border = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
   const borders = { top: border, bottom: border, left: border, right: border };
 
   function cell(text, opts = {}) {
-    const {
-      bold = false,
-      shade = null,
-      span = 1,
-      width = null,
-      align = AlignmentType.LEFT,
-      italics = false,
-      preserveCase = false,
-      warn = null,
-      color = null,
-    } = opts;
-    const isWarn = warn !== null ? Boolean(warn) : isWarning(val(text));
+    const { bold = false, shade = null, span = 1, width = null, align = AlignmentType.LEFT, italics = false } = opts;
     return new TableCell({
       borders,
       columnSpan: span,
@@ -525,43 +335,34 @@ async function generateV7TableDocx(fields) {
       children: [
         new Paragraph({
           alignment: align,
-          children: [
-            new TextRun({
-              text: preserveCase ? val(text) : upper(val(text)),
-              bold,
-              italics,
-              size: 18,
-              font: REPORT_FONT,
-              ...(isWarn || color ? { color: color || WARNING_RED } : {}),
-            }),
-          ],
+          children: [new TextRun({ text: val(text), bold, italics, size: 18, font: 'Arial' })],
         }),
       ],
     });
   }
 
-  function labelCell(text, width = LABEL_WIDTH) {
-    return cell(text, { bold: true, shade: LABEL_SHADE, width });
+  function labelCell(text, width) {
+    return cell(text, { bold: true, shade: 'D9D9D9', width });
   }
 
-  function valueCell(text, width = VALUE_WIDTH, opts = {}) {
-    return cell(text, { width, ...opts });
+  function valueCell(text, width) {
+    return cell(text, { width });
   }
 
   function sectionHeader(title) {
     return new Table({
-      width: { size: REPORT_WIDTH, type: WidthType.DXA },
-      columnWidths: [REPORT_WIDTH],
+      width: { size: 9360, type: WidthType.DXA },
+      columnWidths: [9360],
       rows: [
         new TableRow({
           children: [
             new TableCell({
               borders,
-              shading: { fill: HEADER_SHADE, type: ShadingType.CLEAR },
+              shading: { fill: '2c3e50', type: ShadingType.CLEAR },
               margins: { top: 60, bottom: 60, left: 120, right: 120 },
               children: [
                 new Paragraph({
-                  children: [new TextRun({ text: upper(title), bold: true, size: 20, font: REPORT_FONT })],
+                  children: [new TextRun({ text: title, bold: true, size: 20, font: 'Arial', color: 'FFFFFF' })],
                 }),
               ],
             }),
@@ -571,243 +372,531 @@ async function generateV7TableDocx(fields) {
     });
   }
 
-  function fullWidthRow(text, opts = {}) {
-    const { bold = false, italics = false, preserveCase = false, warn = null } = opts;
-    return new TableRow({
-      children: [
-        new TableCell({
-          borders,
-          margins: { top: 60, bottom: 60, left: 120, right: 120 },
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: preserveCase ? val(text) : upper(val(text)),
-                  bold,
-                  italics,
-                  size: 18,
-                  font: REPORT_FONT,
-                  ...(warn ? { color: WARNING_RED } : {}),
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    });
-  }
+  const spacerTable = () => new Paragraph({ spacing: { before: 120 } });
 
-  function kvRow(label, value, opts = {}) {
-    const { warn = null, preserveCase = false } = opts;
-    return new TableRow({
-      children: [
-        labelCell(label, LABEL_WIDTH),
-        valueCell(value, VALUE_WIDTH, { warn, preserveCase }),
-      ],
-    });
-  }
-
-  // ── Order Information (30/70) ──
-  const orderRows = [
-    kvRow('FILE NUMBER', oi.file_number),
-    kvRow('CLIENT / ORDER', oi.client_order),
-    kvRow('COMPANY NAME', oi.company_name),
-    kvRow('EFFECTIVE DATE', oi.effective_date),
-    kvRow('BORROWER / OWNER', oi.borrower_owner),
-    kvRow('PROPERTY ADDRESS', oi.property_address),
-    kvRow('COUNTY', oi.county),
-    kvRow('TOWNSHIP / CITY', oi.township_city),
-    kvRow('PARCEL ID / TAX MAP', oi.parcel_id_tax_map),
-    kvRow('ACCOUNT NUMBER', oi.account_number),
-    kvRow('CURRENT VESTING OWNER', oi.current_vesting_owner),
-    kvRow('ASSESSOR OWNER', oi.assessor_owner),
-    kvRow('LEGAL / ASSESSOR DESCRIPTION', oi.legal_assessor_description),
-    kvRow('ACREAGE', oi.acreage),
-    kvRow('ASSESSMENT', oi.assessment),
-    kvRow('LAND VALUE', oi.land_value),
-    kvRow('IMPROVEMENT VALUE', oi.improvement_value),
-    kvRow('TOTAL VALUE', oi.total_value),
-  ];
-  if (val(oi.order_verification_notes)) {
-    orderRows.push(fullWidthRow(`VERIFICATION NOTES: ${oi.order_verification_notes}`, { warn: true }));
-  }
-
+  // ΓöÇΓöÇ Order Information ΓöÇΓöÇ
   const orderTable = new Table({
-    width: { size: REPORT_WIDTH, type: WidthType.DXA },
-    columnWidths: [LABEL_WIDTH, VALUE_WIDTH],
-    rows: orderRows,
+    width: { size: 9360, type: WidthType.DXA },
+    columnWidths: [1400, 2400, 1400, 1800, 1200, 1360],
+    rows: [
+      new TableRow({
+        children: [
+          labelCell('File Number:', 1400),
+          valueCell(dash(oi.file_number), 2400),
+          labelCell('Client/Order:', 1400),
+          valueCell(dash(oi.client_order), 1800),
+          labelCell('Effective Date:', 1200),
+          valueCell(dash(oi.effective_date), 1360),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Borrower/Owner:', 1400),
+          new TableCell({
+            borders,
+            columnSpan: 5,
+            margins: { top: 40, bottom: 40, left: 80, right: 80 },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: dash(oi.borrower_owner), size: 18, font: 'Arial' })],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Address:', 1400),
+          new TableCell({
+            borders,
+            columnSpan: 5,
+            margins: { top: 40, bottom: 40, left: 80, right: 80 },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: dash(oi.property_address), bold: true, size: 20, font: 'Arial' })],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('County:', 1400),
+          valueCell(dash(oi.county), 2400),
+          labelCell('Township/City:', 1400),
+          valueCell(dash(oi.township_city), 1800),
+          labelCell('Parcel ID/Tax Map:', 1200),
+          valueCell(dash(oi.parcel_id_tax_map), 1360),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Account Number:', 1400),
+          valueCell(dash(oi.account_number), 2400),
+          labelCell('Vesting Owner:', 1400),
+          valueCell(dash(oi.current_vesting_owner), 1800),
+          labelCell('Assessor Owner:', 1200),
+          valueCell(dash(oi.assessor_owner), 1360),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Assessor Desc:', 1400),
+          valueCell(dash(oi.legal_assessor_description), 2400),
+          labelCell('Acreage:', 1400),
+          valueCell(dash(oi.acreage), 1800),
+          labelCell('Assessment:', 1200),
+          valueCell(dash(oi.assessment), 1360),
+        ],
+      }),
+      ...(oi.order_verification_notes ? [
+        new TableRow({
+          children: [
+            labelCell('Verification Notes:', 1400),
+            new TableCell({
+              borders,
+              columnSpan: 5,
+              margins: { top: 40, bottom: 40, left: 80, right: 80 },
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: dash(oi.order_verification_notes), size: 16, italics: true, font: 'Arial', color: '555555' })],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ] : []),
+    ],
   });
 
-  // ── Tax Information (rendered inside ORDER INFORMATION) ──
+  // ΓöÇΓöÇ Tax Information ΓöÇΓöÇ
   const taxYear = val(ti.year) || new Date().getFullYear();
   const fh = ti.first_half || {};
   const sh = ti.second_half || {};
+
   const taxRows = [
-    kvRow('TAX YEAR', taxYear),
+    new TableRow({
+      children: [
+        labelCell('Tax Year:', 1400),
+        valueCell(taxYear, 2400),
+        labelCell('Total Tax:', 1400),
+        valueCell(ti.total_tax ? `$${ti.total_tax}` : dash(ti.total_tax), 1800),
+        labelCell('Delinquent:', 1200),
+        valueCell(ti.total_delinquent_amount ? `$${ti.total_delinquent_amount}` : dash(ti.total_delinquent_amount), 1360),
+      ],
+    }),
   ];
-  if (val(ti.status)) taxRows.push(kvRow('STATUS', ti.status, { warn: isWarning(ti.status) }));
+
   const installmentFields = [
-    { label: 'DUE DATE', field: 'due_date' },
-    { label: 'ORIGINAL BILL', field: 'original_bill', prefix: '$' },
-    { label: 'PAID DATE', field: 'paid_date' },
-    { label: 'AMOUNT PAID', field: 'amount_paid', prefix: '$' },
-    { label: 'PENALTY', field: 'penalty', prefix: '$' },
-    { label: 'INTEREST', field: 'interest', prefix: '$' },
-    { label: 'BALANCE DUE', field: 'balance_due', prefix: '$' },
+    { label: 'Due Date:', field: 'due_date' },
+    { label: 'Original Bill:', field: 'original_bill', prefix: '$' },
+    { label: 'Paid Date:', field: 'paid_date' },
+    { label: 'Amount Paid:', field: 'amount_paid', prefix: '$' },
+    { label: 'Penalty:', field: 'penalty', prefix: '$' },
+    { label: 'Interest:', field: 'interest', prefix: '$' },
+    { label: 'Balance Due:', field: 'balance_due', prefix: '$' },
   ];
-  const taxBlock = (label, obj) => {
-    const rows = [fullWidthRow(label, { bold: true })];
-    installmentFields.forEach((fl) => {
-      const v = obj[fl.field];
-      const display = v !== null && v !== undefined && v !== '' ? (fl.prefix ? `${fl.prefix}${v}` : v) : '—';
-      rows.push(kvRow(fl.label, display));
-    });
-    return rows;
-  };
-  taxRows.push(...taxBlock('FIRST HALF', fh));
-  taxRows.push(...taxBlock('SECOND HALF', sh));
-  if (ti.total_tax) taxRows.push(kvRow(`TOTAL ${taxYear} TAX`, `$${ti.total_tax}`));
-  if (ti.total_delinquent_amount) taxRows.push(kvRow('TOTAL DELINQUENT / OPEN AMOUNT SHOWN', `$${ti.total_delinquent_amount}`, { warn: true }));
+
+  // First Half header
+  taxRows.push(new TableRow({
+    children: [
+      new TableCell({
+        borders,
+        columnSpan: 6,
+        shading: { fill: 'E8E8E8', type: ShadingType.CLEAR },
+        margins: { top: 40, bottom: 40, left: 80, right: 80 },
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: 'FIRST HALF', bold: true, size: 18, font: 'Arial' })],
+          }),
+        ],
+      }),
+    ],
+  }));
+  installmentFields.forEach((fl) => {
+    const fhVal = fh[fl.field];
+    const display = fhVal !== null && fhVal !== undefined && fhVal !== ''
+      ? (fl.prefix ? `${fl.prefix}${fhVal}` : fhVal)
+      : 'ΓÇö';
+    taxRows.push(new TableRow({
+      children: [
+        labelCell(fl.label, 1400),
+        new TableCell({ borders, columnSpan: 5, margins: { top: 40, bottom: 40, left: 80, right: 80 },
+          children: [new Paragraph({
+            children: [new TextRun({ text: display, size: 18, font: 'Arial' })],
+          })],
+        }),
+      ],
+    }));
+  });
+
+  // Second Half header
+  taxRows.push(new TableRow({
+    children: [
+      new TableCell({
+        borders,
+        columnSpan: 6,
+        shading: { fill: 'E8E8E8', type: ShadingType.CLEAR },
+        margins: { top: 40, bottom: 40, left: 80, right: 80 },
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text: 'SECOND HALF', bold: true, size: 18, font: 'Arial' })],
+          }),
+        ],
+      }),
+    ],
+  }));
+  installmentFields.forEach((fl) => {
+    const shVal = sh[fl.field];
+    const display = shVal !== null && shVal !== undefined && shVal !== ''
+      ? (fl.prefix ? `${fl.prefix}${shVal}` : shVal)
+      : 'ΓÇö';
+    taxRows.push(new TableRow({
+      children: [
+        labelCell(fl.label, 1400),
+        new TableCell({ borders, columnSpan: 5, margins: { top: 40, bottom: 40, left: 80, right: 80 },
+          children: [new Paragraph({
+            children: [new TextRun({ text: display, size: 18, font: 'Arial' })],
+          })],
+        }),
+      ],
+    }));
+  });
 
   const taxTable = new Table({
-    width: { size: REPORT_WIDTH, type: WidthType.DXA },
-    columnWidths: [LABEL_WIDTH, VALUE_WIDTH],
+    width: { size: 9360, type: WidthType.DXA },
+    columnWidths: [1400, 2400, 1400, 1800, 1200, 1360],
     rows: taxRows,
   });
 
-  // ── Chain of Title (packet order; only deeds numbered; supporting starred) ──
-  const chainRows = [];
-  let deedNo = 0;
-  (chain || []).forEach((e) => {
-    const isSupporting = upper(val(e.entry_type)) === 'SUPPORTING';
-    if (isSupporting) {
-      const typeLabel = val(e.supporting_documents?.[0]?.document_type) || val(e.deed_type) || val(e.document_title) || 'SUPPORTING DOCUMENT';
-      const decedent = val(e.supporting_documents?.[0]?.decedent) || val(e.deceased_person);
-      chainRows.push(fullWidthRow(`* ${typeLabel}${decedent ? ` — ${decedent}` : ''}`, { bold: true }));
-      const sd = e.supporting_documents && e.supporting_documents.length ? e.supporting_documents : (e.deed_type ? [e] : []);
-      sd.forEach((s) => {
-        if (val(s.decedent)) chainRows.push(kvRow('DECEDENT', s.decedent));
-        if (val(s.date_of_death)) chainRows.push(kvRow('DATE OF DEATH', s.date_of_death));
-        if (val(s.will_date)) chainRows.push(kvRow('WILL DATE', s.will_date));
-        if (val(s.recorded)) chainRows.push(kvRow('RECORDED', s.recorded));
-        if (val(s.book_page_instrument)) chainRows.push(kvRow('BOOK / PAGE OR INSTRUMENT', s.book_page_instrument));
-        if ((s.heirs || []).length > 0) chainRows.push(kvRow('HEIRS', s.heirs.join(', ')));
-        if ((s.devisees_beneficiaries || []).length > 0) chainRows.push(kvRow('DEVISEES / BENEFICIARIES', s.devisees_beneficiaries.join(', ')));
-        if (val(s.notes)) chainRows.push(kvRow('NOTES', s.notes));
-      });
-      if (val(e.recorded)) chainRows.push(kvRow('RECORDED', e.recorded));
-      if (val(e.book_page_instrument)) chainRows.push(kvRow('BOOK / PAGE OR INSTRUMENT', e.book_page_instrument));
-      if (val(e.notes)) chainRows.push(kvRow('NOTES', e.notes));
-    } else {
-      deedNo += 1;
-      const title = val(e.document_title) || val(e.deed_type) || 'DEED';
-      chainRows.push(fullWidthRow(`(${deedNo}) ${title}`, { bold: true }));
-      chainRows.push(kvRow('GRANTOR(S)', (e.grantors || []).join(', ')));
-      chainRows.push(kvRow('GRANTEE(S)', (e.grantees || []).join(', ')));
-      chainRows.push(kvRow('DATED', e.dated));
-      chainRows.push(kvRow('RECORDED / RECORDING DATE', e.recorded));
-      if (val(e.recording_time)) chainRows.push(kvRow('RECORDING TIME', e.recording_time));
-      chainRows.push(kvRow('BOOK / PAGE OR INSTRUMENT', e.book_page_instrument));
-      chainRows.push(kvRow('CONSIDERATION', e.consideration));
-      if (val(e.deceased_person)) {
-        chainRows.push(kvRow('DECEASED PERSON', e.deceased_person, { warn: true }));
-        if (val(e.deceased_note)) chainRows.push(kvRow('NOTE', e.deceased_note, { warn: true }));
-      }
-      if (val(e.third_party_party)) {
-        chainRows.push(kvRow('PARTY OF THE THIRD PART', e.third_party_party));
-        if (val(e.third_party_reason)) chainRows.push(kvRow('PARTICIPATION REASON', e.third_party_reason));
-      }
-      if (val(e.partition_deed_notes)) chainRows.push(kvRow('PARTITION DEED NOTES', e.partition_deed_notes));
-      if (val(e.notes)) chainRows.push(kvRow('NOTES', e.notes));
-      (e.foreclosure_sequence || []).forEach((d, di) => {
-        const label = dash(d.document_type) || 'DOCUMENT';
-        const ref = [d.book_page_instrument, d.dated, d.recorded].filter(Boolean).join(' | ');
-        chainRows.push(fullWidthRow(`FORECLOSURE (${di + 1}): ${label}${ref ? ` — ${ref}` : ''}`, { warn: upper(label).includes('FORECLOSED DEED OF TRUST') }));
-      });
-      (e.supporting_documents || []).forEach((s) => {
-        const typeLabel = val(s.document_type) || 'SUPPORTING DOCUMENT';
-        chainRows.push(fullWidthRow(`* ${typeLabel}`, { bold: true }));
-        if (val(s.decedent)) chainRows.push(kvRow('DECEDENT', s.decedent));
-        if (val(s.date_of_death)) chainRows.push(kvRow('DATE OF DEATH', s.date_of_death));
-        if (val(s.will_date)) chainRows.push(kvRow('WILL DATE', s.will_date));
-        if (val(s.recorded)) chainRows.push(kvRow('RECORDED', s.recorded));
-        if (val(s.book_page_instrument)) chainRows.push(kvRow('BOOK / PAGE OR INSTRUMENT', s.book_page_instrument));
-        if ((s.heirs || []).length > 0) chainRows.push(kvRow('HEIRS', s.heirs.join(', ')));
-        if ((s.devisees_beneficiaries || []).length > 0) chainRows.push(kvRow('DEVISEES / BENEFICIARIES', s.devisees_beneficiaries.join(', ')));
-        if (val(s.notes)) chainRows.push(kvRow('NOTES', s.notes));
-      });
+  // ΓöÇΓöÇ Chain of Title ΓöÇΓöÇ
+  const chainRows = (chain || []).flatMap((e, i) => {
+    const rows = [
+      new TableRow({
+        children: [
+          labelCell(`(${i + 1}) Deed Type:`, 2000),
+          valueCell(dash(e.deed_type), 3360),
+          labelCell('Book/Inst:', 1200),
+          valueCell(dash(e.book_page_instrument), 1200),
+          labelCell('In/Out:', 600),
+          valueCell(e.in_out_sale ? 'YES' : 'NO', 1000),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Dated:', 800),
+          valueCell(dash(e.dated), 1400),
+          labelCell('Recorded:', 900),
+          valueCell(dash(e.recorded), 1400),
+          labelCell('Consideration:', 1200),
+          valueCell(dash(e.consideration), 1200),
+          cell('', { span: 2 }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Grantor(s):', 1200),
+          new TableCell({ borders, columnSpan: 7,
+            children: [new Paragraph({
+              children: [new TextRun({ text: (e.grantors || []).join('; ') || 'ΓÇö', size: 18, font: 'Arial' })],
+            })],
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Grantee(s):', 1200),
+          new TableCell({ borders, columnSpan: 7,
+            children: [new Paragraph({
+              children: [new TextRun({ text: (e.grantees || []).join('; ') || 'ΓÇö', size: 18, font: 'Arial' })],
+            })],
+          }),
+        ],
+      }),
+    ];
+    if (e.notes) {
+      rows.push(new TableRow({
+        children: [
+          labelCell('Notes:', 1200),
+          new TableCell({ borders, columnSpan: 7,
+            children: [new Paragraph({
+              children: [new TextRun({ text: dash(e.notes), size: 16, italics: true, color: '555555', font: 'Arial' })],
+            })],
+          }),
+        ],
+      }));
     }
-    chainRows.push(fullWidthRow(' ', {}));
-  });
-
-  // ── Mortgages / Deeds of Trust ──
-  const mortgageRows = [];
-  (mortgages || []).forEach((m, i) => {
-    mortgageRows.push(fullWidthRow(`(${i + 1}) ${val(m.document_title) || 'DOT / RFDT / DTCL'}`, { bold: true }));
-    mortgageRows.push(kvRow('BORROWER(S)', (m.borrowers || []).join(', ')));
-    mortgageRows.push(kvRow('LENDER', m.lender));
-    mortgageRows.push(kvRow('TRUSTEE', m.trustee));
-    mortgageRows.push(kvRow('BENEFICIARY / NOMINEE', m.beneficiary_nominee));
-    mortgageRows.push(kvRow('DATED', m.dated));
-    mortgageRows.push(kvRow('RECORDED', m.recorded));
-    mortgageRows.push(kvRow('BOOK / PAGE OR INSTRUMENT', m.book_page_instrument));
-    mortgageRows.push(kvRow('AMOUNT', m.amount ? `$${m.amount}` : m.amount));
-    mortgageRows.push(kvRow('MATURITY', m.maturity || 'NOT SHOWN', { warn: !val(m.maturity) }));
-    mortgageRows.push(kvRow('LOAN NUMBER', m.loan_number));
-    mortgageRows.push(kvRow('MIN', m.min || 'NOT SHOWN', { warn: !val(m.min) }));
-    mortgageRows.push(kvRow('OPEN / CLOSED ENDED', m.open_closed_ended));
-    mortgageRows.push(kvRow('STATUS', m.status));
-    if (val(m.notes)) mortgageRows.push(kvRow('NOTES', m.notes));
-    (m.associated_documents || []).forEach((a) => {
-      const ref = [a.book_page_instrument, a.dated, a.recorded].filter(Boolean).join(' | ');
-      mortgageRows.push(fullWidthRow(`ASSOCIATED DOCUMENT: ${dash(a.document_type)}${ref ? ` — ${ref}` : ''}`));
+    // Supporting documents
+    (e.supporting_documents || []).forEach((s) => {
+      rows.push(new TableRow({
+        children: [
+          labelCell(`* ${dash(s.document_type)}:`, 2000),
+          new TableCell({ borders, columnSpan: 7,
+            children: [new Paragraph({
+              children: [new TextRun({ text: `DECEDENT: ${dash(s.decedent)}`, size: 16, font: 'Arial' })],
+            })],
+          }),
+        ],
+      }));
+      if (s.date_of_death || s.will_date) {
+        rows.push(new TableRow({
+          children: [
+            cell('', { span: 2 }),
+            labelCell('Date of Death:', 1200),
+            valueCell(dash(s.date_of_death), 1400),
+            labelCell('Will Date:', 1000),
+            valueCell(dash(s.will_date), 1400),
+            cell('', { span: 2 }),
+          ],
+        }));
+      }
+      if ((s.heirs || []).length > 0) {
+        rows.push(new TableRow({
+          children: [
+            cell('', { span: 2 }),
+            labelCell('Heirs:', 1000),
+            new TableCell({ borders, columnSpan: 5,
+              children: [new Paragraph({
+                children: [new TextRun({ text: (s.heirs || []).join('; '), size: 16, font: 'Arial' })],
+              })],
+            }),
+          ],
+        }));
+      }
     });
-    mortgageRows.push(fullWidthRow(' ', {}));
+    return rows;
   });
 
-  // ── Judgments / Liens ──
-  const lienRows = [];
-  (liens || []).forEach((l, i) => {
-    lienRows.push(fullWidthRow(`(${i + 1}) ${val(l.document_title) || 'JUDGMENT / LIEN'}`, { bold: true }));
-    lienRows.push(kvRow('PLAINTIFF / LIENHOLDER', l.plaintiff_lienholder));
-    lienRows.push(kvRow('DEFENDANT / DEBTOR', l.defendant_debtor));
-    lienRows.push(kvRow('CASE NUMBER', l.case_number));
-    lienRows.push(kvRow('DATE OF JUDGMENT / LIEN', l.date_of_judgment_lien));
-    lienRows.push(kvRow('RECORDED', l.recorded));
-    lienRows.push(kvRow('BOOK / PAGE OR INSTRUMENT', l.book_page_instrument));
-    lienRows.push(kvRow('AMOUNT', l.amount ? `$${l.amount}` : l.amount));
-    lienRows.push(kvRow('INTEREST', l.interest));
-    lienRows.push(kvRow('COSTS', l.costs ? `$${l.costs}` : l.costs));
-    lienRows.push(kvRow("ATTORNEY'S FEES", l.attorneys_fees ? `$${l.attorneys_fees}` : l.attorneys_fees));
-    lienRows.push(kvRow('STATUS', l.status, { warn: isWarning(l.status) }));
-    if (val(l.notes)) lienRows.push(kvRow('NOTES', l.notes));
-    lienRows.push(fullWidthRow(' ', {}));
+  // ΓöÇΓöÇ Mortgages ΓöÇΓöÇ
+  const mortgageRows = (mortgages || []).flatMap((m, i) => {
+    const rows = [
+      new TableRow({
+        children: [
+          labelCell(`(${i + 1}) Document:`, 2000),
+          valueCell(dash(m.document_title), 3360),
+          labelCell('Book/Inst:', 1300),
+          valueCell(dash(m.book_page_instrument), 1200),
+          labelCell('Amount:', 600),
+          valueCell(m.amount ? `$${m.amount}` : dash(m.amount), 1000),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Dated:', 800),
+          valueCell(dash(m.dated), 1400),
+          labelCell('Recorded:', 900),
+          valueCell(dash(m.recorded), 1400),
+          labelCell('Maturity:', 1000),
+          valueCell(dash(m.maturity), 1200),
+          cell('', { span: 2 }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Lender:', 1000),
+          new TableCell({ borders, columnSpan: 7,
+            children: [new Paragraph({
+              children: [new TextRun({ text: dash(m.lender), size: 18, font: 'Arial' })],
+            })],
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Borrower(s):', 1200),
+          valueCell((m.borrowers || []).join('; '), 2760),
+          labelCell('Trustee:', 1000),
+          valueCell(dash(m.trustee), 3600),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Beneficiary/Nominee:', 1600),
+          valueCell(dash(m.beneficiary_nominee), 2400),
+          labelCell('Loan Number:', 1200),
+          valueCell(dash(m.loan_number), 1800),
+          labelCell('MIN:', 600),
+          valueCell(dash(m.min), 1160),
+        ],
+      }),
+      new TableRow({
+        children: [
+          labelCell('Open/Closed:', 1200),
+          valueCell(dash(m.open_closed_ended), 2000),
+          labelCell('Status:', 800),
+          new TableCell({ borders, columnSpan: 5,
+            children: [new Paragraph({
+              children: [new TextRun({ text: dash(m.status), size: 18, font: 'Arial' })],
+            })],
+          }),
+        ],
+      }),
+    ];
+    if (m.notes) {
+      rows.push(new TableRow({
+        children: [
+          labelCell('Notes:', 1200),
+          new TableCell({ borders, columnSpan: 7,
+            children: [new Paragraph({
+              children: [new TextRun({ text: dash(m.notes), size: 16, font: 'Arial' })],
+            })],
+          }),
+        ],
+      }));
+    }
+    (m.associated_documents || []).forEach((a) => {
+      rows.push(new TableRow({
+        children: [
+          labelCell('  Assoc Doc:', 1200),
+          new TableCell({ borders, columnSpan: 7,
+            children: [new Paragraph({
+              children: [new TextRun({ text: `${dash(a.document_type)} | ${dash(a.book_page_instrument)} | ${dash(a.dated)} | ${dash(a.recorded)}`, size: 16, font: 'Arial' })],
+            })],
+          }),
+        ],
+      }));
+    });
+    return rows;
   });
 
-  // ── Miscellaneous Documents ──
-  const miscRows = [];
-  (misc || []).forEach((m, i) => {
-    miscRows.push(fullWidthRow(`(${i + 1}) ${val(m.document_type || m.document_title) || 'DOCUMENT'}`, { bold: true }));
-    if (val(m.decedent)) miscRows.push(kvRow('DECEDENT', m.decedent));
-    if (val(m.date_of_death)) miscRows.push(kvRow('DATE OF DEATH', m.date_of_death));
-    if (val(m.will_date)) miscRows.push(kvRow('WILL DATE', m.will_date));
-    if (val(m.probate_date)) miscRows.push(kvRow('PROBATE DATE', m.probate_date));
-    if ((m.heirs || []).length > 0) miscRows.push(kvRow('HEIRS', m.heirs.join(', ')));
-    if ((m.devisees_beneficiaries || []).length > 0) miscRows.push(kvRow('DEVISEES / BENEFICIARIES', m.devisees_beneficiaries.join(', ')));
-    if (val(m.grantor_assignor)) miscRows.push(kvRow('GRANTOR / ASSIGNOR', m.grantor_assignor));
-    if (val(m.grantee_assignee)) miscRows.push(kvRow('GRANTEE / ASSIGNEE', m.grantee_assignee));
-    if (val(m.dated)) miscRows.push(kvRow('DATED', m.dated));
-    if (val(m.recorded)) miscRows.push(kvRow('RECORDED', m.recorded));
-    if (val(m.book_page_instrument)) miscRows.push(kvRow('BOOK / PAGE OR INSTRUMENT', m.book_page_instrument));
-    if (val(m.consideration)) miscRows.push(kvRow('CONSIDERATION', m.consideration));
-    if (val(m.area_or_width)) miscRows.push(kvRow('AREA / WIDTH', m.area_or_width));
-    if (val(m.notes)) miscRows.push(kvRow('NOTES', m.notes));
-    miscRows.push(fullWidthRow(' ', {}));
+  // ΓöÇΓöÇ Judgments/Liens ΓöÇΓöÇ
+  const lienRows = (liens || []).flatMap((l, i) => [
+    new TableRow({
+      children: [
+        labelCell(`(${i + 1}) Document:`, 2000),
+        valueCell(dash(l.document_title), 3360),
+        labelCell('Case #:', 1200),
+        valueCell(dash(l.case_number), 2800),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Dated:', 800),
+        valueCell(dash(l.date_of_judgment_lien), 1400),
+        labelCell('Amount:', 1200),
+        valueCell(l.amount ? `$${l.amount}` : dash(l.amount), 1200),
+        labelCell('Recorded:', 1000),
+        valueCell(dash(l.recorded), 3760),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Plaintiff/Lienholder:', 1600),
+        valueCell(dash(l.plaintiff_lienholder), 3000),
+        labelCell('Defendant/Debtor:', 1600),
+        valueCell(dash(l.defendant_debtor), 3160),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Interest:', 1200),
+        valueCell(dash(l.interest), 2400),
+        labelCell('Costs:', 1200),
+        valueCell(l.costs ? `$${l.costs}` : dash(l.costs), 1800),
+        labelCell("Atty's Fees:", 1200),
+        valueCell(l.attorneys_fees ? `$${l.attorneys_fees}` : dash(l.attorneys_fees), 1560),
+      ],
+    }),
+    new TableRow({
+      children: [
+        labelCell('Status:', 1200),
+        new TableCell({ borders, columnSpan: 5,
+          children: [new Paragraph({
+            children: [new TextRun({ text: dash(l.status), size: 18, font: 'Arial' })],
+          })],
+        }),
+      ],
+    }),
+    ...(l.notes ? [new TableRow({
+      children: [
+        labelCell('Notes:', 1200),
+        new TableCell({ borders, columnSpan: 5,
+          children: [new Paragraph({
+            children: [new TextRun({ text: dash(l.notes), size: 16, font: 'Arial' })],
+          })],
+        }),
+      ],
+    })] : []),
+  ]);
+
+  // ΓöÇΓöÇ Miscellaneous Documents ΓöÇΓöÇ
+  const miscRows = (misc || []).flatMap((m, i) => {
+    const rows = [
+      new TableRow({
+        children: [
+          labelCell(`(${i + 1}) Type:`, 2000),
+          valueCell(dash(m.document_type || m.document_title), 3360),
+          labelCell('Book/Inst:', 1200),
+          valueCell(dash(m.book_page_instrument), 1200),
+          cell('', { span: 2 }),
+        ],
+      }),
+    ];
+    if (m.decedent || m.date_of_death || m.will_date) {
+      rows.push(new TableRow({
+        children: [
+          labelCell('Decedent:', 1200),
+          valueCell(dash(m.decedent), 2400),
+          labelCell('Date of Death:', 1400),
+          valueCell(dash(m.date_of_death), 1400),
+          labelCell('Will Date:', 1000),
+          valueCell(dash(m.will_date), 1360),
+        ],
+      }));
+    }
+    if ((m.heirs || []).length > 0) {
+      rows.push(new TableRow({
+        children: [
+          labelCell('Heirs:', 1000),
+          new TableCell({ borders, columnSpan: 5,
+            children: [new Paragraph({
+              children: [new TextRun({ text: (m.heirs || []).join('; '), size: 16, font: 'Arial' })],
+            })],
+          }),
+        ],
+      }));
+    }
+    if (m.grantor_assignor || m.grantee_assignee) {
+      rows.push(new TableRow({
+        children: [
+          labelCell('Grantor/Assignor:', 1600),
+          valueCell(dash(m.grantor_assignor), 2400),
+          labelCell('Grantee/Assignee:', 1600),
+          valueCell(dash(m.grantee_assignee), 2400),
+          labelCell('Area/Width:', 1000),
+          valueCell(dash(m.area_or_width), 1160),
+        ],
+      }));
+    }
+    if (m.dated) {
+      rows.push(new TableRow({
+        children: [
+          labelCell('Dated:', 800),
+          valueCell(dash(m.dated), 1400),
+          labelCell('Consideration:', 1200),
+          valueCell(dash(m.consideration), 1200),
+          cell('', { span: 4 }),
+        ],
+      }));
+    }
+    if (m.notes) {
+      rows.push(new TableRow({
+        children: [
+          labelCell('Notes:', 1200),
+          new TableCell({ borders, columnSpan: 5,
+            children: [new Paragraph({
+              children: [new TextRun({ text: dash(m.notes), size: 16, font: 'Arial' })],
+            })],
+          }),
+        ],
+      }));
+    }
+    return rows;
   });
 
-  // ── Legal Description (preserve recorded case) ──
-  const legalTable = new Table({
-    width: { size: REPORT_WIDTH, type: WidthType.DXA },
+  // ΓöÇΓöÇ Legal Description ΓöÇΓöÇ
+  const legalPara = new Table({
+    width: { size: 9360, type: WidthType.DXA },
     rows: [
       new TableRow({
         children: [
@@ -816,7 +905,7 @@ async function generateV7TableDocx(fields) {
             margins: { top: 100, bottom: 100, left: 100, right: 100 },
             children: [
               new Paragraph({
-                children: [contentRun(dash(legal), { preserveCase: true })],
+                children: [new TextRun({ text: dash(legal), size: 18, font: 'Arial' })],
               }),
             ],
           }),
@@ -825,36 +914,27 @@ async function generateV7TableDocx(fields) {
     ],
   });
 
-  // ── Additional Information ──
+  // ΓöÇΓöÇ Additional Information ΓöÇΓöÇ
   let addInfoText = '';
   const refs = addInfo.references || [];
   if (refs.length > 0) {
     addInfoText += 'REFERENCES:\n';
     refs.forEach((r, idx) => {
       const refStr = typeof r === 'string' ? r : `${r.book_page_instrument || ''} - ${r.document_type || r.label || ''}`;
-      addInfoText += `${idx + 1}. ${upper(refStr)}\n`;
+      addInfoText += `${idx + 1}. ${refStr}\n`;
     });
   }
   const docAccounting = addInfo.document_accounting || [];
   if (docAccounting.length > 0) {
     addInfoText += '\nPDF DOCUMENT ACCOUNTING:\n';
     docAccounting.forEach((da, idx) => {
-      addInfoText += `${idx + 1}. PAGE(S) ${upper(da.page_range || '')}: ${upper(da.document_label || '')}\n`;
+      addInfoText += `${idx + 1}. PAGE(S) ${da.page_range || ''}: ${da.document_label || ''}\n`;
     });
   }
-  if (update.is_update) {
-    addInfoText += '\nUPDATE / CONTINUATION SUMMARY:\n';
-    if (val(update.prior_effective_date)) addInfoText += `PRIOR EFFECTIVE DATE: ${upper(update.prior_effective_date)}\n`;
-    if (val(update.current_effective_date)) addInfoText += `CURRENT EFFECTIVE DATE: ${upper(update.current_effective_date)}\n`;
-    if ((update.actual_documents_recorded || []).length > 0) addInfoText += `ACTUAL DOCUMENTS RECORDED: ${upper((update.actual_documents_recorded || []).join(', '))}\n`;
-    if ((update.carried_forward_open_matters || []).length > 0) addInfoText += `CARRIED-FORWARD OPEN MATTERS: ${upper((update.carried_forward_open_matters || []).join(', '))}\n`;
-    if ((update.proposed_unrecorded_items || []).length > 0) addInfoText += `PROPOSED / UNRECORDED ITEMS: ${upper((update.proposed_unrecorded_items || []).join(', '))}\n`;
-    if (val(update.summary_notes)) addInfoText += `SUMMARY: ${upper(update.summary_notes)}\n`;
-  }
-  if (!addInfoText) addInfoText = 'NO ADDITIONAL INFORMATION.';
+  if (!addInfoText) addInfoText = 'No additional information.';
 
-  const additionalTable = new Table({
-    width: { size: REPORT_WIDTH, type: WidthType.DXA },
+  const additionalPara = new Table({
+    width: { size: 9360, type: WidthType.DXA },
     rows: [
       new TableRow({
         children: [
@@ -863,7 +943,7 @@ async function generateV7TableDocx(fields) {
             margins: { top: 100, bottom: 100, left: 100, right: 100 },
             children: [
               new Paragraph({
-                children: [contentRun(addInfoText)],
+                children: [new TextRun({ text: addInfoText, size: 18, font: 'Arial' })],
               }),
             ],
           }),
@@ -872,10 +952,10 @@ async function generateV7TableDocx(fields) {
     ],
   });
 
-  // ── Names Searched ──
+  // ΓöÇΓöÇ Names Searched ΓöÇΓöÇ
   const namesText = (names || []).join(', ') || 'NONE PROVIDED.';
-  const namesTable = new Table({
-    width: { size: REPORT_WIDTH, type: WidthType.DXA },
+  const namesPara = new Table({
+    width: { size: 9360, type: WidthType.DXA },
     rows: [
       new TableRow({
         children: [
@@ -884,7 +964,7 @@ async function generateV7TableDocx(fields) {
             margins: { top: 100, bottom: 100, left: 100, right: 100 },
             children: [
               new Paragraph({
-                children: [contentRun(namesText)],
+                children: [new TextRun({ text: namesText, size: 18, font: 'Arial' })],
               }),
             ],
           }),
@@ -893,9 +973,9 @@ async function generateV7TableDocx(fields) {
     ],
   });
 
-  // ── Build Document ──
+  // ΓöÇΓöÇ Build Document ΓöÇΓöÇ
   const doc = new Document({
-    styles: { default: { document: { run: { font: REPORT_FONT, size: 18 } } } },
+    styles: { default: { document: { run: { font: 'Arial', size: 18 } } } },
     sections: [
       {
         properties: { margin: { top: 720, right: 720, bottom: 720, left: 720 } },
@@ -903,54 +983,49 @@ async function generateV7TableDocx(fields) {
           logoParagraph(),
           sectionHeader('ORDER INFORMATION'),
           orderTable,
-          instrumentSpacer(),
+          spacerTable(),
           taxTable,
-          instrumentSpacer(),
+          spacerTable(),
           sectionHeader('CHAIN OF TITLE'),
           new Table({
-            width: { size: REPORT_WIDTH, type: WidthType.DXA },
-            columnWidths: [LABEL_WIDTH, VALUE_WIDTH],
+            width: { size: 9360, type: WidthType.DXA },
             rows: chainRows.length
               ? chainRows
-              : [fullWidthRow('NONE — NO CHAIN INSTRUMENTS WERE PROVIDED OR CLEARLY IDENTIFIED.', { italics: true })],
+              : [new TableRow({ children: [cell('NO CHAIN ENTRIES FOUND.', { span: 8, italics: true })] })],
           }),
-          instrumentSpacer(),
+          spacerTable(),
           sectionHeader('MORTGAGES / DEEDS OF TRUST'),
           new Table({
-            width: { size: REPORT_WIDTH, type: WidthType.DXA },
-            columnWidths: [LABEL_WIDTH, VALUE_WIDTH],
+            width: { size: 9360, type: WidthType.DXA },
             rows: mortgageRows.length
               ? mortgageRows
-              : [fullWidthRow('NONE — NO OPEN MORTGAGE OR DEED OF TRUST.', { italics: true })],
+              : [new TableRow({ children: [cell('NONE ΓÇö NO OPEN MORTGAGE OR DEED OF TRUST.', { span: 8, italics: true })] })],
           }),
-          instrumentSpacer(),
+          spacerTable(),
           sectionHeader('JUDGMENTS / LIENS'),
           new Table({
-            width: { size: REPORT_WIDTH, type: WidthType.DXA },
-            columnWidths: [LABEL_WIDTH, VALUE_WIDTH],
+            width: { size: 9360, type: WidthType.DXA },
             rows: lienRows.length
               ? lienRows
-              : [fullWidthRow('NONE — NO OPEN JUDGMENT OR LIEN.', { italics: true })],
+              : [new TableRow({ children: [cell('NONE ΓÇö NO OPEN JUDGMENT OR LIEN.', { span: 6, italics: true })] })],
           }),
-          instrumentSpacer(),
+          spacerTable(),
           sectionHeader('MISCELLANEOUS DOCUMENTS'),
           new Table({
-            width: { size: REPORT_WIDTH, type: WidthType.DXA },
-            columnWidths: [LABEL_WIDTH, VALUE_WIDTH],
+            width: { size: 9360, type: WidthType.DXA },
             rows: miscRows.length
               ? miscRows
-              : [fullWidthRow('NO MISCELLANEOUS DOCUMENTS WERE PROVIDED OR CLEARLY IDENTIFIED.', { italics: true })],
+              : [new TableRow({ children: [cell('NO MISCELLANEOUS DOCUMENTS FOUND.', { span: 6, italics: true })] })],
           }),
-          instrumentSpacer(),
+          spacerTable(),
           sectionHeader('LEGAL DESCRIPTION'),
-          legalTable,
-          instrumentSpacer(),
+          legalPara,
+          spacerTable(),
           sectionHeader('ADDITIONAL INFORMATION'),
-          additionalTable,
-          instrumentSpacer(),
+          additionalPara,
+          spacerTable(),
           sectionHeader('NAMES SEARCHED'),
-          namesTable,
-          performedByPara(),
+          namesPara,
         ],
       },
     ],

@@ -22,6 +22,9 @@ docs/v2_report/
 docs/v7/*.pdf
 docs/v7/*.docx
 
+# Local SQLite database (WAL + shared-memory sidecars) — real data, never commit
+backend/data/
+
 # Keep these tracked: docs/prompts/v7-prompt.md docs/schemas/v7-schema.json docs/rules.md docs/v7/blank.docx docs/sample_output/
 
 # Uncategorized — check for real data before tracking

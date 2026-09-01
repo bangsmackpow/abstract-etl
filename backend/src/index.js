@@ -15,6 +15,7 @@ const generateRoutes = require('./routes/generate');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const docsRoutes = require('./routes/docs');
+const platformRoutes = require('./routes/platform');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -62,6 +63,7 @@ app.use((req, res, next) => {
         ms: Number(ms.toFixed(1)),
         ip: req.ip,
         user: req.user?.id || null,
+        tenantId: req.tenantId || null,
         requestId: req.id,
       },
       'request'
@@ -94,6 +96,7 @@ app.use('/api/extract', extractRoutes);
 app.use('/api/generate', generateRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/docs', docsRoutes);
+app.use('/api/platform', platformRoutes);
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
@@ -101,7 +104,7 @@ app.use(errorHandler);
 // ── Startup ──────────────────────────────────────────────────────────────────
 const { db } = require('./db');
 const { users } = require('./db/schema');
-const { eq } = require('drizzle-orm');
+const { eq, sql } = require('drizzle-orm');
 
 async function seedAdmin() {
   const adminEmail = env.ADMIN_EMAIL;
@@ -111,6 +114,10 @@ async function seedAdmin() {
     console.warn('⚠️ ADMIN_EMAIL or ADMIN_PASSWORD not set. Skipping admin seed/sync.');
     return;
   }
+
+  const { ensureDefaultTenant } = require('./db/tenantInit');
+  const defaultTenant = await ensureDefaultTenant();
+  const defaultTenantId = defaultTenant ? defaultTenant.id : null;
 
   const [existingAdmin] = await db.select().from(users).where(eq(users.email, adminEmail)).limit(1);
   const bcrypt = require('bcryptjs');
@@ -123,22 +130,28 @@ async function seedAdmin() {
       email: adminEmail,
       password: hashedPassword,
       role: 'admin',
+      tenantId: defaultTenantId,
+      isPlatformAdmin: true,
     });
     // console.log(`✅ Admin user created: ${adminEmail}`);
   } else {
     // Check if we need to update the password (e.g. if env changed)
     const isSame = bcrypt.compareSync(adminPass, existingAdmin.password);
 
+    const updates = {};
     if (!isSame) {
+      updates.password = bcrypt.hashSync(adminPass, 10);
       // console.log('👤 Admin password changed in env. Updating...');
-      const hashedPassword = bcrypt.hashSync(adminPass, 10);
+    }
+    // Ensure the seeded admin is a platform admin and assigned to the default tenant
+    if (!existingAdmin.isPlatformAdmin) updates.isPlatformAdmin = true;
+    if (!existingAdmin.tenantId && defaultTenantId) updates.tenantId = defaultTenantId;
+
+    if (Object.keys(updates).length > 0) {
       await db
         .update(users)
-        .set({ password: hashedPassword })
+        .set({ ...updates, updatedAt: sql`(strftime('%s', 'now'))` })
         .where(eq(users.id, existingAdmin.id));
-      // console.log('✅ Admin password updated.');
-    } else {
-      // console.log('✅ Admin user verified.');
     }
   }
 }

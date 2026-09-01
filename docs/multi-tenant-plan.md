@@ -1,9 +1,9 @@
 # Multi-Tenant Architecture Plan — Abstract ETL
 
-**Status:** Proposed plan (for review)
+**Status:** Implemented (2026-09-01) — schema, auth, tenant repo, route refactors, platform routes, and frontend are in place.
 **Owner:** [Product/Engineering]
 **Date:** 2026-08-16
-**Version:** 0.1 (draft)
+**Version:** 1.0 (implemented)
 
 ---
 

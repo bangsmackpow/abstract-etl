@@ -45,9 +45,10 @@ export const changePassword = (id, password) =>
 export const deleteUser = (id) => api.delete(`/admin/users/${id}`).then((r) => r.data);
 
 // ── Extract ───────────────────────────────────────────────────────────────────
-export const extractPDF = (file, onUploadProgress) => {
+export const extractPDF = (file, onUploadProgress, templateVersion = 'v9') => {
   const form = new FormData();
   form.append('pdf', file);
+  form.append('template_version', templateVersion);
   return api
     .post('/extract', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -56,9 +57,10 @@ export const extractPDF = (file, onUploadProgress) => {
     .then((r) => r.data);
 };
 
-export const extractBulkPDFs = (files, onUploadProgress) => {
+export const extractBulkPDFs = (files, onUploadProgress, templateVersion = 'v9') => {
   const form = new FormData();
   files.forEach((f) => form.append('pdfs', f));
+  form.append('template_version', templateVersion);
   return api
     .post('/extract/bulk', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -125,6 +127,12 @@ export const restoreBackup = (id) => api.post(`/admin/backups/${id}/restore`).th
 // ── Admin: Settings ───────────────────────────────────────────────────────────
 export const getSettings = () => api.get('/admin/settings').then((r) => r.data);
 export const updateSettings = (data) => api.patch('/admin/settings', data).then((r) => r.data);
+
+// ── Platform: Tenants (platform admin only) ───────────────────────────────────
+export const getTenants = () => api.get('/platform/tenants').then((r) => r.data);
+export const createTenant = (data) => api.post('/platform/tenants', data).then((r) => r.data);
+export const setTenantStatus = (id, status) =>
+  api.patch(`/platform/tenants/${id}/status`, { status }).then((r) => r.data);
 
 export const downloadPdf = async (jobId, propertyAddress) => {
   const response = await api.get(`/generate/${jobId}/pdf`, { responseType: 'blob' });

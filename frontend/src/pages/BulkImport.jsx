@@ -5,6 +5,7 @@ import { extractBulkPDFs } from '../services/api';
 export default function BulkImport() {
   const navigate = useNavigate();
   const [files, setFiles] = useState([]);
+  const [templateVersion, setTemplateVersion] = useState('v9');
   const [dragOver, setDragOver] = useState(false);
   const [stage, setStage] = useState('upload');
   const [progress, setProgress] = useState(0);
@@ -37,7 +38,7 @@ export default function BulkImport() {
     setError('');
 
     try {
-      const result = await extractBulkPDFs(files);
+      const result = await extractBulkPDFs(files, undefined, templateVersion);
       setResults(result);
       setProgress(100);
       setStage('done');
@@ -68,8 +69,29 @@ export default function BulkImport() {
             <>
               <div className="mb-4">
                 <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>
-                  Extraction Standard: <strong>V7 (Enhanced Report)</strong>
+                  Extraction Standard
                 </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    className={`btn ${templateVersion === 'v9' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setTemplateVersion('v9')}
+                  >
+                    V9 (Current Rules)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${templateVersion === 'v7' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setTemplateVersion('v7')}
+                  >
+                    V7 (Legacy)
+                  </button>
+                </div>
+                <div className="text-muted text-sm" style={{ marginTop: 6 }}>
+                  {templateVersion === 'v9'
+                    ? 'REVISION 9 rules (packet-order chain, mandatory MIN/MATURITY fields, warning red)'
+                    : 'V7 Enhanced Report rules (newest-to-oldest chain, legacy fields)'}
+                </div>
               </div>
 
               <div
