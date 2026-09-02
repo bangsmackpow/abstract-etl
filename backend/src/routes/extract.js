@@ -8,7 +8,7 @@ const googleAiService = require('../services/googleAiService');
 const { withExtractionConcurrency } = require('../services/extractionQueue');
 const { sendBulkImportNotification } = require('../services/emailService');
 const { createError } = require('../middleware/errorHandler');
-const { createJob } = require('../services/tenantRepo');
+const { createJob, getTenantSetting } = require('../services/tenantRepo');
 
 const upload = multer({
   dest: path.join(__dirname, '../uploads'),
@@ -120,11 +120,16 @@ router.post('/bulk', requireActiveTrialOrSubscription, upload.array('pdfs', 50),
     }
   }
 
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const mailSent = await sendBulkImportNotification({
-    to: req.user.email || adminEmail,
-    results,
-  });
+  // Honor tenant settings: notification_email destination + bulk email toggle.
+  // (Never the platform ADMIN_EMAIL — that leaked other tenants' activity.)
+  const bulkEmailsEnabled = (await getTenantSetting(req.tenantId, 'enable_bulk_import_emails')) !== 'false';
+  let mailSent = false;
+  if (bulkEmailsEnabled) {
+    const notifyEmail = (await getTenantSetting(req.tenantId, 'notification_email')) || req.user.email;
+    if (notifyEmail) {
+      mailSent = await sendBulkImportNotification({ to: notifyEmail, results });
+    }
+  }
 
   res.json({ results, notificationSent: mailSent });
 });

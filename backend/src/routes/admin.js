@@ -411,17 +411,9 @@ router.post('/backups/:id/restore', requirePlatformAdmin, async (req, res) => {
 });
 
 // ── Tenant Settings (tenant-scoped) ──────────────────────────────────────────
-// Per-tenant operational settings (Track 1a). Global SMTP/backup remain under
-// /admin/system/settings (platform-only).
-
-const TENANT_SETTING_KEYS = [
-  'notification_email',
-  'daily_report_enabled',
-  'daily_report_time', // HH:MM (24h, UTC)
-  'default_output_format', // docx-text | docx-table | pdf | markdown
-  'enable_completion_emails',
-  'enable_bulk_import_emails',
-];
+// Per-tenant operational settings (Track 1a). Global email/backup remain under
+// /admin/system/settings (platform-only). The key allowlist is enforced
+// centrally in tenantRepo.setTenantSettings (TENANT_SETTING_KEYS).
 
 router.get('/settings', requireTenantAdmin, async (req, res) => {
   const map = await listTenantSettings(req.tenantId);
@@ -429,13 +421,7 @@ router.get('/settings', requireTenantAdmin, async (req, res) => {
 });
 
 router.patch('/settings', requireTenantAdmin, async (req, res) => {
-  const allowedKeys = new Set(TENANT_SETTING_KEYS);
-  const updates = {};
-  for (const [key, value] of Object.entries(req.body)) {
-    if (!allowedKeys.has(key)) continue;
-    updates[key] = value;
-  }
-  const result = await setTenantSettings(req.tenantId, updates);
+  const result = await setTenantSettings(req.tenantId, req.body || {});
   res.json(result);
 });
 
