@@ -39,6 +39,11 @@ export const changeMyPassword = (currentPassword, newPassword) =>
 
 export const apiSignup = (data) => api.post('/auth/signup', data).then((r) => r.data);
 
+// ── Docs (platform admin only) ───────────────────────────────────────────────
+export const getDocRules = () => api.get('/docs/rules').then((r) => r.data);
+export const getDocPrompt = (version) => api.get(`/docs/prompts/${version}`).then((r) => r.data);
+export const getDocSchema = (version) => api.get(`/docs/schema/${version}`).then((r) => r.data);
+
 // ── Billing / subscription status ─────────────────────────────────────────────
 export const getBillingStatus = () => api.get('/billing/status').then((r) => r.data);
 export const createCheckoutSession = (plan) => api.post('/billing/checkout', { plan }).then((r) => r.data);

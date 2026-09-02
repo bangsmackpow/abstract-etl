@@ -36,9 +36,11 @@ export default function Navbar() {
           Platform
         </Link>
       )}
-      <Link to="/app/docs" className="navbar-link">
-        Docs
-      </Link>
+      {isPlatformAdmin && (
+        <Link to="/app/docs" className="navbar-link">
+          Docs
+        </Link>
+      )}
       <Link to="/app/billing" className="navbar-link">
         Billing
       </Link>

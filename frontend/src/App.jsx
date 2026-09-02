@@ -133,7 +133,7 @@ export default function App() {
           <Route
             path="/app/docs"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute platformOnly>
                 <AppLayout>
                   <Docs />
                 </AppLayout>

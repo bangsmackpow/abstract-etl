@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const API = '';
+import { getDocRules, getDocPrompt, getDocSchema } from '../services/api';
 
 export default function Docs() {
   const [activeTab, setActiveTab] = useState('rules');
@@ -19,20 +18,18 @@ export default function Docs() {
       setLoading(true);
       setError('');
       const [rulesRes, v7p, v9p, v7s, v9s] = await Promise.all([
-        fetch(`${API}/api/docs/rules`),
-        fetch(`${API}/api/docs/prompts/v7`),
-        fetch(`${API}/api/docs/prompts/v9`),
-        fetch(`${API}/api/docs/schema/v7`),
-        fetch(`${API}/api/docs/schema/v9`),
+        getDocRules(),
+        getDocPrompt('v7'),
+        getDocPrompt('v9'),
+        getDocSchema('v7'),
+        getDocSchema('v9'),
       ]);
 
-      if (rulesRes.ok) { const d = await rulesRes.json(); setRules(d.content); }
-      if (v7p.ok) { const d = await v7p.json(); setPrompts((p) => ({ ...p, v7: d.content })); }
-      if (v9p.ok) { const d = await v9p.json(); setPrompts((p) => ({ ...p, v9: d.content })); }
-      if (v7s.ok) { const d = await v7s.json(); setSchemas((s) => ({ ...s, v7: JSON.stringify(d.schema, null, 2) })); }
-      if (v9s.ok) { const d = await v9s.json(); setSchemas((s) => ({ ...s, v9: JSON.stringify(d.schema, null, 2) })); }
+      setRules(rulesRes.content);
+      setPrompts({ v7: v7p.content, v9: v9p.content });
+      setSchemas({ v7: JSON.stringify(v7s.schema, null, 2), v9: JSON.stringify(v9s.schema, null, 2) });
     } catch (err) {
-      setError(`Failed to load docs: ${err.message}`);
+      setError(`Failed to load docs: ${err.response?.data?.message || err.message}`);
     } finally {
       setLoading(false);
     }

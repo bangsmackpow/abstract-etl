@@ -1,9 +1,14 @@
 const express = require('express');
+const { env } = require('../env');
 const path = require('path');
 const fs = require('fs');
 const router = express.Router();
+const { requireAuth, requirePlatformAdmin } = require('../middleware/requireAuth');
 
-const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
+// Rules/prompts/schemas are internal IP — platform admins only.
+router.use(requireAuth, requirePlatformAdmin);
+
+const DOCS_DIR = env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
 
 // ── GET /api/docs/rules — current rules.md ───────────────────────────────────
 router.get('/rules', (req, res) => {
