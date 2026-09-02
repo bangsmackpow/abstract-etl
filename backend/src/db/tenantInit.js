@@ -118,11 +118,19 @@ async function ensureDefaultTenant() {
 
   const defaultId = uuidv4();
 
-  // Seed the default tenant once (idempotent by slug)
+  // Seed the default tenant once (idempotent by slug). The default tenant hosts
+  // the platform admin and is never trial-gated — set plan=enterprise so the
+  // trial/subscription guard always lets it generate.
   const insert = sqlite.prepare(
-    'INSERT OR IGNORE INTO tenants (id, name, slug, status) VALUES (?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO tenants (id, name, slug, status, plan) VALUES (?, ?, ?, ?, ?)'
   );
-  insert.run(defaultId, 'Default Tenant', DEFAULT_TENANT_SLUG, 'active');
+  insert.run(defaultId, 'Default Tenant', DEFAULT_TENANT_SLUG, 'active', 'enterprise');
+
+  // Idempotently ensure the default tenant is enterprise (repairs rows created
+  // before plan existed or backfilled as 'trial').
+  sqlite.prepare(
+    "UPDATE tenants SET plan = 'enterprise', subscription_status = 'active' WHERE slug = ? AND (plan IS NULL OR plan != 'enterprise')"
+  ).run(DEFAULT_TENANT_SLUG);
 
   // Fetch the default tenant row
   const row = sqlite.prepare('SELECT id FROM tenants WHERE slug = ?').get(DEFAULT_TENANT_SLUG);
