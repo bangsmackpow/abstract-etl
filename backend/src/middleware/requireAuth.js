@@ -24,6 +24,13 @@ async function requireAuth(req, res, next) {
         return res.status(401).json({ error: true, message: 'User not found' });
       }
 
+      // Token revocation: password changed/reset since this token was issued.
+      if ((decoded.tv ?? 0) !== (user.tokenVersion ?? 0)) {
+        return res
+          .status(401)
+          .json({ error: true, message: 'Session expired. Please sign in again.' });
+      }
+
       // Tenant suspension is honored immediately — reject at auth time.
       if (user.tenantId) {
         const [tenant] = await db

@@ -38,6 +38,7 @@ function ensureTenantSchema() {
     'ALTER TABLE users ADD COLUMN mfa_enabled INTEGER DEFAULT 0',
     'ALTER TABLE users ADD COLUMN otp_code_hash TEXT',
     'ALTER TABLE users ADD COLUMN otp_expires_at INTEGER',
+    'ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0',
     'ALTER TABLE tenants ADD COLUMN plan TEXT DEFAULT \'trial\' NOT NULL',
     'ALTER TABLE tenants ADD COLUMN stripe_customer_id TEXT',
     'ALTER TABLE tenants ADD COLUMN stripe_subscription_id TEXT',

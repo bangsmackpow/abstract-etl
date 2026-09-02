@@ -27,7 +27,11 @@ export default function Security() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setPwMsg('Password updated successfully');
+      // Password change revokes all issued tokens — sign in again.
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      window.location.href = '/login';
+      return;
     } catch (err) {
       setPwMsg(`Error: ${err.response?.data?.message || 'Failed to change password'}`);
     } finally {

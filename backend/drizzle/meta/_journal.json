@@ -29,6 +29,13 @@
       "when": 1788321494280,
       "tag": "0003_cultured_mauler",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1788378004377,
+      "tag": "0004_square_monster_badoon",
+      "breakpoints": true
     }
   ]
 }

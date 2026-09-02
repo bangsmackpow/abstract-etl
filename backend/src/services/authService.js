@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const { env } = require('../env');
 const { db } = require('../db');
 const { users, tenants } = require('../db/schema');
 const { eq, sql } = require('drizzle-orm');
@@ -12,16 +13,17 @@ const {
   markResetTokenUsed,
   createTenant,
   createUserForTenant,
+  bumpTokenVersion,
 } = require('./tenantRepo');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-change-me';
+const JWT_SECRET = env.JWT_SECRET;
 const JWT_EXPIRES_IN = '24h';
 
 async function hashPassword(password) {
   return bcrypt.hashSync(password, 10);
 }
 
-async function comparePassword(password, hashedPassword) {
+function comparePassword(password, hashedPassword) {
   return bcrypt.compareSync(password, hashedPassword);
 }
 
@@ -48,6 +50,8 @@ function generateToken(user) {
       name: user.name,
       tenantId: user.tenantId || null,
       isPlatformAdmin: Boolean(user.isPlatformAdmin),
+      // token_version: bumped on password change/reset → older tokens are rejected
+      tv: user.tokenVersion ?? 0,
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
@@ -74,7 +78,7 @@ async function login(email, password) {
     throw new Error('Invalid email or password');
   }
 
-  const isPasswordValid = comparePassword(password, user.password);
+  const isPasswordValid = await comparePassword(password, user.password);
   if (!isPasswordValid) {
     console.warn(`[AuthService] Password mismatch for user: ${user.email}`);
     throw new Error('Invalid email or password');
@@ -237,6 +241,8 @@ async function resetPassword(rawToken, newPassword) {
     .set({ password: hashed, updatedAt: new Date() })
     .where(eq(users.id, record.userId));
   await markResetTokenUsed(record.id);
+  // Invalidate any JWTs issued before the reset.
+  await bumpTokenVersion(record.userId);
   return { success: true };
 }
 
@@ -252,7 +258,11 @@ async function changePassword(userId, currentPassword, newPassword) {
   const hashed = await hashPassword(newPassword);
   await db
     .update(users)
-    .set({ password: hashed, updatedAt: sql`(strftime('%s', 'now'))` })
+    .set({
+      password: hashed,
+      tokenVersion: sql`COALESCE(token_version, 0) + 1`,
+      updatedAt: sql`(strftime('%s', 'now'))`,
+    })
     .where(eq(users.id, userId));
   return { success: true };
 }

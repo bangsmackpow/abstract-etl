@@ -230,9 +230,23 @@ async function createUserForTenant(tenantId, { name, email, password, role = 'ab
 async function updateUserPassword(tenantId, userId, password) {
   await db
     .update(users)
-    .set({ password, updatedAt: sql`(strftime('%s', 'now'))` })
+    .set({
+      password,
+      tokenVersion: sql`COALESCE(token_version, 0) + 1`,
+      updatedAt: sql`(strftime('%s', 'now'))`,
+    })
     .where(and(eq(users.id, userId), eq(users.tenantId, tenantId)));
   return true;
+}
+
+/**
+ * Invalidate all previously-issued JWTs for a user (password change/reset).
+ */
+async function bumpTokenVersion(userId) {
+  await db
+    .update(users)
+    .set({ tokenVersion: sql`COALESCE(token_version, 0) + 1`, updatedAt: sql`(strftime('%s', 'now'))` })
+    .where(eq(users.id, userId));
 }
 
 /**
@@ -248,7 +262,11 @@ async function updateUserEmail(userId, email) {
     .update(users)
     .set({ email: cleanEmail, updatedAt: sql`(strftime('%s', 'now'))` })
     .where(eq(users.id, userId));
-  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  const [row] = await db
+    .select({ id: users.id, tenantId: users.tenantId, name: users.name, email: users.email, role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
   return { user: row };
 }
 
@@ -267,6 +285,17 @@ async function deleteUserByTenant(tenantId, userId) {
 // ---------------------------------------------------------------------------
 // Tenant settings (Track 1a) — key-value scoped by tenant
 // ---------------------------------------------------------------------------
+// The ONLY keys writable through setTenantSettings. Enforced centrally so
+// every caller (tenant admin AND platform admin) is held to the same contract.
+const TENANT_SETTING_KEYS = new Set([
+  'notification_email',
+  'daily_report_enabled',
+  'daily_report_time', // HH:MM (24h, UTC)
+  'default_output_format', // docx-text | docx-table | pdf | markdown
+  'enable_completion_emails',
+  'enable_bulk_import_emails',
+]);
+
 async function getTenantSetting(tenantId, key) {
   const [row] = await db
     .select({ value: tenantSettings.value })
@@ -301,6 +330,7 @@ async function setTenantSetting(tenantId, key, value) {
 
 async function setTenantSettings(tenantId, entries) {
   for (const [key, value] of Object.entries(entries)) {
+    if (!TENANT_SETTING_KEYS.has(key)) continue; // drop unknown keys centrally
     await setTenantSetting(tenantId, key, value);
   }
   return listTenantSettings(tenantId);
@@ -489,7 +519,6 @@ module.exports = {
   // tenant settings
   getTenantSetting,
   listTenantSettings,
-  setTenantSetting,
   setTenantSettings,
   // jobs
   listJobs,
@@ -505,6 +534,7 @@ module.exports = {
   updateUserPassword,
   updateUserEmail,
   deleteUserByTenant,
+  bumpTokenVersion,
   // MFA / OTP
   setUserMfa,
   setUserOtp,

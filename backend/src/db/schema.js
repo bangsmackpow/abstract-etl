@@ -58,6 +58,9 @@ const users = sqliteTable(
     otpCodeHash: text('otp_code_hash'), // SHA-256 hash of current OTP code
     otpExpiresAt: integer('otp_expires_at'), // unix seconds
 
+    // Incremented on password change/reset → invalidates previously issued JWTs
+    tokenVersion: integer('token_version').default(0),
+
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
   },
