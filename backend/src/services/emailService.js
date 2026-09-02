@@ -1,6 +1,7 @@
 const { db } = require('../db');
 const { settings } = require('../db/schema');
 const { eq } = require('drizzle-orm');
+const { env } = require('../env');
 
 /**
  * Transactional email via Resend (mandatory provider — no SMTP fallback).
@@ -25,11 +26,11 @@ async function getDbSetting(key) {
 }
 
 async function getApiKey() {
-  return cachedApiKey || await getDbSetting('resend_api_key') || process.env.RESEND_API_KEY || null;
+  return cachedApiKey || await getDbSetting('resend_api_key') || env.RESEND_API_KEY || null;
 }
 
 async function getFromAddress() {
-  return cachedFrom || await getDbSetting('mail_from') || process.env.MAIL_FROM || DEFAULT_FROM;
+  return cachedFrom || await getDbSetting('mail_from') || env.MAIL_FROM || DEFAULT_FROM;
 }
 
 function resetTransporter() {
@@ -64,8 +65,25 @@ async function sendViaResend({ to, subject, html, from }) {
   return true;
 }
 
+/**
+ * Escape a value for safe interpolation into HTML email templates.
+ * All data-derived content (addresses, filenames, names, errors) passes
+ * through this — extraction output originates from untrusted PDFs.
+ */
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function sendCompletionEmail({ to, abstractorName, propertyAddress, jobId, appUrl }) {
-  const jobUrl = `${appUrl || process.env.APP_URL}/jobs/${jobId}`;
+  const base = appUrl || env.APP_URL;
+  const jobUrl = `${base}/app/jobs/${encodeURIComponent(jobId)}`;
+  const address = escapeHtml(propertyAddress);
   await sendViaResend({
     to,
     subject: `Abstract Complete: ${propertyAddress}`,
@@ -75,25 +93,25 @@ async function sendCompletionEmail({ to, abstractorName, propertyAddress, jobId,
           <h2 style="color: white; margin: 0;">Abstract Job Complete</h2>
         </div>
         <div style="padding: 24px; border: 1px solid #ddd; border-top: none;">
-          <p>Hi${abstractorName ? ' ' + abstractorName : ''},</p>
+          <p>Hi${abstractorName ? ' ' + escapeHtml(abstractorName) : ''},</p>
           <p>An abstract job has been marked as <strong>complete</strong>.</p>
           <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
             <tr>
               <td style="padding: 8px; background: #f5f5f5; font-weight: bold; width: 40%;">Property Address</td>
-              <td style="padding: 8px; border-bottom: 1px solid #eee;">${propertyAddress}</td>
+              <td style="padding: 8px; border-bottom: 1px solid #eee;">${address}</td>
             </tr>
             <tr>
               <td style="padding: 8px; background: #f5f5f5; font-weight: bold;">Completed</td>
               <td style="padding: 8px; border-bottom: 1px solid #eee;">${new Date().toLocaleDateString('en-US', { dateStyle: 'full' })}</td>
             </tr>
           </table>
-          <a href="${jobUrl}"
+          <a href="${escapeHtml(jobUrl)}"
              style="display: inline-block; background: #2E75B6; color: white; padding: 12px 24px;
                     text-decoration: none; border-radius: 4px; margin-top: 8px;">
             View Job
           </a>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">
-            Abstract ETL Tool — ${appUrl || 'Internal Tool'}
+            Abstract ETL Tool — ${escapeHtml(base || 'Internal Tool')}
           </p>
         </div>
       </div>
@@ -109,13 +127,13 @@ async function sendBulkImportNotification({ to, results }) {
 
   const rows = results.map((r) => `
     <tr>
-      <td style="padding: 8px; border-bottom: 1px solid #eee;">${r.filename}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(r.filename)}</td>
       <td style="padding: 8px; border-bottom: 1px solid #eee;">
         <span style="color: ${r.status === 'created' ? 'green' : 'red'}; font-weight: bold;">
           ${r.status === 'created' ? 'Imported' : 'Failed'}
         </span>
       </td>
-      <td style="padding: 8px; border-bottom: 1px solid #eee;">${r.propertyAddress || r.error || '—'}</td>
+      <td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(r.propertyAddress || r.error || '—')}</td>
     </tr>
   `).join('');
 
@@ -144,7 +162,7 @@ async function sendBulkImportNotification({ to, results }) {
             <tbody>${rows}</tbody>
           </table>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">
-            Abstract ETL Tool — ${process.env.APP_URL || 'Internal Tool'}
+            Abstract ETL Tool — ${env.APP_URL || 'Internal Tool'}
           </p>
         </div>
       </div>
@@ -167,11 +185,11 @@ async function sendBackupNotification({ to, success, error }) {
         <div style="padding: 24px; border: 1px solid #ddd; border-top: none;">
           <p>The automated database backup has <strong style="color: red;">failed</strong>.</p>
           <p style="background: #fdf0ef; padding: 12px; border-radius: 4px; font-family: monospace;">
-            ${error || 'Unknown error'}
+            ${escapeHtml(error || 'Unknown error')}
           </p>
           <p>Please check the server and resolve the issue.</p>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">
-            Abstract ETL Tool — ${process.env.APP_URL || 'Internal Tool'}
+            Abstract ETL Tool — ${env.APP_URL || 'Internal Tool'}
           </p>
         </div>
       </div>
@@ -195,7 +213,7 @@ async function sendOtpEmail({ to, otp }) {
             ${otp}
           </p>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">
-            Abstract ETL Tool — ${process.env.APP_URL || 'Internal Tool'}
+            Abstract ETL Tool — ${env.APP_URL || 'Internal Tool'}
           </p>
         </div>
       </div>
@@ -225,7 +243,7 @@ async function sendPasswordResetEmail({ to, resetUrl }) {
             If you didn't request this, you can safely ignore this email.
           </p>
           <p style="color: #888; font-size: 12px;">
-            Abstract ETL Tool — ${process.env.APP_URL || 'Internal Tool'}
+            Abstract ETL Tool — ${env.APP_URL || 'Internal Tool'}
           </p>
         </div>
       </div>
@@ -235,12 +253,13 @@ async function sendPasswordResetEmail({ to, resetUrl }) {
 }
 
 async function sendDailyUsageReport({ to, tenantName, report }) {
+  const name = escapeHtml(tenantName);
   const statusRows = (report.statusBreakdown || [])
-    .map((r) => `<tr><td style="padding: 8px; border-bottom: 1px solid #eee; text-transform: capitalize;">${r.status}</td><td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${r.count}</td></tr>`)
+    .map((r) => `<tr><td style="padding: 8px; border-bottom: 1px solid #eee; text-transform: capitalize;">${escapeHtml(r.status)}</td><td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${r.count}</td></tr>`)
     .join('') || '<tr><td colspan="2" style="padding: 8px; border-bottom: 1px solid #eee;">No jobs</td></tr>';
 
   const userRows = (report.perUser || [])
-    .map((r) => `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;">${r.name}</td><td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${r.count}</td></tr>`)
+    .map((r) => `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;">${escapeHtml(r.name)}</td><td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${r.count}</td></tr>`)
     .join('') || '<tr><td colspan="2" style="padding: 8px; border-bottom: 1px solid #eee;">No activity</td></tr>';
 
   await sendViaResend({
@@ -252,7 +271,7 @@ async function sendDailyUsageReport({ to, tenantName, report }) {
           <h2 style="color: white; margin: 0;">Daily Usage Report</h2>
         </div>
         <div style="padding: 24px; border: 1px solid #ddd; border-top: none;">
-          <p><strong>${tenantName}</strong> — last 24 hours.</p>
+          <p><strong>${name}</strong> — last 24 hours.</p>
           <p style="font-size: 24px; font-weight: 700; color: #1F4E79;">${report.total} job(s)</p>
           <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
             <thead><tr style="background: #f5f5f5;">
@@ -269,7 +288,7 @@ async function sendDailyUsageReport({ to, tenantName, report }) {
             <tbody>${userRows}</tbody>
           </table>
           <p style="color: #888; font-size: 12px; margin-top: 24px;">
-            Abstract ETL Tool — ${process.env.APP_URL || 'Internal Tool'}
+            Abstract ETL Tool — ${env.APP_URL || 'Internal Tool'}
           </p>
         </div>
       </div>

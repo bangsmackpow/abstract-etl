@@ -1,4 +1,5 @@
 const Stripe = require('stripe');
+const { env } = require('../env');
 const { db } = require('../db');
 const { tenants } = require('../db/schema');
 const { eq, sql } = require('drizzle-orm');
@@ -6,19 +7,19 @@ const { getTenantById } = require('./tenantRepo');
 
 /**
  * Stripe billing (Track 5) — test mode to start. Tier prices map to Stripe
- * Price IDs supplied via env:
+ * Price IDs supplied via env (validated in env.js):
  *   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
  *   STRIPE_PRICE_SOLO, STRIPE_PRICE_TEAM, STRIPE_PRICE_ENTERPRISE
  */
 
 const PLANS = {
-  solo: { name: 'Solo', priceId: process.env.STRIPE_PRICE_SOLO },
-  team: { name: 'Team', priceId: process.env.STRIPE_PRICE_TEAM },
-  enterprise: { name: 'Enterprise', priceId: process.env.STRIPE_PRICE_ENTERPRISE },
+  solo: { name: 'Solo', priceId: env.STRIPE_PRICE_SOLO },
+  team: { name: 'Team', priceId: env.STRIPE_PRICE_TEAM },
+  enterprise: { name: 'Enterprise', priceId: env.STRIPE_PRICE_ENTERPRISE },
 };
 
 function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
+  const key = env.STRIPE_SECRET_KEY;
   if (!key) throw new Error('STRIPE_SECRET_KEY is not configured');
   return new Stripe(key);
 }
@@ -50,8 +51,8 @@ async function getCheckoutUrl(tenantId, plan) {
     mode: 'subscription',
     customer: customerId,
     line_items: [{ price: cfg.priceId, quantity: 1 }],
-    success_url: `${process.env.APP_URL || 'http://localhost:5173'}/app/billing?success=1`,
-    cancel_url: `${process.env.APP_URL || 'http://localhost:5173'}/app/billing?canceled=1`,
+    success_url: `${env.APP_URL}/app/billing?success=1`,
+    cancel_url: `${env.APP_URL}/app/billing?canceled=1`,
     metadata: { tenantId: tenant.id, plan },
   });
   return session.url;
@@ -64,7 +65,7 @@ async function getPortalUrl(tenantId) {
   const customerId = tenant.stripeCustomerId || await getOrCreateCustomer(tenant);
   const session = await stripe.billingPortal.sessions.create({
     customer: customerId,
-    return_url: `${process.env.APP_URL || 'http://localhost:5173'}/app/billing`,
+    return_url: `${env.APP_URL}/app/billing`,
   });
   return session.url;
 }
@@ -75,7 +76,7 @@ async function getPortalUrl(tenantId) {
  */
 async function handleWebhook(rawBody, signature) {
   const stripe = getStripe();
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  const secret = env.STRIPE_WEBHOOK_SECRET;
   if (!secret) throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
 
   let event;
@@ -93,15 +94,13 @@ async function handleWebhook(rawBody, signature) {
       const subId = session.subscription;
       const tid = session.metadata?.tenantId;
       if (!tid) break;
-      await db
-        .update(tenants)
-        .set({
-          stripeSubscriptionId: subId || null,
-          subscriptionStatus: 'active',
-          plan: session.metadata?.plan || tenants.plan,
-          updatedAt: sql`(strftime('%s', 'now'))`,
-        })
-        .where(eq(tenants.id, tid));
+      const updates = {
+        stripeSubscriptionId: subId || null,
+        subscriptionStatus: 'active',
+        updatedAt: sql`(strftime('%s', 'now'))`,
+      };
+      if (session.metadata?.plan) updates.plan = session.metadata.plan;
+      await db.update(tenants).set(updates).where(eq(tenants.id, tid));
       break;
     }
     case 'customer.subscription.updated': {

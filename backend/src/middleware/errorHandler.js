@@ -3,6 +3,7 @@
  * Catches both thrown errors and async rejections (express-async-errors).
  */
 const { logger } = require('../services/logger');
+const { env } = require('../env');
 
 function errorHandler(err, req, res, _next) {
   logger.error(
@@ -15,7 +16,7 @@ function errorHandler(err, req, res, _next) {
       err: {
         name: err.name,
         message: err.message,
-        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+        stack: env.NODE_ENV === 'development' ? err.stack : undefined,
         data: err.data,
       },
     },
@@ -28,7 +29,7 @@ function errorHandler(err, req, res, _next) {
   res.status(status).json({
     error: true,
     message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    ...(env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 }
 

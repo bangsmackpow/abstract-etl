@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { env } = require('../env');
 const path = require('path');
 const Database = require('better-sqlite3');
 const { db, sqlite } = require('../db');
@@ -56,7 +57,7 @@ async function restoreBackup(id) {
   const backupPath = path.join(BACKUP_DIR, record.filename);
   if (!fs.existsSync(backupPath)) throw new Error('Backup file not found on disk');
 
-  const dbPath = process.env.DB_PATH || path.resolve(__dirname, '../../data/sqlite.db');
+  const dbPath = env.DB_PATH || path.resolve(__dirname, '../../data/sqlite.db');
 
   // Safety: pre-restore snapshot
   const safetyFile = path.join(BACKUP_DIR, `pre-restore-${Date.now()}.db`);

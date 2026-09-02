@@ -1,5 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const fs = require('fs');
+const { env } = require('../env');
 const path = require('path');
 
 /**
@@ -10,7 +11,7 @@ const path = require('path');
  * at startup for auditability.
  */
 
-const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
+const DOCS_DIR = env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
 
 function loadPrompt(filename) {
   const filePath = path.join(DOCS_DIR, 'prompts', filename);
@@ -56,7 +57,7 @@ function promptForVersion(version) {
 }
 
 function getModel() {
-  const apiKey = (process.env.GOOGLE_AI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
+  const apiKey = (env.GOOGLE_AI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
   if (!apiKey) throw new Error('GOOGLE_AI_API_KEY is missing from environment.');
 
   const genAI = new GoogleGenerativeAI(apiKey);

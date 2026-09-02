@@ -1,10 +1,11 @@
 const { drizzle } = require('drizzle-orm/better-sqlite3');
 const Database = require('better-sqlite3');
 const path = require('path');
+const { env } = require('../env');
 const fs = require('fs');
 
 // Ensure the data directory exists
-const dbPath = process.env.DB_PATH || path.join(__dirname, '..', '..', 'data', 'sqlite.db');
+const dbPath = env.DB_PATH || path.join(__dirname, '..', '..', 'data', 'sqlite.db');
 const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
   // console.log(`[DB] Creating directory: ${dbDir}`);

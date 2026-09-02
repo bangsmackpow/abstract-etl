@@ -12,7 +12,9 @@
  * external queue AND a shared DB (Postgres/D1) — out of scope for now.
  */
 
-const MAX_CONCURRENCY = Number(process.env.EXTRACTION_CONCURRENCY) || 3;
+const { env } = require('../env');
+
+const MAX_CONCURRENCY = Number(env.EXTRACTION_CONCURRENCY) || 3;
 
 let active = 0;
 const waiting = [];

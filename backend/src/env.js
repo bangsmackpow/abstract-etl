@@ -11,6 +11,15 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   MAIL_FROM: z.string().optional(),
   DOCS_DIR: z.string().optional(),
+  DB_PATH: z.string().optional(),
+  LOG_LEVEL: z.string().optional(),
+  EXTRACTION_CONCURRENCY: z.string().optional(),
+  // Stripe billing (optional — billing routes error until configured)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_SOLO: z.string().optional(),
+  STRIPE_PRICE_TEAM: z.string().optional(),
+  STRIPE_PRICE_ENTERPRISE: z.string().optional(),
 });
 
 const _env = envSchema.safeParse(process.env);

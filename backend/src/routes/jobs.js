@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { env } = require('../env');
 const { requireAuth, requireTenantAdmin } = require('../middleware/requireAuth');
 const { sendCompletionEmail } = require('../services/emailService');
 const { createError } = require('../middleware/errorHandler');
@@ -12,6 +13,7 @@ const {
   setJobEmailSent,
   listUsersByTenant,
   getUserByTenant,
+  getTenantSetting,
 } = require('../services/tenantRepo');
 
 // All job routes require auth
@@ -109,19 +111,23 @@ router.patch('/:id', async (req, res) => {
 
   const updated = await updateJob(req.tenantId, req.params.id, updates);
 
-  // Send completion email if status just became 'complete' and not yet sent
+  // Send completion email if status just became 'complete' and not yet sent.
+  // Honors the tenant's enable_completion_emails setting (default: enabled).
   if (updates.status === 'complete' && !existing.emailSent) {
-    const user = await getUserByTenant(req.tenantId, existing.createdBy);
-    if (user) {
-      const sent = await sendCompletionEmail({
-        to: user.email,
-        abstractorName: user.name,
-        propertyAddress: updated.propertyAddress,
-        jobId: updated.id,
-        appUrl: process.env.APP_URL,
-      });
-      if (sent) {
-        await setJobEmailSent(req.tenantId, req.params.id);
+    const completionEmailsEnabled = (await getTenantSetting(req.tenantId, 'enable_completion_emails')) !== 'false';
+    if (completionEmailsEnabled) {
+      const user = await getUserByTenant(req.tenantId, existing.createdBy);
+      if (user) {
+        const sent = await sendCompletionEmail({
+          to: user.email,
+          abstractorName: user.name,
+          propertyAddress: updated.propertyAddress,
+          jobId: updated.id,
+          appUrl: env.APP_URL,
+        });
+        if (sent) {
+          await setJobEmailSent(req.tenantId, req.params.id);
+        }
       }
     }
   }
