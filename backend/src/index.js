@@ -16,6 +16,7 @@ const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const docsRoutes = require('./routes/docs');
 const platformRoutes = require('./routes/platform');
+const billingRoutes = require('./routes/billing');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -97,6 +98,7 @@ app.use('/api/generate', generateRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/docs', docsRoutes);
 app.use('/api/platform', platformRoutes);
+app.use('/api/billing', billingRoutes);
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
@@ -233,6 +235,10 @@ async function start() {
     // Start automated backup scheduler
     const { startBackupScheduler } = require('./services/backupService');
     startBackupScheduler();
+
+    // Start daily usage report scheduler
+    const { startReportScheduler } = require('./services/reportService');
+    startReportScheduler();
 
     // Increase timeout for long AI extractions (10 mins)
     server.timeout = 600000;

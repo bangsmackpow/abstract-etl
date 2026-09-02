@@ -26,6 +26,9 @@ AI-powered ETL system for property abstracts. **V9 rules** (REVISION 9 of the En
 - `db/tenantInit.js` — startup mirror of the `tenants` table + `tenant_id` columns + one-time backfill of existing users/jobs into the `default` tenant (idempotent, runs every boot).
 - `emailService.js` / `backupService.js` — SMTP + SQLite backups; DB `settings` table overrides env at runtime (`smtp_host`, `backup_enabled`, `backup_interval_minutes`, `backup_retention_days`).
 - `logger.js` — pino, one JSON object per line with `requestId` for Loki/Grafana. Health checks and non-API 404 scanner noise are suppressed at the source. See `docs/monitoring/README.md`.
+- `extractionQueue.js` — in-process concurrency limiter (default 3 concurrent Gemini calls) for extraction; no external deps. `EXTRACTION_CONCURRENCY` env overrides.
+- `reportService.js` — daily usage report email scheduler (default 00:05 UTC; per-tenant `daily_report_time` + `daily_report_enabled` from tenant settings).
+- `stripeService.js` — Stripe billing (test mode to start): checkout, billing portal, webhook (`checkout.session.completed`, `customer.subscription.updated/deleted`, `invoice.payment_failed`). Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO/TEAM/ENTERPRISE`. Tiers: Solo $45 (1 user), Team $99 (5 users), Enterprise $499 (dedicated instance).
 
 ## Env (`backend/src/env.js`, Zod-validated — exits on invalid)
 
@@ -50,6 +53,11 @@ Required at startup: `JWT_SECRET` (min 10 chars), `ADMIN_EMAIL`, `ADMIN_PASSWORD
 15. **Tenant branding (per-tenant logo)**: stored as `logo_blob` (base64) + `logo_mime` on `tenants`. Tenant admin uploads/clears their own tenant's logo via `PUT/DELETE /api/admin/logo` (PNG/JPG ≤2MB). `routes/generate.js` loads the tenant's logo and passes `opts.logo` into the DOCX/PDF generators. No logo = no logo rendered (no Hazelwood fallback).
 16. **Reporting**: `GET /api/admin/metrics` (tenant admin) returns status breakdown, per-user counts/time, volume-over-time, processing-time stats (avg/max/p50/p95), and slow-job list, with optional `from`/`to` date filters. `GET /api/admin/metrics/export` returns the tenant's jobs as CSV.
 17. **Move job across tenants (platform)**: `POST /api/platform/jobs/:id/move {toTenantId}` (platform admin only) moves a job, reassigns `createdBy` to the destination tenant's first admin, and writes an `audit_log` entry (`job.move`). `GET /api/platform/tenants/:id/jobs` lists a tenant's jobs; `GET /api/platform/audit` lists recent privileged actions.
+18. **Auth (Track 2)**: custom auth (keep — do NOT migrate to better-auth). Email-OTP MFA (`POST /auth/verify-otp` after login returns `needsMfa`; enable/disable at `/auth/mfa/*`), one-time password reset (`/auth/forgot-password` → `/auth/reset-password`, SHA-256-hashed tokens in `password_reset_tokens`, 1h expiry), self-serve change password (`PATCH /auth/password`). OTP codes are SHA-256 hashed in `users.otp_code_hash`.
+19. **Per-tenant settings (Track 1a)**: `tenant_settings` key-value table scoped by tenant. Tenant admin: `GET/PATCH /api/admin/settings`. Platform admin: `GET/PATCH /api/platform/tenants/:id/settings`. Global SMTP/backup moved to `GET/PATCH /api/admin/system/settings` (platform-only). Keys: `notification_email`, `daily_report_enabled`, `daily_report_time`, `default_output_format`, `enable_completion_emails`, `enable_bulk_import_emails`.
+20. **Export reports (Track 1b)**: `GET /api/admin/export?from=&to=&format=all|docx|pdf|markdown` (tenant admin) returns a `.zip` of each job's DOCX+PDF+MD reports. Capped at 200 jobs per request.
+21. **Public signup + trial (Track 4)**: `POST /api/auth/signup` creates a tenant on `plan=trial` + 7-day `trial_ends_at` + tenant admin. `/` is the marketing landing page (public); the app lives under `/app/*`. Extractions are blocked (402 `trial_expired`) when a trial ends without an active subscription (`requireActiveTrialOrSubscription` middleware). `GET /api/billing/status` returns plan/trial/subscription state.
+22. **better-sqlite (Track 3)**: WAL + `busy_timeout=5000`, `synchronous=NORMAL`, `cache_size=-64000`, `wal_autocheckpoint=1000` set in `db/index.js`. Single-process/single-writer — do NOT spawn multi-replica backends without moving off local SQLite (Postgres/D1).
 
 ## Gotchas
 

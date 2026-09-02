@@ -13,8 +13,12 @@ if (!fs.existsSync(dbDir)) {
 
 const sqlite = new Database(dbPath);
 
-// Enable WAL mode for better performance/concurrency
+// WAL + performance pragmas for higher-volume operation (Track 3)
 sqlite.pragma('journal_mode = WAL');
+sqlite.pragma('busy_timeout = 5000');
+sqlite.pragma('synchronous = NORMAL'); // safe with WAL, reduces fsync stalls
+sqlite.pragma('cache_size = -64000'); // ~64MB page cache
+sqlite.pragma('wal_autocheckpoint = 1000');
 
 const db = drizzle(sqlite);
 

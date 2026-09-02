@@ -3,8 +3,9 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { requireAuth } = require('../middleware/requireAuth');
+const { requireAuth, requireActiveTrialOrSubscription } = require('../middleware/requireAuth');
 const googleAiService = require('../services/googleAiService');
+const { withExtractionConcurrency } = require('../services/extractionQueue');
 const { sendBulkImportNotification } = require('../services/emailService');
 const { createError } = require('../middleware/errorHandler');
 const { createJob } = require('../services/tenantRepo');
@@ -20,7 +21,7 @@ const upload = multer({
 
 router.use(requireAuth);
 
-router.post('/', upload.single('pdf'), async (req, res) => {
+router.post('/', requireActiveTrialOrSubscription, upload.single('pdf'), async (req, res) => {
   if (!req.file) throw createError('No PDF file provided');
 
   const pdfPath = req.file.path;
@@ -29,7 +30,9 @@ router.post('/', upload.single('pdf'), async (req, res) => {
 
   try {
     const filename = req.file.originalname || '';
-    const extractedFields = await googleAiService.extractFromPDF(pdfPath, filename, templateVersion);
+    const extractedFields = await withExtractionConcurrency(() =>
+      googleAiService.extractFromPDF(pdfPath, filename, templateVersion)
+    );
     const processingTimeMs = Date.now() - startTime;
 
     const aiFlags = {};
@@ -71,7 +74,7 @@ router.post('/', upload.single('pdf'), async (req, res) => {
   }
 });
 
-router.post('/bulk', upload.array('pdfs', 50), async (req, res) => {
+router.post('/bulk', requireActiveTrialOrSubscription, upload.array('pdfs', 50), async (req, res) => {
   if (!req.files || req.files.length === 0) {
     throw createError('No PDF files provided');
   }
@@ -82,7 +85,9 @@ router.post('/bulk', upload.array('pdfs', 50), async (req, res) => {
   for (const file of req.files) {
     const pdfPath = file.path;
     try {
-      const extractedFields = await googleAiService.extractFromPDF(pdfPath, file.originalname, templateVersion);
+      const extractedFields = await withExtractionConcurrency(() =>
+        googleAiService.extractFromPDF(pdfPath, file.originalname, templateVersion)
+      );
       const oi = extractedFields.order_info || {};
       const propertyAddress = oi.property_address || '';
 

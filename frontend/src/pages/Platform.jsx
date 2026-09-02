@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   getTenants, createTenant, setTenantStatus,
   getTenantJobs, moveJobToTenant, getPlatformAudit,
+  getTenantSettings, updateTenantSettings,
 } from '../services/api';
 
 const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 'Complete' };
@@ -24,6 +25,11 @@ export default function Platform() {
 
   // Audit
   const [audit, setAudit] = useState([]);
+
+  // Per-tenant settings editor
+  const [settingsTenant, setSettingsTenant] = useState(null);
+  const [settingsMap, setSettingsMap] = useState({});
+  const [settingsMsg, setSettingsMsg] = useState('');
 
   const refreshTenants = useCallback(async () => {
     setLoading(true);
@@ -121,6 +127,29 @@ export default function Platform() {
   const formatDate = (ts) => (ts ? new Date(ts).toLocaleDateString() : '—');
   const formatDateTime = (ts) => (ts ? new Date(ts).toLocaleString() : '—');
 
+  const openTenantSettings = async (tenant) => {
+    setSettingsMsg('');
+    try {
+      setSettingsMap(await getTenantSettings(tenant.id));
+      setSettingsTenant(tenant);
+    } catch (err) {
+      setMsg(`Error loading settings: ${err.response?.data?.message || err.message}`);
+    }
+  };
+
+  const saveTenantSettings = async (e) => {
+    e.preventDefault();
+    if (!settingsTenant) return;
+    setSettingsMsg('');
+    try {
+      const result = await updateTenantSettings(settingsTenant.id, settingsMap);
+      setSettingsMap(result);
+      setSettingsMsg('Settings saved');
+    } catch (err) {
+      setSettingsMsg(`Error: ${err.response?.data?.message || 'Failed to save settings'}`);
+    }
+  };
+
   const tabs = [
     { key: 'tenants', label: 'Tenants' },
     { key: 'audit', label: 'Audit Log' },
@@ -186,6 +215,9 @@ export default function Platform() {
                             <div className="flex gap-2">
                               <button className="btn btn-ghost btn-sm" onClick={() => setViewingTenant(t)}>
                                 View Jobs
+                              </button>
+                              <button className="btn btn-ghost btn-sm" onClick={() => openTenantSettings(t)}>
+                                Settings
                               </button>
                               <button
                                 className={`btn btn-ghost btn-sm ${t.status === 'active' ? 'text-error' : ''}`}
@@ -323,6 +355,70 @@ export default function Platform() {
                 </table>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {settingsTenant && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 12, maxWidth: 520, width: '100%', padding: 24, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--blue-dark)', margin: 0 }}>
+                Settings — {settingsTenant.name}
+              </h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setSettingsTenant(null)}>✕</button>
+            </div>
+            {settingsMsg && <div className={`alert ${settingsMsg.startsWith('Error') ? 'alert-error' : 'alert-info'} mb-4`}>{settingsMsg}</div>}
+            <form onSubmit={saveTenantSettings}>
+              <div className="mb-3">
+                <label className="form-label">Notification Email</label>
+                <input className="form-input" type="email" value={settingsMap.notification_email || ''}
+                  onChange={(e) => setSettingsMap((m) => ({ ...m, notification_email: e.target.value }))} />
+              </div>
+              <div className="mb-3">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" checked={settingsMap.daily_report_enabled === 'true'}
+                    onChange={(e) => setSettingsMap((m) => ({ ...m, daily_report_enabled: e.target.checked ? 'true' : 'false' }))}
+                    style={{ width: 18, height: 18 }} />
+                  Enable daily usage report
+                </label>
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Daily Report Time (UTC, 24h)</label>
+                <input className="form-input" type="time" value={settingsMap.daily_report_time || '00:00'}
+                  onChange={(e) => setSettingsMap((m) => ({ ...m, daily_report_time: e.target.value }))} />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Default Output Format</label>
+                <select className="form-select" value={settingsMap.default_output_format || 'docx-table'}
+                  onChange={(e) => setSettingsMap((m) => ({ ...m, default_output_format: e.target.value }))}>
+                  <option value="docx-text">DOCX (Text)</option>
+                  <option value="docx-table">DOCX (Table)</option>
+                  <option value="pdf">PDF</option>
+                  <option value="markdown">Markdown</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" checked={settingsMap.enable_completion_emails !== 'false'}
+                    onChange={(e) => setSettingsMap((m) => ({ ...m, enable_completion_emails: e.target.checked ? 'true' : 'false' }))}
+                    style={{ width: 18, height: 18 }} />
+                  Send completion emails
+                </label>
+              </div>
+              <div className="mb-4">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox" checked={settingsMap.enable_bulk_import_emails !== 'false'}
+                    onChange={(e) => setSettingsMap((m) => ({ ...m, enable_bulk_import_emails: e.target.checked ? 'true' : 'false' }))}
+                    style={{ width: 18, height: 18 }} />
+                  Send bulk-import summary emails
+                </label>
+              </div>
+              <div className="flex gap-2">
+                <button className="btn btn-primary" type="submit">Save Settings</button>
+                <button type="button" className="btn btn-ghost" onClick={() => setSettingsTenant(null)}>Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

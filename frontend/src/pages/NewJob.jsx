@@ -51,7 +51,7 @@ export default function NewJob() {
       setStage('done');
 
       // 3. Navigate to the edit/review page
-      setTimeout(() => navigate(`/jobs/${job.id}`), 600);
+      setTimeout(() => navigate(`/app/jobs/${job.id}`), 600);
     } catch (err) {
       setError(err.response?.data?.message || 'Extraction failed. Please try again.');
       setStage('upload');
@@ -62,7 +62,7 @@ export default function NewJob() {
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
       <div className="flex items-center gap-3 mb-4">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/app')}>
           ← Back
         </button>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--blue-dark)' }}>

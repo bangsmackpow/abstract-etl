@@ -49,10 +49,12 @@ Currently only `:latest` and `:${sha}` are pushed. Add `:vYYYYMMDD-${sha-short}`
 
 These arise from the multi-tenant and v9 work now shipped, and are the highest-value next steps for the product itself:
 
+- **✅ Shipped (2026-09-02):** Email-OTP MFA, password reset (one-time email link), self-serve change password, per-tenant settings (tenant admin + platform editor), report `.zip` export (DOCX+PDF+MD, date range, 200 cap), daily usage report email, better-sqlite pragmas + in-process extraction queue, marketing landing page + public 7-day-trial signup (`/` → landing, app under `/app`), Stripe billing (test mode) with per-tenant tiers (Solo/Team/Enterprise).
 - **V9 → V7 retirement gate.** V7 remains for side-by-side testing, but no acceptance criteria exist for when to remove it. Define a checkpoint (e.g., N consecutive v9 reports reviewed clean by the client) after which V7 extraction/generators can be dropped. Until then, keep both.
-- **Per-tenant configurability (beyond logo).** Per-tenant logos are shipped. Remaining extensions when a second paying tenant appears: own prompt/schema, SMTP, master lists via a `tenant_config` table — the `tenant_id` linchpin is already in place.
+- **Per-tenant configurability (beyond logo + settings).** Per-tenant logos and operational settings are shipped. Remaining extensions when a second paying tenant appears: own prompt/schema, SMTP, master lists via a `tenant_config` table — the `tenant_id` linchpin is already in place.
 - **Tenant data export / offboarding.** Tenants are suspended, never hard-deleted. Add a platform-admin "export tenant data" (jobs + users → zip) so offboarding a customer is possible without a full-DB restore.
-- **Tenant usage metrics / quotas.** With real tenants, add per-tenant job counts and optional extraction caps (per-tenant reporting now exists; quotas don't).
+- **Tenant usage metrics / quotas.** Per-tenant reporting + plan tiers exist. Add optional per-plan job caps enforcement at extraction time (currently extraction is unlimited on paid plans; trial expiry blocks extraction).
+- **Stripe live mode.** Billing is wired with test keys. Switch to live keys + production price IDs + live webhook endpoint when ready to charge real customers.
 - **Time-per-status (chokepoint) metrics.** Reporting uses `processingTimeMs` percentiles + a slow-jobs list today. Adding a `status_changed_at` column to jobs would enable time-in-draft / time-in-review lag tracking — deferred per decision.
 - **Multi-parcel v9 QA samples.** The v9 rules add partition-deed, multi-parcel, and update/continuation workflows. Add fictional sample packets to `docs/sample_output/` so those paths are regression-testable by hand until a test suite exists.
 

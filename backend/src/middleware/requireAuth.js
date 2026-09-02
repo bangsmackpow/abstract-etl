@@ -68,4 +68,32 @@ function requirePlatformAdmin(req, res, next) {
   return res.status(403).json({ error: true, message: 'Platform admin access required' });
 }
 
-module.exports = { requireAuth, requireTenantAdmin, requirePlatformAdmin };
+/**
+ * Blocks AI extraction for tenants whose trial expired and who have no active
+ * subscription. Logins still work (Track 4 decision). Used on extract routes.
+ */
+async function requireActiveTrialOrSubscription(req, res, next) {
+  try {
+    if (!req.tenantId) return next();
+    const [tenant] = await db
+      .select({ plan: tenants.plan, trialEndsAt: tenants.trialEndsAt, subscriptionStatus: tenants.subscriptionStatus })
+      .from(tenants)
+      .where(eq(tenants.id, req.tenantId))
+      .limit(1);
+    if (!tenant) return next();
+
+    const trialActive = tenant.plan === 'trial' && tenant.trialEndsAt && tenant.trialEndsAt * 1000 > Date.now();
+    const subActive = (tenant.subscriptionStatus || 'none') === 'active';
+    if (trialActive || subActive || tenant.plan === 'enterprise') return next();
+
+    return res.status(402).json({
+      error: true,
+      message: 'Your free trial has ended. Please subscribe to continue generating abstracts.',
+      code: 'trial_expired',
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+module.exports = { requireAuth, requireTenantAdmin, requirePlatformAdmin, requireActiveTrialOrSubscription };

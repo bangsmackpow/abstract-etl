@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getJobs, deleteJob } from '../services/api';
+import { getJobs, deleteJob, getBillingStatus } from '../services/api';
 import { useAuth } from '../hooks/useAuth';
 
 const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 'Complete' };
@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [refreshInterval, setRefreshInterval] = useState(getInitialRefreshInterval);
   const [countdown, setCountdown] = useState(() => (REFRESH_INTERVALS[getInitialRefreshInterval()] || 0) / 1000);
+  const [billing, setBilling] = useState(null);
   const navigate = useNavigate();
 
   const fetchJobs = useCallback(
@@ -64,6 +65,10 @@ export default function Dashboard() {
   }, [fetchJobs]);
 
   useEffect(() => {
+    getBillingStatus().then(setBilling).catch(() => setBilling(null));
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem(REFRESH_STORAGE_KEY, refreshInterval);
   }, [refreshInterval]);
 
@@ -94,10 +99,27 @@ export default function Dashboard() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--blue-dark)' }}>My Jobs</h1>
-        <Link to="/jobs/new" className="btn btn-primary">
+        <Link to="/app/jobs/new" className="btn btn-primary">
           + New Job
         </Link>
       </div>
+
+      {billing?.trialActive && (
+        <div className="alert alert-info mb-4" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span>
+            🎉 Your 7-day free trial is active —{' '}
+            {new Date(billing.trialEndsAt * 1000).toLocaleDateString()}.
+          </span>
+          <Link to="/app/billing" className="btn btn-primary btn-sm">Upgrade</Link>
+        </div>
+      )}
+
+      {billing?.trialExpired && billing?.plan === 'trial' && !billing?.hasActiveSubscription && (
+        <div className="alert alert-error mb-4" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span>⚠️ Your free trial has ended. Subscribe to keep generating abstracts.</span>
+          <Link to="/app/billing" className="btn btn-primary btn-sm">Choose a Plan</Link>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="card mb-4">
@@ -186,7 +208,7 @@ export default function Dashboard() {
                 <tr
                   key={job.id}
                   style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/jobs/${job.id}`)}
+                  onClick={() => navigate(`/app/jobs/${job.id}`)}
                 >
                   <td style={{ fontWeight: 500 }}>{job.propertyAddress || '—'}</td>
                   <td>{job.borrowerNames || '—'}</td>

@@ -14,6 +14,8 @@ const {
   moveJobToTenant,
   createAuditLog,
   listAuditLog,
+  listTenantSettings,
+  setTenantSettings,
 } = require('../services/tenantRepo');
 
 router.use(requireAuth);
@@ -88,6 +90,20 @@ router.get('/tenants/:id/jobs', async (req, res) => {
   const { search, status, page, perPage } = req.query;
   const result = await listJobsForTenant(req.params.id, { search, status, page, perPage });
   res.json(result);
+});
+
+// GET /api/platform/tenants/:id/settings — read a tenant's settings
+router.get('/tenants/:id/settings', async (req, res) => {
+  const tenant = await getTenantById(req.params.id);
+  if (!tenant) throw createError('Tenant not found', 404);
+  res.json(await listTenantSettings(req.params.id));
+});
+
+// PATCH /api/platform/tenants/:id/settings — edit a tenant's settings
+router.patch('/tenants/:id/settings', async (req, res) => {
+  const tenant = await getTenantById(req.params.id);
+  if (!tenant) throw createError('Tenant not found', 404);
+  res.json(await setTenantSettings(req.params.id, req.body || {}));
 });
 
 // POST /api/platform/jobs/:id/move — move a job to another tenant

@@ -6,7 +6,7 @@ import {
   triggerBackup, getBackups, downloadBackup, restoreBackup,
   getSettings, updateSettings,
   getTenantLogo, uploadTenantLogo, clearTenantLogo,
-  exportMetricsCsv,
+  exportMetricsCsv, exportReportsZip,
 } from '../services/api';
 
 const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 'Complete' };
@@ -30,6 +30,10 @@ export default function Admin() {
   const [metricsTo, setMetricsTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportingReports, setExportingReports] = useState(false);
+  const [exportFormat, setExportFormat] = useState('all');
+  const [exportDateFrom, setExportDateFrom] = useState('');
+  const [exportDateTo, setExportDateTo] = useState('');
 
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'abstractor' });
   const [userMsg, setUserMsg] = useState('');
@@ -226,6 +230,20 @@ export default function Admin() {
     }
   };
 
+  const handleExportReports = async () => {
+    setExportingReports(true);
+    try {
+      const params = { format: exportFormat };
+      if (exportDateFrom) params.from = exportDateFrom;
+      if (exportDateTo) params.to = exportDateTo;
+      await exportReportsZip(params);
+    } catch (err) {
+      alert('Report export failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setExportingReports(false);
+    }
+  };
+
   const formatMs = (ms) => {
     if (!ms) return '—';
     return `${(ms / 1000).toFixed(1)}s`;
@@ -280,6 +298,38 @@ export default function Admin() {
               </select>
             </div>
           </div>
+
+          <div className="card mb-4">
+            <div className="card-body" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div>
+                <label className="form-label">From</label>
+                <input className="form-input" type="date" style={{ width: 160 }} value={exportDateFrom}
+                  onChange={(e) => setExportDateFrom(e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label">To</label>
+                <input className="form-input" type="date" style={{ width: 160 }} value={exportDateTo}
+                  onChange={(e) => setExportDateTo(e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label">Format</label>
+                <select className="form-select" style={{ width: 150 }} value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}>
+                  <option value="all">All (DOCX+PDF+MD)</option>
+                  <option value="docx">DOCX only</option>
+                  <option value="pdf">PDF only</option>
+                  <option value="markdown">Markdown only</option>
+                </select>
+              </div>
+              <button className="btn btn-outline" onClick={handleExportReports} disabled={exportingReports}>
+                {exportingReports ? 'Exporting...' : '⬇ Export .zip'}
+              </button>
+              <div className="text-muted text-sm" style={{ width: '100%' }}>
+                Exports up to 200 jobs per request. Narrow the date range to export more.
+              </div>
+            </div>
+          </div>
+
           <div className="card">
             {loading ? (
               <div className="card-body" style={{ textAlign: 'center', padding: 40 }}>
@@ -710,76 +760,69 @@ export default function Admin() {
         </div>
       )}
 
-      {/* ── SETTINGS TAB ── */}
+      {/* ── SETTINGS TAB (tenant-scoped) ── */}
       {activeTab === 'settings' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="card">
-            <div className="card-header">Email Configuration</div>
+            <div className="card-header">Notifications</div>
             <form className="card-body" onSubmit={handleSaveSettings}>
               <div className="mb-3">
-                <label className="form-label">SMTP Host</label>
-                <input className="form-input" placeholder="smtp.example.com"
-                  value={settingsMap.smtp_host || ''} onChange={(e) => setSetting('smtp_host', e.target.value)} />
+                <label className="form-label">Notification Email</label>
+                <input className="form-input" type="email" placeholder="notify@yourcompany.com"
+                  value={settingsMap.notification_email || ''}
+                  onChange={(e) => setSetting('notification_email', e.target.value)} />
+                <div className="text-muted text-sm" style={{ marginTop: 4 }}>
+                  Used for completion/bulk-import emails and the daily usage report. Defaults to the tenant admin email.
+                </div>
               </div>
               <div className="mb-3">
-                <label className="form-label">SMTP Port</label>
-                <input className="form-input" placeholder="587"
-                  value={settingsMap.smtp_port || ''} onChange={(e) => setSetting('smtp_port', e.target.value)} />
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox"
+                    checked={settingsMap.enable_completion_emails !== 'false'}
+                    onChange={(e) => setSetting('enable_completion_emails', e.target.checked ? 'true' : 'false')}
+                    style={{ width: 18, height: 18 }} />
+                  Send completion emails
+                </label>
               </div>
               <div className="mb-3">
-                <label className="form-label">SMTP Username</label>
-                <input className="form-input" placeholder="user@example.com"
-                  value={settingsMap.smtp_user || ''} onChange={(e) => setSetting('smtp_user', e.target.value)} />
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="checkbox"
+                    checked={settingsMap.enable_bulk_import_emails !== 'false'}
+                    onChange={(e) => setSetting('enable_bulk_import_emails', e.target.checked ? 'true' : 'false')}
+                    style={{ width: 18, height: 18 }} />
+                  Send bulk-import summary emails
+                </label>
               </div>
-              <div className="mb-3">
-                <label className="form-label">SMTP Password</label>
-                <input className="form-input" type="password" placeholder="(hidden, enter to change)"
-                  value={settingsMap.smtp_pass || ''} onChange={(e) => setSetting('smtp_pass', e.target.value)} />
+              <div className="mt-4">
+                <button className="btn btn-primary" type="submit" onClick={handleSaveSettings}>Save Settings</button>
               </div>
-              <div className="mb-3">
-                <label className="form-label">From Address</label>
-                <input className="form-input" placeholder="noreply@example.com"
-                  value={settingsMap.smtp_from || ''} onChange={(e) => setSetting('smtp_from', e.target.value)} />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Admin Notification Email</label>
-                <input className="form-input" type="email" placeholder="admin@example.com"
-                  value={settingsMap.admin_email || ''} onChange={(e) => setSetting('admin_email', e.target.value)} />
-              </div>
-              {/* spacer for the button at bottom */}
+              {settingsMsg && <div className={`alert ${settingsMsg.includes('Error') ? 'alert-error' : 'alert-info'} mt-4`}>{settingsMsg}</div>}
             </form>
           </div>
 
           <div className="card">
-            <div className="card-header">Backup Configuration</div>
+            <div className="card-header">Daily Usage Report</div>
             <form className="card-body" onSubmit={handleSaveSettings}>
               <div className="mb-3">
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <input type="checkbox"
-                    checked={settingsMap.backup_enabled === 'true'}
-                    onChange={(e) => setSetting('backup_enabled', e.target.checked ? 'true' : 'false')}
+                    checked={settingsMap.daily_report_enabled === 'true'}
+                    onChange={(e) => setSetting('daily_report_enabled', e.target.checked ? 'true' : 'false')}
                     style={{ width: 18, height: 18 }} />
-                  Enable Automated Backups
+                  Enable daily usage report
                 </label>
+                <div className="text-muted text-sm" style={{ marginTop: 4 }}>
+                  Emails a summary of the days jobs to the notification email.
+                </div>
               </div>
               <div className="mb-3">
-                <label className="form-label">Backup Interval (minutes)</label>
-                <input className="form-input" type="number" min="5" placeholder="60"
-                  value={settingsMap.backup_interval_minutes || ''}
-                  onChange={(e) => setSetting('backup_interval_minutes', e.target.value)} />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Retention (days)</label>
-                <input className="form-input" type="number" min="1" placeholder="30"
-                  value={settingsMap.backup_retention_days || ''}
-                  onChange={(e) => setSetting('backup_retention_days', e.target.value)} />
+                <label className="form-label">Report Time (UTC, 24h)</label>
+                <input className="form-input" type="time" value={settingsMap.daily_report_time || '00:00'}
+                  onChange={(e) => setSetting('daily_report_time', e.target.value)} />
               </div>
               <div className="mt-4">
-                <button className="btn btn-primary w-full" type="submit" onClick={handleSaveSettings}>
-                  Save All Settings
-                </button>
+                <button className="btn btn-primary" type="submit" onClick={handleSaveSettings}>Save Settings</button>
               </div>
-              {settingsMsg && <div className={`alert ${settingsMsg.includes('Error') ? 'alert-error' : 'alert-info'} mt-4`}>{settingsMsg}</div>}
             </form>
           </div>
         </div>

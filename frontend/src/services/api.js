@@ -28,6 +28,21 @@ api.interceptors.response.use(
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const login = (email, password) =>
   api.post('/auth/login', { email, password }).then((r) => r.data);
+export const verifyOtp = (email, otp) =>
+  api.post('/auth/verify-otp', { email, otp }).then((r) => r.data);
+export const enableMfa = () => api.post('/auth/mfa/enable').then((r) => r.data);
+export const disableMfa = (password) => api.post('/auth/mfa/disable', { password }).then((r) => r.data);
+export const forgotPassword = (email) => api.post('/auth/forgot-password', { email }).then((r) => r.data);
+export const resetPassword = (token, password) => api.post('/auth/reset-password', { token, password }).then((r) => r.data);
+export const changeMyPassword = (currentPassword, newPassword) =>
+  api.patch('/auth/password', { current_password: currentPassword, new_password: newPassword }).then((r) => r.data);
+
+export const apiSignup = (data) => api.post('/auth/signup', data).then((r) => r.data);
+
+// ── Billing / subscription status ─────────────────────────────────────────────
+export const getBillingStatus = () => api.get('/billing/status').then((r) => r.data);
+export const createCheckoutSession = (plan) => api.post('/billing/checkout', { plan }).then((r) => r.data);
+export const openBillingPortal = () => api.post('/billing/portal').then((r) => r.data);
 
 // ── Jobs ──────────────────────────────────────────────────────────────────────
 export const getJobs = (params) => api.get('/jobs', { params }).then((r) => r.data);
@@ -44,6 +59,18 @@ export const exportMetricsCsv = async (params) => {
   const a = document.createElement('a');
   a.href = url;
   a.download = `abstract-jobs-${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+export const exportReportsZip = async (params) => {
+  const response = await api.get('/admin/export', { params, responseType: 'blob' });
+  const url = URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `abstract-reports-${Date.now()}.zip`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -136,8 +163,12 @@ export const downloadBackup = (id) => api.get(`/admin/backups/${id}/download`, {
 export const restoreBackup = (id) => api.post(`/admin/backups/${id}/restore`).then((r) => r.data);
 
 // ── Admin: Settings ───────────────────────────────────────────────────────────
+// Tenant settings (tenant admin)
 export const getSettings = () => api.get('/admin/settings').then((r) => r.data);
 export const updateSettings = (data) => api.patch('/admin/settings', data).then((r) => r.data);
+// System settings (platform admin only)
+export const getSystemSettings = () => api.get('/admin/system/settings').then((r) => r.data);
+export const updateSystemSettings = (data) => api.patch('/admin/system/settings', data).then((r) => r.data);
 
 // ── Admin: Tenant Logo (tenant admin, own tenant only) ────────────────────────
 export const getTenantLogo = () => api.get('/admin/logo').then((r) => r.data);
@@ -159,6 +190,10 @@ export const setTenantStatus = (id, status) =>
 // ── Platform: Tenant jobs + move + audit ──────────────────────────────────────
 export const getTenantJobs = (tenantId, params) =>
   api.get(`/platform/tenants/${tenantId}/jobs`, { params }).then((r) => r.data);
+export const getTenantSettings = (tenantId) =>
+  api.get(`/platform/tenants/${tenantId}/settings`).then((r) => r.data);
+export const updateTenantSettings = (tenantId, data) =>
+  api.patch(`/platform/tenants/${tenantId}/settings`, data).then((r) => r.data);
 export const moveJobToTenant = (jobId, toTenantId) =>
   api.post(`/platform/jobs/${jobId}/move`, { toTenantId }).then((r) => r.data);
 export const getPlatformAudit = (params) => api.get('/platform/audit', { params }).then((r) => r.data);

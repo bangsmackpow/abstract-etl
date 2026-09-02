@@ -1,7 +1,10 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const router = express.Router();
 const multer = require('multer');
+const AdmZip = require('adm-zip');
 const { db } = require('../db');
 const { jobs, settings } = require('../db/schema');
 const { avg, count, eq, desc, and, gte, lte, sql } = require('drizzle-orm');
@@ -18,7 +21,21 @@ const {
   setTenantLogo,
   clearTenantLogo,
   getTenantLogo,
+  listTenantSettings,
+  setTenantSettings,
 } = require('../services/tenantRepo');
+const {
+  generateV7TextDocx,
+  generateV7TableDocx,
+} = require('../services/v7DocxGenerator');
+const {
+  generateV9TextDocx,
+  generateV9TableDocx,
+} = require('../services/v9DocxGenerator');
+const { generateV7Markdown } = require('../services/v7MarkdownGenerator');
+const { generateV9Markdown } = require('../services/v9MarkdownGenerator');
+const { generateV7Report } = require('../services/v7PdfGenerator');
+const { generateV9Report } = require('../services/v9PdfGenerator');
 
 // Logo upload — in-memory buffer (no disk write), max 2MB.
 const logoUpload = multer({
@@ -203,6 +220,85 @@ router.get('/metrics/export', requireTenantAdmin, async (req, res) => {
   res.send(lines.join('\n'));
 });
 
+// GET /api/admin/export — zip of report files (DOCX + PDF + MD) for jobs in a
+// date range. Caps at 200 jobs per export (narrow the range to export more).
+router.get('/export', requireTenantAdmin, async (req, res) => {
+  const tenantId = req.tenantId;
+  const { from, to, format = 'all' } = req.query;
+  const MAX_JOBS = 200;
+
+  const where = tenantDateFilter(tenantId, from, to);
+  const jobRows = await db
+    .select({
+      id: jobs.id,
+      propertyAddress: jobs.propertyAddress,
+      borrowerNames: jobs.borrowerNames,
+      templateVersion: jobs.templateVersion,
+      fieldsJson: jobs.fieldsJson,
+      createdAt: jobs.createdAt,
+    })
+    .from(jobs)
+    .where(where)
+    .orderBy(desc(jobs.createdAt))
+    .limit(MAX_JOBS + 1);
+
+  const total = jobRows.length;
+  if (total > MAX_JOBS) {
+    throw createError(`Export is limited to ${MAX_JOBS} jobs at a time. Narrow the date range to export more.`, 400);
+  }
+  if (total === 0) {
+    throw createError('No jobs found in the selected date range', 404);
+  }
+
+  const logo = await getTenantLogo(tenantId);
+  const logoOpts = logo ? { logo: { data: Buffer.from(logo.blob, 'base64'), mime: logo.mime } } : { logo: null };
+
+  const zip = new AdmZip();
+  const wantDocx = format === 'all' || format === 'docx';
+  const wantPdf = format === 'all' || format === 'pdf';
+  const wantMd = format === 'all' || format === 'markdown' || format === 'md';
+
+  for (const job of jobRows) {
+    const fields = job.fieldsJson || {};
+    const safeName = (job.propertyAddress || `job-${job.id}`)
+      .replace(/[^a-zA-Z0-9 _-]/g, '')
+      .replace(/\s+/g, '_')
+      .slice(0, 60) || `job-${job.id}`;
+    const prefix = `${safeName}/`;
+
+    const isV7 = job.templateVersion === 'v7';
+
+    if (wantDocx) {
+      const textBuf = isV7
+        ? await generateV7TextDocx(fields, logoOpts)
+        : await generateV9TextDocx(fields, logoOpts);
+      const tableBuf = isV7
+        ? await generateV7TableDocx(fields, logoOpts)
+        : await generateV9TableDocx(fields, logoOpts);
+      zip.addFile(`${prefix}${safeName}_text.docx`, textBuf);
+      zip.addFile(`${prefix}${safeName}_table.docx`, tableBuf);
+    }
+    if (wantPdf) {
+      const tmpPdf = path.join(os.tmpdir(), `export-${job.id}.pdf`);
+      if (isV7) await generateV7Report(job, tmpPdf, logoOpts);
+      else await generateV9Report(job, tmpPdf, logoOpts);
+      zip.addFile(`${prefix}${safeName}.pdf`, fs.readFileSync(tmpPdf));
+      try { fs.unlinkSync(tmpPdf); } catch { /* ignore */ }
+    }
+    if (wantMd) {
+      const md = isV7 ? generateV7Markdown(fields) : generateV9Markdown(fields);
+      zip.addFile(`${prefix}${safeName}.md`, Buffer.from(md, 'utf8'));
+    }
+  }
+
+  const range = from || to ? `_${from || 'start'}-${to || 'end'}` : '';
+  const filename = `abstract-reports-${tenantId.slice(0, 8)}${range}.zip`;
+  const buf = zip.toBuffer();
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(buf);
+});
+
 router.get('/users', requireTenantAdmin, async (req, res) => {
   const allUsers = await listUsersByTenant(req.tenantId);
   res.json(allUsers);
@@ -314,7 +410,36 @@ router.post('/backups/:id/restore', requirePlatformAdmin, async (req, res) => {
   res.json({ success: true, message: 'Database restored successfully' });
 });
 
-// ── Settings Routes (platform-only) ─────────────────────────────────────────
+// ── Tenant Settings (tenant-scoped) ──────────────────────────────────────────
+// Per-tenant operational settings (Track 1a). Global SMTP/backup remain under
+// /admin/system/settings (platform-only).
+
+const TENANT_SETTING_KEYS = [
+  'notification_email',
+  'daily_report_enabled',
+  'daily_report_time', // HH:MM (24h, UTC)
+  'default_output_format', // docx-text | docx-table | pdf | markdown
+  'enable_completion_emails',
+  'enable_bulk_import_emails',
+];
+
+router.get('/settings', requireTenantAdmin, async (req, res) => {
+  const map = await listTenantSettings(req.tenantId);
+  res.json(map);
+});
+
+router.patch('/settings', requireTenantAdmin, async (req, res) => {
+  const allowedKeys = new Set(TENANT_SETTING_KEYS);
+  const updates = {};
+  for (const [key, value] of Object.entries(req.body)) {
+    if (!allowedKeys.has(key)) continue;
+    updates[key] = value;
+  }
+  const result = await setTenantSettings(req.tenantId, updates);
+  res.json(result);
+});
+
+// ── Global System Settings (platform-only) ────────────────────────────────────
 
 const SETTING_KEYS = [
   'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from',
@@ -324,14 +449,14 @@ const SETTING_KEYS = [
 
 const POSITIVE_INT_KEYS = new Set(['backup_interval_minutes', 'backup_retention_days']);
 
-router.get('/settings', requirePlatformAdmin, async (req, res) => {
+router.get('/system/settings', requirePlatformAdmin, async (req, res) => {
   const rows = await db.select().from(settings);
   const map = {};
   for (const r of rows) map[r.key] = r.value;
   res.json(map);
 });
 
-router.patch('/settings', requirePlatformAdmin, async (req, res) => {
+router.patch('/system/settings', requirePlatformAdmin, async (req, res) => {
   const allowedKeys = new Set(SETTING_KEYS);
   const changedKeys = [];
 

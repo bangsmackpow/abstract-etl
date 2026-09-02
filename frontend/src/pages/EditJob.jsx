@@ -128,7 +128,7 @@ export default function EditJob() {
       return;
     try {
       await deleteJob(id);
-      navigate('/');
+      navigate('/app');
     } catch {
       setError('Delete failed.');
     }
@@ -148,7 +148,7 @@ export default function EditJob() {
       {/* Top bar */}
       <div className="flex items-center justify-between mb-4" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div className="flex items-center gap-2">
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/app')}>
             ← Dashboard
           </button>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--blue-dark)' }}>
@@ -243,7 +243,7 @@ export default function EditJob() {
 
       {/* Bottom action bar */}
       <div className="flex justify-between items-center" style={{ paddingBottom: 60 }}>
-        <button className="btn btn-ghost" onClick={() => navigate('/')}>
+        <button className="btn btn-ghost" onClick={() => navigate('/app')}>
           ← Back to Dashboard
         </button>
         <div className="flex gap-2">

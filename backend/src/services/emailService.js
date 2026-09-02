@@ -174,9 +174,128 @@ async function sendBackupNotification({ to, success, error }) {
   return true;
 }
 
+async function sendOtpEmail({ to, otp }) {
+  const tr = await getTransporter();
+  if (!tr) {
+    console.warn('[Email] SMTP not configured — skipping OTP email');
+    return false;
+  }
+
+  await tr.sendMail({
+    from: await getFromAddress(),
+    to,
+    subject: 'Your Abstract ETL verification code',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1F4E79; padding: 20px; border-radius: 4px 4px 0 0;">
+          <h2 style="color: white; margin: 0;">Verification Code</h2>
+        </div>
+        <div style="padding: 24px; border: 1px solid #ddd; border-top: none;">
+          <p>Use the code below to finish signing in to Abstract ETL. It expires in 10 minutes.</p>
+          <p style="font-size: 28px; font-weight: 700; letter-spacing: 6px; text-align: center; margin: 24px 0; color: #1F4E79;">
+            ${otp}
+          </p>
+          <p style="color: #888; font-size: 12px; margin-top: 24px;">
+            Abstract ETL Tool — ${process.env.APP_URL || 'Internal Tool'}
+          </p>
+        </div>
+      </div>
+    `,
+  });
+  return true;
+}
+
+async function sendPasswordResetEmail({ to, resetUrl }) {
+  const tr = await getTransporter();
+  if (!tr) {
+    console.warn('[Email] SMTP not configured — skipping password reset email');
+    return false;
+  }
+
+  await tr.sendMail({
+    from: await getFromAddress(),
+    to,
+    subject: 'Reset your Abstract ETL password',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1F4E79; padding: 20px; border-radius: 4px 4px 0 0;">
+          <h2 style="color: white; margin: 0;">Password Reset</h2>
+        </div>
+        <div style="padding: 24px; border: 1px solid #ddd; border-top: none;">
+          <p>We received a request to reset your Abstract ETL password. Click the button below to set a new one.</p>
+          <p>This link is valid for <strong>1 hour</strong>.</p>
+          <a href="${resetUrl}"
+             style="display: inline-block; background: #2E75B6; color: white; padding: 12px 24px;
+                    text-decoration: none; border-radius: 4px; margin-top: 8px;">
+            Reset Password
+          </a>
+          <p style="color: #888; font-size: 12px; margin-top: 24px;">
+            If you didn't request this, you can safely ignore this email.
+          </p>
+          <p style="color: #888; font-size: 12px;">
+            Abstract ETL Tool — ${process.env.APP_URL || 'Internal Tool'}
+          </p>
+        </div>
+      </div>
+    `,
+  });
+  return true;
+}
+
+async function sendDailyUsageReport({ to, tenantName, report }) {
+  const tr = await getTransporter();
+  if (!tr) return false;
+
+  const statusRows = (report.statusBreakdown || [])
+    .map((r) => `<tr><td style="padding: 8px; border-bottom: 1px solid #eee; text-transform: capitalize;">${r.status}</td><td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${r.count}</td></tr>`)
+    .join('') || '<tr><td colspan="2" style="padding: 8px; border-bottom: 1px solid #eee;">No jobs</td></tr>';
+
+  const userRows = (report.perUser || [])
+    .map((r) => `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;">${r.name}</td><td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${r.count}</td></tr>`)
+    .join('') || '<tr><td colspan="2" style="padding: 8px; border-bottom: 1px solid #eee;">No activity</td></tr>';
+
+  await tr.sendMail({
+    from: await getFromAddress(),
+    to,
+    subject: `Daily Usage Report — ${tenantName}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: #1F4E79; padding: 20px; border-radius: 4px 4px 0 0;">
+          <h2 style="color: white; margin: 0;">Daily Usage Report</h2>
+        </div>
+        <div style="padding: 24px; border: 1px solid #ddd; border-top: none;">
+          <p><strong>${tenantName}</strong> — last 24 hours.</p>
+          <p style="font-size: 24px; font-weight: 700; color: #1F4E79;">${report.total} job(s)</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+            <thead><tr style="background: #f5f5f5;">
+              <th style="padding: 8px; text-align: left;">Status</th>
+              <th style="padding: 8px; text-align: right;">Count</th>
+            </tr></thead>
+            <tbody>${statusRows}</tbody>
+          </table>
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+            <thead><tr style="background: #f5f5f5;">
+              <th style="padding: 8px; text-align: left;">User</th>
+              <th style="padding: 8px; text-align: right;">Jobs</th>
+            </tr></thead>
+            <tbody>${userRows}</tbody>
+          </table>
+          <p style="color: #888; font-size: 12px; margin-top: 24px;">
+            Abstract ETL Tool — ${process.env.APP_URL || 'Internal Tool'}
+          </p>
+        </div>
+      </div>
+    `,
+  });
+  return true;
+}
+
 module.exports = {
   sendCompletionEmail,
   sendBulkImportNotification,
   sendBackupNotification,
+  sendOtpEmail,
+  sendPasswordResetEmail,
+  sendDailyUsageReport,
   resetTransporter,
 };

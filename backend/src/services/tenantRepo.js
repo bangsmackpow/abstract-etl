@@ -1,5 +1,5 @@
 const { db } = require('../db');
-const { tenants, users, jobs, auditLog } = require('../db/schema');
+const { tenants, tenantSettings, users, jobs, auditLog, passwordResetTokens } = require('../db/schema');
 const { eq, and, or, like, desc, sql } = require('drizzle-orm');
 const { v4: uuidv4 } = require('uuid');
 
@@ -22,10 +22,10 @@ async function listTenants() {
   return db.select().from(tenants).orderBy(desc(tenants.createdAt));
 }
 
-async function createTenant({ name, slug = null, status = 'active' }) {
+async function createTenant({ name, slug = null, status = 'active', plan = 'trial', trialEndsAt = null }) {
   const [row] = await db
     .insert(tenants)
-    .values({ id: uuidv4(), name, slug, status })
+    .values({ id: uuidv4(), name, slug, status, plan, trialEndsAt })
     .returning();
   return row;
 }
@@ -248,6 +248,99 @@ async function deleteUserByTenant(tenantId, userId) {
  */
 
 // ---------------------------------------------------------------------------
+// Tenant settings (Track 1a) — key-value scoped by tenant
+// ---------------------------------------------------------------------------
+async function getTenantSetting(tenantId, key) {
+  const [row] = await db
+    .select({ value: tenantSettings.value })
+    .from(tenantSettings)
+    .where(and(eq(tenantSettings.tenantId, tenantId), eq(tenantSettings.key, key)))
+    .limit(1);
+  return row ? row.value : null;
+}
+
+async function listTenantSettings(tenantId) {
+  const rows = await db
+    .select({ key: tenantSettings.key, value: tenantSettings.value })
+    .from(tenantSettings)
+    .where(eq(tenantSettings.tenantId, tenantId));
+  const map = {};
+  for (const r of rows) map[r.key] = r.value;
+  return map;
+}
+
+async function setTenantSetting(tenantId, key, value) {
+  if (value === null || value === '') {
+    await db
+      .delete(tenantSettings)
+      .where(and(eq(tenantSettings.tenantId, tenantId), eq(tenantSettings.key, key)));
+    return;
+  }
+  await db
+    .delete(tenantSettings)
+    .where(and(eq(tenantSettings.tenantId, tenantId), eq(tenantSettings.key, key)));
+  await db.insert(tenantSettings).values({ tenantId, key, value: String(value) });
+}
+
+async function setTenantSettings(tenantId, entries) {
+  for (const [key, value] of Object.entries(entries)) {
+    await setTenantSetting(tenantId, key, value);
+  }
+  return listTenantSettings(tenantId);
+}
+
+// ---------------------------------------------------------------------------
+// MFA / OTP (Track 2)
+// ---------------------------------------------------------------------------
+async function setUserMfa(userId, enabled, { otpCodeHash = null, otpExpiresAt = null } = {}) {
+  await db
+    .update(users)
+    .set({
+      mfaEnabled: enabled,
+      otpCodeHash,
+      otpExpiresAt,
+      updatedAt: sql`(strftime('%s', 'now'))`,
+    })
+    .where(eq(users.id, userId));
+}
+
+async function setUserOtp(userId, { otpCodeHash, otpExpiresAt }) {
+  await db
+    .update(users)
+    .set({ otpCodeHash, otpExpiresAt, updatedAt: sql`(strftime('%s', 'now'))` })
+    .where(eq(users.id, userId));
+}
+
+// ---------------------------------------------------------------------------
+// Password reset tokens (Track 2)
+// ---------------------------------------------------------------------------
+async function createPasswordResetToken({ userId, tokenHash, expiresAt }) {
+  const [row] = await db
+    .insert(passwordResetTokens)
+    .values({ id: uuidv4(), userId, tokenHash, expiresAt })
+    .returning();
+  return row;
+}
+
+async function findValidResetToken(tokenHash) {
+  const [row] = await db
+    .select()
+    .from(passwordResetTokens)
+    .where(and(eq(passwordResetTokens.tokenHash, tokenHash), sql`used_at IS NULL`))
+    .limit(1);
+  if (!row) return null;
+  if (new Date(row.expiresAt * 1000) < new Date()) return null; // expired
+  return row;
+}
+
+async function markResetTokenUsed(id) {
+  await db
+    .update(passwordResetTokens)
+    .set({ usedAt: sql`(strftime('%s', 'now'))` })
+    .where(eq(passwordResetTokens.id, id));
+}
+
+// ---------------------------------------------------------------------------
 // Platform-level operations (super-admin only) — documented exceptions to the
 // JWT-only tenantId rule (multi-tenant-plan.md §5.1). Used by /api/platform.
 // ---------------------------------------------------------------------------
@@ -376,6 +469,11 @@ module.exports = {
   setTenantLogo,
   clearTenantLogo,
   getTenantLogo,
+  // tenant settings
+  getTenantSetting,
+  listTenantSettings,
+  setTenantSetting,
+  setTenantSettings,
   // jobs
   listJobs,
   getJob,
@@ -389,6 +487,13 @@ module.exports = {
   createUserForTenant,
   updateUserPassword,
   deleteUserByTenant,
+  // MFA / OTP
+  setUserMfa,
+  setUserOtp,
+  // password reset
+  createPasswordResetToken,
+  findValidResetToken,
+  markResetTokenUsed,
   // platform-level
   listJobsForTenant,
   getTenantFirstAdmin,

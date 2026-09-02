@@ -35,12 +35,42 @@ function ensureTenantSchema() {
     'ALTER TABLE users ADD COLUMN is_platform_admin INTEGER DEFAULT 0',
     'ALTER TABLE tenants ADD COLUMN logo_blob TEXT',
     'ALTER TABLE tenants ADD COLUMN logo_mime TEXT',
+    'ALTER TABLE users ADD COLUMN mfa_enabled INTEGER DEFAULT 0',
+    'ALTER TABLE users ADD COLUMN otp_code_hash TEXT',
+    'ALTER TABLE users ADD COLUMN otp_expires_at INTEGER',
+    'ALTER TABLE tenants ADD COLUMN plan TEXT DEFAULT \'trial\' NOT NULL',
+    'ALTER TABLE tenants ADD COLUMN stripe_customer_id TEXT',
+    'ALTER TABLE tenants ADD COLUMN stripe_subscription_id TEXT',
+    'ALTER TABLE tenants ADD COLUMN subscription_status TEXT DEFAULT \'none\'',
+    'ALTER TABLE tenants ADD COLUMN trial_ends_at INTEGER',
+    'ALTER TABLE tenants ADD COLUMN subscription_ends_at INTEGER',
   ];
   for (const stmt of guardedAlters) {
     try { sqlite.exec(stmt); } catch (e) {
       // Column already exists — expected on subsequent runs
     }
   }
+
+  // Tenant-scoped operational settings (Track 1a)
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_settings (
+      tenant_id TEXT NOT NULL REFERENCES tenants(id),
+      key TEXT NOT NULL,
+      value TEXT NOT NULL
+    )
+  `);
+
+  // One-time password reset tokens (Track 2)
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id),
+      token_hash TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      used_at INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )
+  `);
 
   // Audit log (multi-tenant privileged ops history)
   sqlite.exec(`
@@ -68,6 +98,10 @@ function ensureIndexes() {
     'CREATE INDEX IF NOT EXISTS audit_target_idx ON audit_log (target_type, target_id)',
     'CREATE INDEX IF NOT EXISTS audit_from_tenant_idx ON audit_log (from_tenant_id)',
     'CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_log (created_at)',
+    'CREATE INDEX IF NOT EXISTS tenant_settings_tenant_key_idx ON tenant_settings (tenant_id, key)',
+    'CREATE INDEX IF NOT EXISTS tenant_settings_tenant_idx ON tenant_settings (tenant_id)',
+    'CREATE INDEX IF NOT EXISTS pw_reset_user_idx ON password_reset_tokens (user_id)',
+    'CREATE INDEX IF NOT EXISTS pw_reset_token_hash_idx ON password_reset_tokens (token_hash)',
   ];
   for (const stmt of guardedIndexes) {
     try { sqlite.exec(stmt); } catch (e) { /* ignore */ }

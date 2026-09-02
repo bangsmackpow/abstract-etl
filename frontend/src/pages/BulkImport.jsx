@@ -52,7 +52,7 @@ export default function BulkImport() {
   return (
     <div style={{ maxWidth: 700, margin: '0 auto' }}>
       <div className="flex items-center gap-3 mb-4">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/app')}>
           ← Back
         </button>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--blue-dark)' }}>
@@ -218,7 +218,7 @@ export default function BulkImport() {
               </div>
 
               <div className="mt-4 flex gap-3">
-                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => navigate('/')}>
+                <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => navigate('/app')}>
                   Back to Dashboard
                 </button>
                 <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => {
