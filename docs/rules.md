@@ -119,7 +119,7 @@ V9 (REVISION 9 rules) is the current/default extraction and formatting contract.
 - `settings` — Key-value config (Resend email, backup settings)
 - `backups` — Backup metadata
 
-> **Multi-tenant (see `docs/multi-tenant-plan.md`):** `users` and `jobs` are tenant-scoped. All queries go through `backend/src/services/tenantRepo.js` with `tenantId` from the JWT. Global settings/backups and `/api/platform/tenants` are platform-admin only. Existing data was backfilled into the `default` tenant; the seeded admin (`ADMIN_EMAIL`) is its tenant admin and `is_platform_admin`. Per-tenant logos are stored on `tenants` (`logo_blob`/`logo_mime`) and rendered by the DOCX/PDF generators. `audit_log` records platform moves (`job.move`). `GET /api/admin/metrics` (+ `/metrics/export`) provides per-tenant reporting with date filters.
+> **Multi-tenant (see `docs/multi-tenant-plan.md`):** `users` and `jobs` are tenant-scoped. All queries go through `backend/src/services/tenantRepo.js` with `tenantId` from the JWT. Global settings/backups and `/api/platform/tenants` are platform-admin only. Existing data was backfilled into the `default` tenant; the seeded admin (`ADMIN_EMAIL`) is its tenant admin and `is_platform_admin`. Per-tenant logos are stored on `tenants` (`logo_blob`/`logo_mime`) and rendered by the DOCX/PDF generators. `audit_log` records platform moves (`job.move`) and admin-email changes (`tenant.admin_email`). `GET /api/admin/metrics` (+ `/metrics/export`) provides per-tenant reporting with date filters.
 
 ---
 

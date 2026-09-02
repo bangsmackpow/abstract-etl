@@ -16,6 +16,8 @@ const {
   listAuditLog,
   listTenantSettings,
   setTenantSettings,
+  getTenantFirstAdmin,
+  updateUserEmail,
 } = require('../services/tenantRepo');
 
 router.use(requireAuth);
@@ -104,6 +106,34 @@ router.patch('/tenants/:id/settings', async (req, res) => {
   const tenant = await getTenantById(req.params.id);
   if (!tenant) throw createError('Tenant not found', 404);
   res.json(await setTenantSettings(req.params.id, req.body || {}));
+});
+
+// PATCH /api/platform/tenants/:id/admin-email — update the tenant admin user's
+// login email (e.g. when the admin's address changes).
+router.patch('/tenants/:id/admin-email', async (req, res) => {
+  const tenant = await getTenantById(req.params.id);
+  if (!tenant) throw createError('Tenant not found', 404);
+
+  const { email } = req.body || {};
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw createError('A valid email is required', 400);
+  }
+
+  const admin = await getTenantFirstAdmin(req.params.id);
+  if (!admin) throw createError('Tenant has no admin user', 400);
+
+  const result = await updateUserEmail(admin.id, email);
+  if (result.error === 'email_taken') throw createError('That email is already in use', 400);
+
+  await createAuditLog({
+    actorUserId: req.user.id,
+    action: 'tenant.admin_email',
+    targetType: 'tenant',
+    targetId: req.params.id,
+    details: JSON.stringify({ userId: admin.id, email }),
+  });
+
+  res.json({ success: true, user: result.user });
 });
 
 // POST /api/platform/jobs/:id/move — move a job to another tenant

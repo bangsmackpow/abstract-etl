@@ -194,6 +194,8 @@ export const getTenantSettings = (tenantId) =>
   api.get(`/platform/tenants/${tenantId}/settings`).then((r) => r.data);
 export const updateTenantSettings = (tenantId, data) =>
   api.patch(`/platform/tenants/${tenantId}/settings`, data).then((r) => r.data);
+export const updateTenantAdminEmail = (tenantId, email) =>
+  api.patch(`/platform/tenants/${tenantId}/admin-email`, { email }).then((r) => r.data);
 export const moveJobToTenant = (jobId, toTenantId) =>
   api.post(`/platform/jobs/${jobId}/move`, { toTenantId }).then((r) => r.data);
 export const getPlatformAudit = (params) => api.get('/platform/audit', { params }).then((r) => r.data);

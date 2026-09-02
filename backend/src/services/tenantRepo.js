@@ -235,6 +235,23 @@ async function updateUserPassword(tenantId, userId, password) {
   return true;
 }
 
+/**
+ * Platform-level: update a user's email (e.g. the tenant admin's login email).
+ * Validates uniqueness; returns { error: 'email_taken' } on conflict.
+ */
+async function updateUserEmail(userId, email) {
+  const cleanEmail = String(email).trim().toLowerCase();
+  const [existing] = await db.select().from(users).where(eq(users.email, cleanEmail)).limit(1);
+  if (existing && existing.id !== userId) return { error: 'email_taken' };
+
+  await db
+    .update(users)
+    .set({ email: cleanEmail, updatedAt: sql`(strftime('%s', 'now'))` })
+    .where(eq(users.id, userId));
+  const [row] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return { user: row };
+}
+
 async function deleteUserByTenant(tenantId, userId) {
   await db
     .delete(users)
@@ -486,6 +503,7 @@ module.exports = {
   getUserByTenant,
   createUserForTenant,
   updateUserPassword,
+  updateUserEmail,
   deleteUserByTenant,
   // MFA / OTP
   setUserMfa,

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   getTenants, createTenant, setTenantStatus,
   getTenantJobs, moveJobToTenant, getPlatformAudit,
-  getTenantSettings, updateTenantSettings,
+  getTenantSettings, updateTenantSettings, updateTenantAdminEmail,
 } from '../services/api';
 
 const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 'Complete' };
@@ -30,6 +30,8 @@ export default function Platform() {
   const [settingsTenant, setSettingsTenant] = useState(null);
   const [settingsMap, setSettingsMap] = useState({});
   const [settingsMsg, setSettingsMsg] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminEmailMsg, setAdminEmailMsg] = useState('');
 
   const refreshTenants = useCallback(async () => {
     setLoading(true);
@@ -129,8 +131,10 @@ export default function Platform() {
 
   const openTenantSettings = async (tenant) => {
     setSettingsMsg('');
+    setAdminEmailMsg('');
     try {
       setSettingsMap(await getTenantSettings(tenant.id));
+      setAdminEmail('');
       setSettingsTenant(tenant);
     } catch (err) {
       setMsg(`Error loading settings: ${err.response?.data?.message || err.message}`);
@@ -147,6 +151,23 @@ export default function Platform() {
       setSettingsMsg('Settings saved');
     } catch (err) {
       setSettingsMsg(`Error: ${err.response?.data?.message || 'Failed to save settings'}`);
+    }
+  };
+
+  const saveAdminEmail = async (e) => {
+    e.preventDefault();
+    if (!settingsTenant) return;
+    setAdminEmailMsg('');
+    if (!adminEmail.trim()) {
+      setAdminEmailMsg('Error: enter the admin login email');
+      return;
+    }
+    try {
+      await updateTenantAdminEmail(settingsTenant.id, adminEmail.trim());
+      setAdminEmail('');
+      setAdminEmailMsg('Admin email updated');
+    } catch (err) {
+      setAdminEmailMsg(`Error: ${err.response?.data?.message || 'Failed to update admin email'}`);
     }
   };
 
@@ -369,6 +390,23 @@ export default function Platform() {
               <button className="btn btn-ghost btn-sm" onClick={() => setSettingsTenant(null)}>✕</button>
             </div>
             {settingsMsg && <div className={`alert ${settingsMsg.startsWith('Error') ? 'alert-error' : 'alert-info'} mb-4`}>{settingsMsg}</div>}
+
+            <div className="card mb-4" style={{ border: '1px solid var(--gray-light)', borderRadius: 8, padding: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--blue-dark)', marginBottom: 8 }}>
+                Admin Login Email
+              </div>
+              <div className="text-muted text-sm" style={{ marginBottom: 8 }}>
+                Updates the tenant admin user sign-in email (e.g. when their address changes).
+              </div>
+              {adminEmailMsg && <div className={`alert ${adminEmailMsg.startsWith('Error') ? 'alert-error' : 'alert-info'} mb-3`}>{adminEmailMsg}</div>}
+              <form onSubmit={saveAdminEmail} style={{ display: 'flex', gap: 8 }}>
+                <input className="form-input" type="email" required value={adminEmail}
+                  placeholder="admin@company.com"
+                  onChange={(e) => setAdminEmail(e.target.value)} />
+                <button className="btn btn-outline" type="submit">Update Email</button>
+              </form>
+            </div>
+
             <form onSubmit={saveTenantSettings}>
               <div className="mb-3">
                 <label className="form-label">Notification Email</label>

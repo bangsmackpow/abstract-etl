@@ -129,7 +129,7 @@ For all `GET/PATCH/DELETE /jobs/:id` and `GET /generate/:jobId/*`:
 | `routes/extract.js` | Jobs created with `req.user.tenantId` (via repo) |
 | `routes/admin.js` | `/users`, `/metrics` → tenant-scoped. `/settings`, `/backup*` → platform-admin only |
 | `routes/docs.js` | Unchanged (global) |
-| **new** `routes/platform.js` | `/api/platform/tenants` — list / create / suspend / reactivate |
+| **new** `routes/platform.js` | `/api/platform/tenants` — list / create / suspend / reactivate; `/api/platform/tenants/:id/jobs`; `/api/platform/tenants/:id/settings`; `/api/platform/tenants/:id/admin-email`; `/api/platform/jobs/:id/move`; `/api/platform/audit` |
 
 ## 7. Platform Admin & Provisioning
 
@@ -166,6 +166,6 @@ For all `GET/PATCH/DELETE /jobs/:id` and `GET /generate/:jobId/*`:
 ## 11. Out of Scope / Future Extension Points
 
 - Per-tenant customization — **per-tenant logos shipped (2026-09-01)** via `tenants.logo_blob`/`logo_mime` (tenant admin uploads via `PUT/DELETE /api/admin/logo`; generators render via `opts.logo`). Own prompt/schema, SMTP, master lists remain additive later via `tenant_config`.
-- Cross-tenant platform operations — **job moves shipped (2026-09-01)**: `POST /api/platform/jobs/:id/move` reassigns `createdBy` to the destination tenant's first admin and records an `audit_log` entry; `GET /api/platform/tenants/:id/jobs` + `GET /api/platform/audit`. Cross-tenant analytics and tenant data export/offboarding remain.
+- Cross-tenant platform operations — **job moves shipped (2026-09-01)**: `POST /api/platform/jobs/:id/move` reassigns `createdBy` to the destination tenant's first admin and records an `audit_log` entry; `GET /api/platform/tenants/:id/jobs` + `GET /api/platform/audit`. **Admin email shipped (2026-09-02)**: `PATCH /api/platform/tenants/:id/admin-email` updates a tenant admin user's login email (records `audit_log` `tenant.admin_email`). Cross-tenant analytics and tenant data export/offboarding remain.
 - Subdomain/slug-based tenant routing (schema reserves `tenants.slug` for it).
 - Database-per-tenant escape hatch remains available since `tenant_id` is the linchpin.
