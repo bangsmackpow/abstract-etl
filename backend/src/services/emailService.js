@@ -37,8 +37,30 @@ function resetTransporter() {
   transporter = null;
 }
 
+// Resolve the authenticated SMTP login account (DB setting or env).
+async function getSmtpUser() {
+  return await getDbSetting('smtp_user') || process.env.SMTP_USER || null;
+}
+
+/**
+ * Resolve a safe "From" address. SMTP providers (e.g. Gmail) reject sends when
+ * the From address differs from the authenticated login account ("501 5.5.4 You
+ * are not allowed to send from this address"). So we always send from the
+ * authenticated user's address. We only honor a configured smtp_from / SMTP_FROM
+ * when its embedded address equals that account — this keeps a friendly display
+ * name while never triggering the sender rejection.
+ */
 async function getFromAddress() {
-  return await getDbSetting('smtp_from') || process.env.SMTP_FROM || process.env.SMTP_USER;
+  const user = await getSmtpUser();
+  const configured = await getDbSetting('smtp_from') || process.env.SMTP_FROM;
+
+  if (!configured || !user) return user || configured || null;
+
+  const match = String(configured).match(/<([^>]+)>/);
+  const configuredEmail = (match ? match[1] : String(configured)).trim().toLowerCase();
+  if (configuredEmail === String(user).trim().toLowerCase()) return configured;
+
+  return user;
 }
 
 async function sendCompletionEmail({ to, abstractorName, propertyAddress, jobId, appUrl }) {
