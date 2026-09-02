@@ -33,12 +33,29 @@ function ensureTenantSchema() {
     'ALTER TABLE users ADD COLUMN tenant_id TEXT REFERENCES tenants(id)',
     'ALTER TABLE jobs ADD COLUMN tenant_id TEXT REFERENCES tenants(id)',
     'ALTER TABLE users ADD COLUMN is_platform_admin INTEGER DEFAULT 0',
+    'ALTER TABLE tenants ADD COLUMN logo_blob TEXT',
+    'ALTER TABLE tenants ADD COLUMN logo_mime TEXT',
   ];
   for (const stmt of guardedAlters) {
     try { sqlite.exec(stmt); } catch (e) {
       // Column already exists — expected on subsequent runs
     }
   }
+
+  // Audit log (multi-tenant privileged ops history)
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id TEXT PRIMARY KEY,
+      actor_user_id TEXT REFERENCES users(id),
+      action TEXT NOT NULL,
+      target_type TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      from_tenant_id TEXT REFERENCES tenants(id),
+      to_tenant_id TEXT REFERENCES tenants(id),
+      details TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    )
+  `);
 }
 
 function ensureIndexes() {
@@ -47,6 +64,10 @@ function ensureIndexes() {
     'CREATE INDEX IF NOT EXISTS jobs_tenant_idx ON jobs (tenant_id)',
     'CREATE INDEX IF NOT EXISTS jobs_tenant_created_by_idx ON jobs (tenant_id, created_by)',
     'CREATE INDEX IF NOT EXISTS jobs_tenant_status_idx ON jobs (tenant_id, status)',
+    'CREATE INDEX IF NOT EXISTS audit_actor_idx ON audit_log (actor_user_id)',
+    'CREATE INDEX IF NOT EXISTS audit_target_idx ON audit_log (target_type, target_id)',
+    'CREATE INDEX IF NOT EXISTS audit_from_tenant_idx ON audit_log (from_tenant_id)',
+    'CREATE INDEX IF NOT EXISTS audit_created_idx ON audit_log (created_at)',
   ];
   for (const stmt of guardedIndexes) {
     try { sqlite.exec(stmt); } catch (e) { /* ignore */ }

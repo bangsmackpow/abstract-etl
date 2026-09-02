@@ -1,5 +1,5 @@
 const { db } = require('../db');
-const { tenants, users, jobs } = require('../db/schema');
+const { tenants, users, jobs, auditLog } = require('../db/schema');
 const { eq, and, or, like, desc, sql } = require('drizzle-orm');
 const { v4: uuidv4 } = require('uuid');
 
@@ -37,6 +37,51 @@ async function setTenantStatus(id, status) {
     .where(eq(tenants.id, id))
     .returning();
   return row || null;
+}
+
+// ---------------------------------------------------------------------------
+// Tenant logo (tenant admin manages their own tenant's logo)
+// ---------------------------------------------------------------------------
+async function setTenantLogo(tenantId, { blob, mime }) {
+  const [row] = await db
+    .update(tenants)
+    .set({ logoBlob: blob, logoMime: mime, updatedAt: sql`(strftime('%s', 'now'))` })
+    .where(eq(tenants.id, tenantId))
+    .returning({
+      id: tenants.id,
+      name: tenants.name,
+      logoBlob: tenants.logoBlob,
+      logoMime: tenants.logoMime,
+    });
+  return row || null;
+}
+
+async function clearTenantLogo(tenantId) {
+  const [row] = await db
+    .update(tenants)
+    .set({ logoBlob: null, logoMime: null, updatedAt: sql`(strftime('%s', 'now'))` })
+    .where(eq(tenants.id, tenantId))
+    .returning({
+      id: tenants.id,
+      name: tenants.name,
+      logoBlob: tenants.logoBlob,
+      logoMime: tenants.logoMime,
+    });
+  return row || null;
+}
+
+/**
+ * Returns the tenant's logo data (blob + mime) or null when not set.
+ * Used by the generate route to pass the logo into generators.
+ */
+async function getTenantLogo(tenantId) {
+  const [row] = await db
+    .select({ logoBlob: tenants.logoBlob, logoMime: tenants.logoMime })
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1);
+  if (!row || !row.logoBlob) return null;
+  return { blob: row.logoBlob, mime: row.logoMime };
 }
 
 // ---------------------------------------------------------------------------
@@ -202,12 +247,135 @@ async function deleteUserByTenant(tenantId, userId) {
  * to resolve the authenticated user. Not exposed to tenant-scoped routes.
  */
 
+// ---------------------------------------------------------------------------
+// Platform-level operations (super-admin only) — documented exceptions to the
+// JWT-only tenantId rule (multi-tenant-plan.md §5.1). Used by /api/platform.
+// ---------------------------------------------------------------------------
+async function getTenantById(id) {
+  const [row] = await db.select().from(tenants).where(eq(tenants.id, id)).limit(1);
+  return row || null;
+}
+
+async function listJobsForTenant(tenantId, opts = {}) {
+  const { search, status, page = 1, perPage = 50 } = opts;
+  const offset = (Number(page) - 1) * Number(perPage);
+  const limit = Number(perPage);
+
+  const filters = [eq(jobs.tenantId, tenantId)];
+  if (status) filters.push(eq(jobs.status, status));
+  if (search) {
+    filters.push(
+      or(
+        like(jobs.propertyAddress, `%${search}%`),
+        like(jobs.borrowerNames, `%${search}%`),
+        like(jobs.county, `%${search}%`)
+      )
+    );
+  }
+  const whereClause = and(...filters);
+
+  const items = await db
+    .select()
+    .from(jobs)
+    .where(whereClause)
+    .orderBy(desc(jobs.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  const [countResult] = await db
+    .select({ count: sql`count(*)` })
+    .from(jobs)
+    .where(whereClause);
+
+  return {
+    items,
+    page: Number(page),
+    perPage: Number(perPage),
+    totalItems: Number(countResult.count),
+    totalPages: Math.ceil(Number(countResult.count) / limit),
+  };
+}
+
+/**
+ * First admin user of a tenant — used as the reassignment target when moving a
+ * job into a tenant (the job's createdBy must belong to that tenant).
+ */
+async function getTenantFirstAdmin(tenantId) {
+  const [row] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.tenantId, tenantId), eq(users.role, 'admin')))
+    .orderBy(users.createdAt)
+    .limit(1);
+  return row || null;
+}
+
+/**
+ * Move a job to another tenant (platform super-admin only). Reassigns
+ * createdBy to the destination tenant's first admin and preserves all other
+ * job state. Returns the updated job, or null if the job isn't found.
+ */
+async function moveJobToTenant(jobId, toTenantId) {
+  const [targetTenant] = await db.select().from(tenants).where(eq(tenants.id, toTenantId)).limit(1);
+  if (!targetTenant) return { error: 'tenant_not_found' };
+
+  const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+  if (!job) return { error: 'job_not_found' };
+
+  const fromTenantId = job.tenantId;
+  if (fromTenantId === toTenantId) return { error: 'same_tenant' };
+
+  const destAdmin = await getTenantFirstAdmin(toTenantId);
+  if (!destAdmin) return { error: 'no_destination_admin' };
+
+  const [updated] = await db
+    .update(jobs)
+    .set({ tenantId: toTenantId, createdBy: destAdmin.id, updatedAt: sql`(strftime('%s', 'now'))` })
+    .where(eq(jobs.id, jobId))
+    .returning();
+
+  return { job: updated, fromTenantId, toTenantId, destAdminId: destAdmin.id };
+}
+
+async function createAuditLog({ actorUserId, action, targetType, targetId, fromTenantId = null, toTenantId = null, details = null }) {
+  const [row] = await db
+    .insert(auditLog)
+    .values({ id: uuidv4(), actorUserId, action, targetType, targetId, fromTenantId, toTenantId, details })
+    .returning();
+  return row;
+}
+
+async function listAuditLog(limit = 100) {
+  return db
+    .select({
+      id: auditLog.id,
+      actorUserId: auditLog.actorUserId,
+      actorName: users.name,
+      action: auditLog.action,
+      targetType: auditLog.targetType,
+      targetId: auditLog.targetId,
+      fromTenantId: auditLog.fromTenantId,
+      toTenantId: auditLog.toTenantId,
+      details: auditLog.details,
+      createdAt: auditLog.createdAt,
+    })
+    .from(auditLog)
+    .leftJoin(users, eq(users.id, auditLog.actorUserId))
+    .orderBy(desc(auditLog.createdAt))
+    .limit(Number(limit) || 100);
+}
+
 module.exports = {
   // tenants
   getTenantBySlug,
+  getTenantById,
   listTenants,
   createTenant,
   setTenantStatus,
+  // tenant logo
+  setTenantLogo,
+  clearTenantLogo,
+  getTenantLogo,
   // jobs
   listJobs,
   getJob,
@@ -221,4 +389,10 @@ module.exports = {
   createUserForTenant,
   updateUserPassword,
   deleteUserByTenant,
+  // platform-level
+  listJobsForTenant,
+  getTenantFirstAdmin,
+  moveJobToTenant,
+  createAuditLog,
+  listAuditLog,
 };

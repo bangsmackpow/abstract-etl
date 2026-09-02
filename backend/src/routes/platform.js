@@ -8,7 +8,12 @@ const {
   createTenant,
   setTenantStatus,
   getTenantBySlug,
+  getTenantById,
   createUserForTenant,
+  listJobsForTenant,
+  moveJobToTenant,
+  createAuditLog,
+  listAuditLog,
 } = require('../services/tenantRepo');
 
 router.use(requireAuth);
@@ -73,6 +78,49 @@ router.patch('/tenants/:id/status', async (req, res) => {
   }
 
   res.json(tenant);
+});
+
+// GET /api/platform/tenants/:id/jobs — list a tenant's jobs (drill-down)
+router.get('/tenants/:id/jobs', async (req, res) => {
+  const tenant = await getTenantById(req.params.id);
+  if (!tenant) throw createError('Tenant not found', 404);
+
+  const { search, status, page, perPage } = req.query;
+  const result = await listJobsForTenant(req.params.id, { search, status, page, perPage });
+  res.json(result);
+});
+
+// POST /api/platform/jobs/:id/move — move a job to another tenant
+router.post('/jobs/:id/move', async (req, res) => {
+  const { toTenantId } = req.body || {};
+  if (!toTenantId) throw createError('toTenantId is required', 400);
+
+  const result = await moveJobToTenant(req.params.id, toTenantId);
+  if (result.error === 'job_not_found') throw createError('Job not found', 404);
+  if (result.error === 'tenant_not_found') throw createError('Destination tenant not found', 404);
+  if (result.error === 'same_tenant') throw createError('Job is already in that tenant', 400);
+  if (result.error === 'no_destination_admin') {
+    throw createError('Destination tenant has no admin user to reassign the job to', 400);
+  }
+
+  await createAuditLog({
+    actorUserId: req.user.id,
+    action: 'job.move',
+    targetType: 'job',
+    targetId: req.params.id,
+    fromTenantId: result.fromTenantId,
+    toTenantId: result.toTenantId,
+    details: JSON.stringify({ propertyAddress: result.job.propertyAddress, destAdminId: result.destAdminId }),
+  });
+
+  res.json({ success: true, job: result.job });
+});
+
+// GET /api/platform/audit — recent privileged-op history
+router.get('/audit', async (req, res) => {
+  const limit = req.query.limit;
+  const entries = await listAuditLog(limit);
+  res.json(entries);
 });
 
 module.exports = router;

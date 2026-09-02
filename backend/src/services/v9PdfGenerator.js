@@ -1,14 +1,5 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
-const path = require('path');
-
-// Hazelwood & Associates, LLC logo (rule 16.9). PNG chosen for transparency +
-// sufficient resolution at report size. Rendered on the first page; report
-// still renders if the asset is missing. Resolved via DOCS_DIR (same
-// convention as googleAiService) so it works both locally and inside the
-// Docker image (/app/docs).
-const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
-const LOGO_PATH = path.join(DOCS_DIR, 'HazelwoodLogo', 'HazelwoodLogoFinal.png');
 
 /**
  * V9 (REVISION 9 rules) PDF Generator
@@ -21,9 +12,13 @@ const LOGO_PATH = path.join(DOCS_DIR, 'HazelwoodLogo', 'HazelwoodLogoFinal.png')
  *  - VERIFICATION NOTES block after ORDER INFORMATION (16.11)
  *  - Foreclosure sequence consolidated inside Trustee's Deed block (6.17)
  *  - Single "Performed by: Patrick Hazelwood" line once at the bottom (19.x)
+ *
+ * opts.logo ({ data: Buffer, mime }) is the per-tenant logo (optional). When
+ * absent, no logo is rendered — no Hazelwood fallback.
  */
-async function generateV9Report(jobData, outputPath) {
+async function generateV9Report(jobData, outputPath, opts = {}) {
   const fields = jobData.fieldsJson || {};
+  const logo = opts.logo || null;
   const oi = fields.order_info || {};
   const ti = fields.tax_information || {};
   const chain = fields.chain_of_title || [];
@@ -173,9 +168,9 @@ async function generateV9Report(jobData, outputPath) {
     doc.addPage();
     pageTotal++;
 
-    // Logo (rule 16.9) — centered at top of first page
-    if (fs.existsSync(LOGO_PATH)) {
-      doc.image(LOGO_PATH, MARGIN + CONTENT_W / 2 - 60, doc.y, { width: 120 });
+    // Logo (rule 16.9) — centered at top of first page; per-tenant, optional
+    if (logo && logo.data) {
+      doc.image(logo.data, MARGIN + CONTENT_W / 2 - 60, doc.y, { width: 120 });
       doc.moveDown(3);
     }
 

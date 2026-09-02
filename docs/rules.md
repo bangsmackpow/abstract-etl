@@ -70,7 +70,7 @@ Default output is DOCX. PDF/Markdown generated only when specifically requested.
 - **V9 (REVISION 9 rules)** is the default/current contract — prompt `v9-prompt.md`, schema `v9-schema.json`, generators `v9*`.
 - **V7** remains available for side-by-side testing — prompt `v7-prompt.md`, schema `v7-schema.json`, generators `v7*`.
 - The extraction standard is selectable in the UI (New Job / Bulk Import) and persisted on the job's `templateVersion`.
-- All generators embed the Hazelwood logo (DOCX/PDF) resolved via `DOCS_DIR`.
+- **Tenant logo**: DOCX/PDF generators render the job's tenant logo when one is set (tenant admin uploads via Admin → Branding). No logo set = no logo rendered (no Hazelwood fallback).
 
 ---
 
@@ -119,7 +119,7 @@ V9 (REVISION 9 rules) is the current/default extraction and formatting contract.
 - `settings` — Key-value config (SMTP, backup settings)
 - `backups` — Backup metadata
 
-> **Multi-tenant (see `docs/multi-tenant-plan.md`):** `users` and `jobs` are tenant-scoped. All queries go through `backend/src/services/tenantRepo.js` with `tenantId` from the JWT. Global settings/backups and `/api/platform/tenants` are platform-admin only. Existing data was backfilled into the `default` tenant; the seeded admin (`ADMIN_EMAIL`) is its tenant admin and `is_platform_admin`.
+> **Multi-tenant (see `docs/multi-tenant-plan.md`):** `users` and `jobs` are tenant-scoped. All queries go through `backend/src/services/tenantRepo.js` with `tenantId` from the JWT. Global settings/backups and `/api/platform/tenants` are platform-admin only. Existing data was backfilled into the `default` tenant; the seeded admin (`ADMIN_EMAIL`) is its tenant admin and `is_platform_admin`. Per-tenant logos are stored on `tenants` (`logo_blob`/`logo_mime`) and rendered by the DOCX/PDF generators. `audit_log` records platform moves (`job.move`). `GET /api/admin/metrics` (+ `/metrics/export`) provides per-tenant reporting with date filters.
 
 ---
 

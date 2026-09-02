@@ -165,7 +165,7 @@ For all `GET/PATCH/DELETE /jobs/:id` and `GET /generate/:jobId/*`:
 
 ## 11. Out of Scope / Future Extension Points
 
-- Per-tenant customization (own prompt/schema, master lists, SMTP, branding) — additive later via `tenant_config`.
-- Cross-tenant platform analytics/reporting; tenant data export/offboarding.
+- Per-tenant customization — **per-tenant logos shipped (2026-09-01)** via `tenants.logo_blob`/`logo_mime` (tenant admin uploads via `PUT/DELETE /api/admin/logo`; generators render via `opts.logo`). Own prompt/schema, SMTP, master lists remain additive later via `tenant_config`.
+- Cross-tenant platform operations — **job moves shipped (2026-09-01)**: `POST /api/platform/jobs/:id/move` reassigns `createdBy` to the destination tenant's first admin and records an `audit_log` entry; `GET /api/platform/tenants/:id/jobs` + `GET /api/platform/audit`. Cross-tenant analytics and tenant data export/offboarding remain.
 - Subdomain/slug-based tenant routing (schema reserves `tenants.slug` for it).
 - Database-per-tenant escape hatch remains available since `tenant_id` is the linchpin.

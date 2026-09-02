@@ -3,6 +3,8 @@ name: Build and Push Docker Images
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -37,18 +39,19 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push backend
+      - name: Build backend image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           context: .
           file: ./backend/Dockerfile
-          push: true
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.IMAGE_PREFIX }}-backend:latest
             ${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
@@ -97,17 +100,18 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
 
       - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push frontend
+      - name: Build frontend image
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25
         with:
           context: ./frontend
-          push: true
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.IMAGE_PREFIX }}-frontend:latest
             ${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
@@ -115,6 +119,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Verify images exist before deploy
         run: |
@@ -148,3 +153,47 @@ jobs:
             WEBHOOK_URL="${WEBHOOK_URL}?pull=true"
           fi
           curl -X POST "$WEBHOOK_URL"
+
+      - name: Wait for deployment health
+        run: |
+          HEALTH_URL="${{ secrets.HEALTH_URL }}"
+          : "${HEALTH_URL:=https://abstract.builtnetworks.com/api/health}"
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$HEALTH_URL" || echo 000)
+            echo "Health check attempt $i: HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              echo "✅ Deployment healthy"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "❌ Deployment did not become healthy within 5 minutes"
+          exit 1
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [validate, build-backend, build-frontend, deploy]
+    if: always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: 'npm'
+      - name: Install dependencies (for nodemailer)
+        run: npm install --legacy-peer-deps
+      - name: Send failure notification
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          NOTIFY_TO: ${{ secrets.ADMIN_EMAIL }}
+          WORKFLOW: ${{ github.workflow }}
+          BRANCH: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RESULTS: ${{ toJson(needs) }}
+        run: node .github/scripts/notify-failure.js

@@ -12,8 +12,6 @@ const {
   ShadingType,
   ImageRun,
 } = require('docx');
-const fs = require('fs');
-const path = require('path');
 /**
  * V7 (v9 rules) DOCX Generator
  * Implements docs/v9/v9_rules.md REVISION 9 formatting rules:
@@ -42,26 +40,23 @@ const REPORT_WIDTH = 9360; // full-page table width in DXA
 const LABEL_WIDTH = 2810; // ~30% of 9360
 const VALUE_WIDTH = 6550; // ~70% of 9360
 
-// Hazelwood & Associates, LLC logo (rule 16.9). PNG chosen for transparency +
-// sufficient resolution at report size. Loaded lazily; report still renders if
-// the asset is missing. Resolved via DOCS_DIR (same convention as
-// googleAiService) so it works both locally and inside the Docker image
-// (/app/docs).
-const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
-const LOGO_PATH = path.join(DOCS_DIR, 'HazelwoodLogo', 'HazelwoodLogoFinal.png');
-
-function logoParagraph() {
-  if (!fs.existsSync(LOGO_PATH)) {
+/**
+ * Render the tenant logo (rule 16.9). The logo is passed in per-tenant from the
+ * generate route ({ data: Buffer, mime }); when absent, no logo is rendered.
+ * No Hazelwood fallback — tenants without an uploaded logo produce no logo.
+ */
+function logoParagraph(logo) {
+  if (!logo || !logo.data) {
     return new Paragraph({ children: [new TextRun({ text: '', size: 14, font: REPORT_FONT })] });
   }
-  const logo = fs.readFileSync(LOGO_PATH);
+  const isPng = /png/i.test(logo.mime || '');
   return new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { before: 0, after: 120 },
     children: [
       new ImageRun({
-        type: 'png',
-        data: logo,
+        type: isPng ? 'png' : 'jpg',
+        data: logo.data,
         transformation: { width: 240, height: 115 },
       }),
     ],
@@ -226,7 +221,8 @@ function verificationNotesParas(oi) {
 // ---------------------------------------------------------------------------
 // generateV9TextDocx — text layout matching blank.docx
 // ---------------------------------------------------------------------------
-async function generateV9TextDocx(fields) {
+async function generateV9TextDocx(fields, opts = {}) {
+  const logo = opts.logo || null;
   const f = fields;
   const oi = f.order_info || {};
   const ti = f.tax_information || {};
@@ -241,8 +237,8 @@ async function generateV9TextDocx(fields) {
 
   const children = [];
 
-  // ── Logo (rule 16.9) ──
-  children.push(logoParagraph());
+  // ── Logo (rule 16.9) — per-tenant, optional ──
+  children.push(logoParagraph(logo));
 
   // ── ORDER INFORMATION ──
   children.push(sectionHeaderPara('ORDER INFORMATION'));
@@ -490,7 +486,8 @@ async function generateV9TextDocx(fields) {
 // ---------------------------------------------------------------------------
 // generateV9TableDocx — table-based layout (30/70 split, rules 18.x)
 // ---------------------------------------------------------------------------
-async function generateV9TableDocx(fields) {
+async function generateV9TableDocx(fields, opts = {}) {
+  const logo = opts.logo || null;
   const f = fields;
   const oi = f.order_info || {};
   const ti = f.tax_information || {};
@@ -903,7 +900,7 @@ async function generateV9TableDocx(fields) {
       {
         properties: { margin: { top: 720, right: 720, bottom: 720, left: 720 } },
         children: [
-          logoParagraph(),
+          logoParagraph(logo),
           sectionHeader('ORDER INFORMATION'),
           orderTable,
           instrumentSpacer(),

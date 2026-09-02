@@ -5,6 +5,8 @@ import {
   createUser, changePassword, deleteUser, deleteJob,
   triggerBackup, getBackups, downloadBackup, restoreBackup,
   getSettings, updateSettings,
+  getTenantLogo, uploadTenantLogo, clearTenantLogo,
+  exportMetricsCsv,
 } from '../services/api';
 
 const STATUS_LABELS = { draft: 'Draft', needs_review: 'Needs Review', complete: 'Complete' };
@@ -24,7 +26,10 @@ export default function Admin() {
   const [backupList, setBackupList] = useState([]);
   const [settingsMap, setSettingsMap] = useState({});
   const [filters, setFilters] = useState({ search: '', status: '', userId: '' });
+  const [metricsFrom, setMetricsFrom] = useState('');
+  const [metricsTo, setMetricsTo] = useState('');
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'abstractor' });
   const [userMsg, setUserMsg] = useState('');
@@ -33,8 +38,16 @@ export default function Admin() {
   const [settingsMsg, setSettingsMsg] = useState('');
   const [backingUp, setBackingUp] = useState(false);
   const [restoringId, setRestoringId] = useState(null);
+  const [logoInfo, setLogoInfo] = useState(null);
+  const [logoMsg, setLogoMsg] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => { refreshData(); }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'metrics') refreshData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metricsFrom, metricsTo, activeTab]);
 
   useEffect(() => {
     if (activeTab === 'jobs') {
@@ -53,9 +66,15 @@ export default function Admin() {
     setLoading(true);
     try {
       if (activeTab === 'users') setUsers(await getUsers());
-      else if (activeTab === 'metrics') setMetrics(await getAdminMetrics());
+      else if (activeTab === 'metrics') {
+        const params = {};
+        if (metricsFrom) params.from = metricsFrom;
+        if (metricsTo) params.to = metricsTo;
+        setMetrics(await getAdminMetrics(params));
+      }
       else if (activeTab === 'backups') setBackupList(await getBackups());
       else if (activeTab === 'settings') setSettingsMap(await getSettings());
+      else if (activeTab === 'branding') setLogoInfo(await getTenantLogo());
       else if (activeTab === 'jobs') setUsers(await getUsers());
     } catch (err) {
       console.error(err);
@@ -162,6 +181,51 @@ export default function Admin() {
 
   const set = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
 
+  const handleUploadLogo = async (file) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      setLogoMsg('Error: Logo must be a PNG or JPG image (max 2MB).');
+      return;
+    }
+    setUploadingLogo(true);
+    setLogoMsg('');
+    try {
+      const result = await uploadTenantLogo(file);
+      setLogoInfo(result);
+      setLogoMsg('Logo updated successfully. It will appear on new DOCX/PDF reports.');
+    } catch (err) {
+      setLogoMsg(`Error: ${err.response?.data?.message || 'Failed to upload logo'}`);
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const handleClearLogo = async () => {
+    if (!window.confirm('Remove the tenant logo? Reports will be generated without a logo.')) return;
+    setLogoMsg('');
+    try {
+      const result = await clearTenantLogo();
+      setLogoInfo(result);
+      setLogoMsg('Logo removed.');
+    } catch (err) {
+      setLogoMsg(`Error: ${err.response?.data?.message || 'Failed to remove logo'}`);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (metricsFrom) params.from = metricsFrom;
+      if (metricsTo) params.to = metricsTo;
+      await exportMetricsCsv(params);
+    } catch (err) {
+      alert('CSV export failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const formatMs = (ms) => {
     if (!ms) return '—';
     return `${(ms / 1000).toFixed(1)}s`;
@@ -174,7 +238,7 @@ export default function Admin() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const tabs = ['jobs', 'users', 'metrics', 'backups', 'settings'];
+  const tabs = ['jobs', 'users', 'metrics', 'branding', 'backups', 'settings'];
 
   return (
     <div>
@@ -333,13 +397,32 @@ export default function Admin() {
       {/* ── METRICS TAB ── */}
       {activeTab === 'metrics' && (
         <div>
+          <div className="card mb-4">
+            <div className="card-body" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div>
+                <label className="form-label">From</label>
+                <input className="form-input" type="date" style={{ width: 170 }} value={metricsFrom}
+                  onChange={(e) => setMetricsFrom(e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label">To</label>
+                <input className="form-input" type="date" style={{ width: 170 }} value={metricsTo}
+                  onChange={(e) => setMetricsTo(e.target.value)} />
+              </div>
+              <button className="btn btn-outline" onClick={handleExportCsv} disabled={exporting}
+                style={{ marginLeft: 'auto' }}>
+                {exporting ? 'Exporting...' : '⬇ Export CSV'}
+              </button>
+            </div>
+          </div>
+
           {loading ? (
             <div style={{ textAlign: 'center', padding: 40 }}><span className="spinner spinner-dark" /></div>
           ) : !metrics ? (
             <div className="alert alert-error">Failed to load metrics.</div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                 <div className="card">
                   <div style={s.statCard}>
                     <div style={s.statLabel}>Total Abstracts</div>
@@ -348,17 +431,78 @@ export default function Admin() {
                 </div>
                 <div className="card">
                   <div style={s.statCard}>
-                    <div style={s.statLabel}>Avg. AI Processing Time</div>
-                    <div style={{ ...s.statValue, color: 'var(--green)' }}>{formatMs(metrics.overall?.avgProcessingTime)}</div>
+                    <div style={s.statLabel}>Avg. AI Time</div>
+                    <div style={{ ...s.statValue, color: 'var(--green)' }}>{formatMs(metrics.processing?.avg)}</div>
+                  </div>
+                </div>
+                <div className="card">
+                  <div style={s.statCard}>
+                    <div style={s.statLabel}>P95 AI Time</div>
+                    <div style={{ ...s.statValue, color: 'var(--orange, #d97706)' }}>{formatMs(metrics.processing?.p95)}</div>
+                  </div>
+                </div>
+                <div className="card">
+                  <div style={s.statCard}>
+                    <div style={s.statLabel}>Max AI Time</div>
+                    <div style={{ ...s.statValue, color: 'var(--red, #dc2626)' }}>{formatMs(metrics.processing?.max)}</div>
                   </div>
                 </div>
               </div>
-              <div className="card">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="card">
+                  <div className="card-header">Jobs by Status</div>
+                  <div className="card-body">
+                    {metrics.statusBreakdown?.map((r) => (
+                      <div key={r.status} style={{ marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                          <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{STATUS_LABELS[r.status] || r.status}</span>
+                          <span style={{ fontWeight: 700 }}>{r.count}</span>
+                        </div>
+                        <div style={{ background: '#eee', borderRadius: 4, height: 10 }}>
+                          <div style={{
+                            background: r.status === 'complete' ? 'var(--green, #16a34a)' : r.status === 'needs_review' ? '#d97706' : 'var(--gray-mid, #6b7280)',
+                            height: '100%', borderRadius: 4,
+                            width: `${metrics.overall?.totalJobs ? Math.round((r.count / metrics.overall.totalJobs) * 100) : 0}%`,
+                          }} />
+                        </div>
+                      </div>
+                    ))}
+                    {!metrics.statusBreakdown?.length && <div className="text-muted">No jobs in this range.</div>}
+                  </div>
+                </div>
+
+                <div className="card">
+                  <div className="card-header">Volume over Time</div>
+                  <div className="card-body">
+                    {metrics.volumeOverTime?.length ? (
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120 }}>
+                        {metrics.volumeOverTime.map((d) => (
+                          <div key={d.day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                            <div style={{ fontSize: 10, marginBottom: 2 }}>{d.count}</div>
+                            <div title={`${d.day}: ${d.count}`} style={{
+                              width: '100%', background: 'var(--blue-mid, #2563eb)', borderRadius: '3px 3px 0 0',
+                              height: `${Math.max(4, Math.round((d.count / Math.max(...metrics.volumeOverTime.map((x) => x.count))) * 90))}%`,
+                            }} />
+                            <div style={{ fontSize: 9, color: 'var(--gray-mid)', marginTop: 4, transform: 'rotate(-35deg)', whiteSpace: 'nowrap' }}>
+                              {String(d.day).slice(5)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-muted">No jobs in this range.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="card mb-6">
                 <div className="card-header">Performance by Person</div>
                 <div style={s.tableWrapper}>
                   <table className="data-table">
                     <thead>
-                      <tr><th>Name</th><th>Total Completed</th><th>Avg. Time / Abstract</th></tr>
+                      <tr><th>Name</th><th>Jobs</th><th>Avg. Time</th><th>Max Time</th></tr>
                     </thead>
                     <tbody>
                       {metrics.perUser?.map((u) => (
@@ -366,14 +510,99 @@ export default function Admin() {
                           <td style={{ fontWeight: 600 }}>{u.userName}</td>
                           <td>{u.jobCount}</td>
                           <td>{formatMs(u.avgProcessingTime)}</td>
+                          <td>{formatMs(u.maxProcessingTime)}</td>
                         </tr>
                       ))}
+                      {!metrics.perUser?.length && (
+                        <tr><td colSpan={4} style={{ color: 'var(--gray-mid)' }}>No data in this range.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-header">Slowest Extractions</div>
+                <div style={s.tableWrapper}>
+                  <table className="data-table">
+                    <thead>
+                      <tr><th>Address</th><th>Borrower</th><th>Status</th><th>AI Time</th></tr>
+                    </thead>
+                    <tbody>
+                      {metrics.slowJobs?.map((j) => (
+                        <tr key={j.id}>
+                          <td style={{ fontWeight: 500 }}>{j.propertyAddress || '—'}</td>
+                          <td>{j.borrowerNames || '—'}</td>
+                          <td><span className={`status-badge status-${j.status}`}>{STATUS_LABELS[j.status] || j.status}</span></td>
+                          <td>{formatMs(j.processingTimeMs)}</td>
+                        </tr>
+                      ))}
+                      {!metrics.slowJobs?.length && (
+                        <tr><td colSpan={4} style={{ color: 'var(--gray-mid)' }}>No data in this range.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* ── BRANDING TAB ── */}
+      {activeTab === 'branding' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="card">
+            <div className="card-header">Current Tenant Logo</div>
+            <div className="card-body">
+              {logoInfo?.hasLogo ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0', background: '#f8f9fb', borderRadius: 8, marginBottom: 16 }}>
+                    <img
+                      src={logoInfo.dataUri}
+                      alt="Tenant logo"
+                      style={{ maxWidth: 320, maxHeight: 120, objectFit: 'contain' }}
+                    />
+                  </div>
+                  <div className="text-muted text-sm" style={{ marginBottom: 16 }}>
+                    Type: {logoInfo.mime || 'unknown'} · This logo is embedded at the top of new DOCX and PDF reports.
+                  </div>
+                  <button className="btn btn-ghost btn-sm text-error" onClick={handleClearLogo}>
+                    Remove Logo
+                  </button>
+                </>
+              ) : (
+                <div className="text-muted" style={{ textAlign: 'center', padding: 24 }}>
+                  No logo set. Reports are generated without a logo until you upload one.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">Upload / Replace Logo</div>
+            <div className="card-body">
+              {logoMsg && <div className={`alert ${logoMsg.startsWith('Error') ? 'alert-error' : 'alert-info'} mb-4`}>{logoMsg}</div>}
+              <div className="mb-3">
+                <label className="form-label">Logo image</label>
+                <input
+                  className="form-input"
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  onChange={(e) => handleUploadLogo(e.target.files[0])}
+                />
+              </div>
+              <div className="text-muted text-sm">
+                PNG or JPG, up to 2MB. Uploading replaces the current tenant logo immediately.
+              </div>
+              {uploadingLogo && (
+                <div className="text-sm text-muted mt-3">
+                  <span className="spinner spinner-dark" style={{ marginRight: 8 }} />
+                  Uploading...
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

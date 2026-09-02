@@ -37,7 +37,18 @@ export const updateJob = (id, data) => api.patch(`/jobs/${id}`, data).then((r) =
 export const deleteJob = (id) => api.delete(`/jobs/${id}`).then((r) => r.data);
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
-export const getAdminMetrics = () => api.get('/admin/metrics').then((r) => r.data);
+export const getAdminMetrics = (params) => api.get('/admin/metrics', { params }).then((r) => r.data);
+export const exportMetricsCsv = async (params) => {
+  const response = await api.get('/admin/metrics/export', { params, responseType: 'blob' });
+  const url = URL.createObjectURL(response.data);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `abstract-jobs-${Date.now()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 export const getUsers = () => api.get('/admin/users').then((r) => r.data);
 export const createUser = (data) => api.post('/admin/users', data).then((r) => r.data);
 export const changePassword = (id, password) =>
@@ -128,11 +139,29 @@ export const restoreBackup = (id) => api.post(`/admin/backups/${id}/restore`).th
 export const getSettings = () => api.get('/admin/settings').then((r) => r.data);
 export const updateSettings = (data) => api.patch('/admin/settings', data).then((r) => r.data);
 
+// ── Admin: Tenant Logo (tenant admin, own tenant only) ────────────────────────
+export const getTenantLogo = () => api.get('/admin/logo').then((r) => r.data);
+export const uploadTenantLogo = (file) => {
+  const form = new FormData();
+  form.append('logo', file);
+  return api
+    .put('/admin/logo', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    .then((r) => r.data);
+};
+export const clearTenantLogo = () => api.delete('/admin/logo').then((r) => r.data);
+
 // ── Platform: Tenants (platform admin only) ───────────────────────────────────
 export const getTenants = () => api.get('/platform/tenants').then((r) => r.data);
 export const createTenant = (data) => api.post('/platform/tenants', data).then((r) => r.data);
 export const setTenantStatus = (id, status) =>
   api.patch(`/platform/tenants/${id}/status`, { status }).then((r) => r.data);
+
+// ── Platform: Tenant jobs + move + audit ──────────────────────────────────────
+export const getTenantJobs = (tenantId, params) =>
+  api.get(`/platform/tenants/${tenantId}/jobs`, { params }).then((r) => r.data);
+export const moveJobToTenant = (jobId, toTenantId) =>
+  api.post(`/platform/jobs/${jobId}/move`, { toTenantId }).then((r) => r.data);
+export const getPlatformAudit = (params) => api.get('/platform/audit', { params }).then((r) => r.data);
 
 export const downloadPdf = async (jobId, propertyAddress) => {
   const response = await api.get(`/generate/${jobId}/pdf`, { responseType: 'blob' });

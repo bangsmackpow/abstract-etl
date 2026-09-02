@@ -1,11 +1,5 @@
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
-const path = require('path');
-
-// Hazelwood & Associates, LLC logo (rule 16.9). Resolved via DOCS_DIR so it
-// works locally and inside the Docker image. Report still renders if missing.
-const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
-const LOGO_PATH = path.join(DOCS_DIR, 'HazelwoodLogo', 'HazelwoodLogoFinal.png');
 
 /**
  * V7 PDF Generator
@@ -13,9 +7,13 @@ const LOGO_PATH = path.join(DOCS_DIR, 'HazelwoodLogo', 'HazelwoodLogoFinal.png')
  * Order Info, Tax Information, Chain of Title, Mortgages,
  * Judgments/Liens, Miscellaneous Documents, Legal Description,
  * Additional Information, Names Searched.
+ *
+ * opts.logo ({ data: Buffer, mime }) is the per-tenant logo (optional). When
+ * absent, no logo is rendered — no Hazelwood fallback.
  */
-async function generateV7Report(jobData, outputPath) {
+async function generateV7Report(jobData, outputPath, opts = {}) {
   const fields = jobData.fieldsJson || {};
+  const logo = opts.logo || null;
   const oi = fields.order_info || {};
   const ti = fields.tax_information || {};
   const chain = fields.chain_of_title || [];
@@ -105,8 +103,9 @@ async function generateV7Report(jobData, outputPath) {
     pageTotal++;
 
     // Logo (rule 16.9) — centered at top of first page
-    if (fs.existsSync(LOGO_PATH)) {
-      doc.image(LOGO_PATH, MARGIN + CONTENT_W / 2 - 60, doc.y, { width: 120 });
+    // Logo (rule 16.9) — centered at top of first page; per-tenant, optional
+    if (logo && logo.data) {
+      doc.image(logo.data, MARGIN + CONTENT_W / 2 - 60, doc.y, { width: 120 });
       doc.moveDown(3);
     }
 

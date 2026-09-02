@@ -8,13 +8,14 @@ const { generateV9TextDocx, generateV9TableDocx } = require('../services/v9DocxG
 const { generateV9Markdown } = require('../services/v9MarkdownGenerator');
 const { generateV9Report } = require('../services/v9PdfGenerator');
 const { createError } = require('../middleware/errorHandler');
-const { getJob } = require('../services/tenantRepo');
+const { getJob, getTenantLogo } = require('../services/tenantRepo');
 
 router.use(requireAuth);
 
 /**
  * Loads a job tenant-scoped. Returns 404 for a foreign tenant's ID so
  * cross-tenant IDs never reveal existence (multi-tenant-plan.md §5.2).
+ * Also loads the job's tenant logo (if set) for report rendering.
  */
 async function loadTenantJob(req, res, next) {
   const job = await getJob(req.tenantId, req.params.jobId);
@@ -23,7 +24,12 @@ async function loadTenantJob(req, res, next) {
   if (req.user.role !== 'admin' && job.createdBy !== req.user.id) {
     return next(createError('Not found', 404));
   }
+  const tenantLogo = await getTenantLogo(req.tenantId);
+  const logo = tenantLogo
+    ? { data: Buffer.from(tenantLogo.blob, 'base64'), mime: tenantLogo.mime }
+    : null;
   req.job = job;
+  req.logo = logo;
   next();
 }
 
@@ -57,7 +63,7 @@ router.get('/:jobId/pdf', loadTenantJob, async (req, res, _next) => {
 
     const tempPath = `/tmp/report-${job.id}.pdf`;
 
-    await gens.pdf(job, tempPath);
+    await gens.pdf(job, tempPath, { logo: req.logo });
 
     res.download(tempPath, `report_${job.id}.pdf`, (_err) => {
         // Cleanup temp file
@@ -75,7 +81,7 @@ router.get('/:jobId/docx-text', loadTenantJob, async (req, res, _next) => {
   const job = req.job;
   const gens = generatorsFor(job);
   const fields = job.fieldsJson || {};
-  const buffer = await gens.text(fields);
+  const buffer = await gens.text(fields, { logo: req.logo });
   const addr = (job.propertyAddress || 'abstract').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_').toLowerCase().substring(0, 60);
   const filename = `abstract_text_${addr}.docx`;
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
@@ -91,7 +97,7 @@ router.get('/:jobId/docx-table', loadTenantJob, async (req, res, _next) => {
   const job = req.job;
   const gens = generatorsFor(job);
   const fields = job.fieldsJson || {};
-  const buffer = await gens.table(fields);
+  const buffer = await gens.table(fields, { logo: req.logo });
   const addr = (job.propertyAddress || 'abstract').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_').toLowerCase().substring(0, 60);
   const filename = `abstract_table_${addr}.docx`;
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');

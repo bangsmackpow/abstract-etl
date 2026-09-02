@@ -12,26 +12,24 @@ const {
   ShadingType,
   ImageRun,
 } = require('docx');
-const fs = require('fs');
-const path = require('path');
 
-// Hazelwood & Associates, LLC logo (rule 16.9). Resolved via DOCS_DIR so it
-// works locally and inside the Docker image. Report still renders if missing.
-const DOCS_DIR = process.env.DOCS_DIR || path.join(__dirname, '..', '..', '..', 'docs');
-const LOGO_PATH = path.join(DOCS_DIR, 'HazelwoodLogo', 'HazelwoodLogoFinal.png');
-
-function logoParagraph() {
-  if (!fs.existsSync(LOGO_PATH)) {
+/**
+ * Render the tenant logo (rule 16.9). Passed in per-tenant from the generate
+ * route ({ data: Buffer, mime }); when absent, no logo is rendered. No
+ * Hazelwood fallback — tenants without an uploaded logo produce no logo.
+ */
+function logoParagraph(logo) {
+  if (!logo || !logo.data) {
     return new Paragraph({ children: [new TextRun({ text: '', size: 14, font: 'Arial' })] });
   }
-  const logo = fs.readFileSync(LOGO_PATH);
+  const isPng = /png/i.test(logo.mime || '');
   return new Paragraph({
     alignment: AlignmentType.CENTER,
     spacing: { before: 0, after: 120 },
     children: [
       new ImageRun({
-        type: 'png',
-        data: logo,
+        type: isPng ? 'png' : 'jpg',
+        data: logo.data,
         transformation: { width: 240, height: 115 },
       }),
     ],
@@ -42,7 +40,8 @@ function logoParagraph() {
  * Matches blank.docx layout - labels on left/bold, values on right,
  * no table borders, clean text-based format.
  */
-async function generateV7TextDocx(fields) {
+async function generateV7TextDocx(fields, opts = {}) {
+  const logo = opts.logo || null;
   const f = fields;
   const oi = f.order_info || {};
   const ti = f.tax_information || {};
@@ -86,7 +85,7 @@ async function generateV7TextDocx(fields) {
   const children = [];
 
   // Logo (rule 16.9)
-  children.push(logoParagraph());
+  children.push(logoParagraph(logo));
 
   // ΓöÇΓöÇ ORDER INFORMATION ΓöÇΓöÇ
   children.push(sectionHeaderPara('ORDER INFORMATION'));
@@ -306,7 +305,8 @@ async function generateV7TextDocx(fields) {
  * V7 Table-based DOCX Generator
  * Uses table-based layout similar to v5/v6 style but with v7 fields.
  */
-async function generateV7TableDocx(fields) {
+async function generateV7TableDocx(fields, opts = {}) {
+  const logo = opts.logo || null;
   const f = fields;
   const oi = f.order_info || {};
   const ti = f.tax_information || {};
@@ -980,7 +980,7 @@ async function generateV7TableDocx(fields) {
       {
         properties: { margin: { top: 720, right: 720, bottom: 720, left: 720 } },
         children: [
-          logoParagraph(),
+          logoParagraph(logo),
           sectionHeader('ORDER INFORMATION'),
           orderTable,
           spacerTable(),

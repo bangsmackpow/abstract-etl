@@ -9,6 +9,8 @@ const tenants = sqliteTable('tenants', {
   name: text('name').notNull(),
   slug: text('slug').unique(),
   status: text('status').notNull().default('active'), // 'active' | 'suspended'
+  logoBlob: text('logo_blob'), // base64-encoded image; null = no logo
+  logoMime: text('logo_mime'), // e.g. 'image/png' | 'image/jpeg'
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
@@ -86,10 +88,34 @@ const backups = sqliteTable('backups', {
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
 });
 
+const auditLog = sqliteTable(
+  'audit_log',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => uuidv4()),
+    actorUserId: text('actor_user_id').references(() => users.id),
+    action: text('action').notNull(), // e.g. 'job.move', 'tenant.logo_set'
+    targetType: text('target_type').notNull(), // e.g. 'job', 'tenant'
+    targetId: text('target_id').notNull(),
+    fromTenantId: text('from_tenant_id').references(() => tenants.id),
+    toTenantId: text('to_tenant_id').references(() => tenants.id),
+    details: text('details'), // free-form JSON or note
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(strftime('%s', 'now'))`),
+  },
+  (table) => ({
+    actorIndex: index('audit_actor_idx').on(table.actorUserId),
+    targetIndex: index('audit_target_idx').on(table.targetType, table.targetId),
+    fromTenantIndex: index('audit_from_tenant_idx').on(table.fromTenantId),
+    createdAtIndex: index('audit_created_idx').on(table.createdAt),
+  })
+);
+
 module.exports = {
   tenants,
   users,
   jobs,
   settings,
   backups,
+  auditLog,
 };

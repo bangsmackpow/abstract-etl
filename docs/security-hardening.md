@@ -157,8 +157,8 @@ Reference audit + remediation tracker for the Abstract ETL v3 codebase. Re-run t
 - **Remediation:** Track failed attempts per account+IP; lock for escalating windows (e.g., 5 fails → 15 min, doubling) via `locked_until` on `users`; combine with item 11.
 
 ### Item 38 — Audit trail
-- **Findings:** Good request/error logging (pino + `requestId`); auth failures and admin actions not in the structured log; no audit trail for privileged ops.
-- **Remediation:** Route auth/admin events through `logger` with an `event` field; add an `audit_log` table for privileged actions (who/when/what).
+- **Findings (partially addressed 2026-09-01):** Request/error logging includes `tenantId`; a dedicated `audit_log` table now records privileged `job.move` actions (actor, target, from/to tenant). Admin user CRUD, backup/restore, and logo changes are not yet logged.
+- **Remediation:** Route auth/admin events through `logger` with an `event` field; extend `audit_log` usage to tenant/user/settings/backup privileged ops (who/when/what).
 
 ### Item 40 — File permissions
 - **Findings:** Container runs non-root (`appuser` 10001), but data dir created `0o777`.
