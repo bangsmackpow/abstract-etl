@@ -1,9 +1,19 @@
-const nodemailer = require('nodemailer');
 const { db } = require('../db');
 const { settings } = require('../db/schema');
 const { eq } = require('drizzle-orm');
 
-let transporter = null;
+/**
+ * Transactional email via Resend (mandatory provider — no SMTP fallback).
+ * Sends from a platform address (abstract@builtnetworks.com by default,
+ * overridable via MAIL_FROM / the mail_from setting). The sending domain is
+ * verified in Resend (SPF/DKIM). Uses fetch (Web API, Cloudflare-friendly).
+ */
+
+const RESEND_API_URL = 'https://api.resend.com/emails';
+const DEFAULT_FROM = 'Abstract ETL <abstract@builtnetworks.com>';
+
+let cachedApiKey = null;
+let cachedFrom = null;
 
 async function getDbSetting(key) {
   try {
@@ -14,66 +24,49 @@ async function getDbSetting(key) {
   }
 }
 
-async function getTransporter() {
-  if (transporter) return transporter;
+async function getApiKey() {
+  return cachedApiKey || await getDbSetting('resend_api_key') || process.env.RESEND_API_KEY || null;
+}
 
-  const host = await getDbSetting('smtp_host') || process.env.SMTP_HOST;
-  const port = parseInt(await getDbSetting('smtp_port') || process.env.SMTP_PORT || '587', 10);
-  const user = await getDbSetting('smtp_user') || process.env.SMTP_USER;
-  const pass = await getDbSetting('smtp_pass') || process.env.SMTP_PASS;
-
-  if (!host || !user) return null;
-
-  transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-  });
-  return transporter;
+async function getFromAddress() {
+  return cachedFrom || await getDbSetting('mail_from') || process.env.MAIL_FROM || DEFAULT_FROM;
 }
 
 function resetTransporter() {
-  transporter = null;
-}
-
-// Resolve the authenticated SMTP login account (DB setting or env).
-async function getSmtpUser() {
-  return await getDbSetting('smtp_user') || process.env.SMTP_USER || null;
+  cachedApiKey = null;
+  cachedFrom = null;
 }
 
 /**
- * Resolve a safe "From" address. SMTP providers (e.g. Gmail) reject sends when
- * the From address differs from the authenticated login account ("501 5.5.4 You
- * are not allowed to send from this address"). So we always send from the
- * authenticated user's address. We only honor a configured smtp_from / SMTP_FROM
- * when its embedded address equals that account — this keeps a friendly display
- * name while never triggering the sender rejection.
+ * Send an email through Resend. Throws when Resend is unavailable or the API
+ * rejects the request.
  */
-async function getFromAddress() {
-  const user = await getSmtpUser();
-  const configured = await getDbSetting('smtp_from') || process.env.SMTP_FROM;
+async function sendViaResend({ to, subject, html, from }) {
+  const apiKey = await getApiKey();
+  if (!apiKey) throw new Error('RESEND_API_KEY is not configured');
 
-  if (!configured || !user) return user || configured || null;
+  const fromAddr = from || await getFromAddress();
 
-  const match = String(configured).match(/<([^>]+)>/);
-  const configuredEmail = (match ? match[1] : String(configured)).trim().toLowerCase();
-  if (configuredEmail === String(user).trim().toLowerCase()) return configured;
+  const res = await fetch(RESEND_API_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from: fromAddr, to, subject, html }),
+  });
 
-  return user;
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    console.error(`[Email] Resend error ${res.status}: ${text}`);
+    throw new Error(`Resend request failed (${res.status})`);
+  }
+  return true;
 }
 
 async function sendCompletionEmail({ to, abstractorName, propertyAddress, jobId, appUrl }) {
-  const tr = await getTransporter();
-  if (!tr) {
-    console.warn('[Email] SMTP not configured — skipping notification');
-    return false;
-  }
-
   const jobUrl = `${appUrl || process.env.APP_URL}/jobs/${jobId}`;
-
-  await tr.sendMail({
-    from: await getFromAddress(),
+  await sendViaResend({
     to,
     subject: `Abstract Complete: ${propertyAddress}`,
     html: `
@@ -94,8 +87,8 @@ async function sendCompletionEmail({ to, abstractorName, propertyAddress, jobId,
               <td style="padding: 8px; border-bottom: 1px solid #eee;">${new Date().toLocaleDateString('en-US', { dateStyle: 'full' })}</td>
             </tr>
           </table>
-          <a href="${jobUrl}" 
-             style="display: inline-block; background: #2E75B6; color: white; padding: 12px 24px; 
+          <a href="${jobUrl}"
+             style="display: inline-block; background: #2E75B6; color: white; padding: 12px 24px;
                     text-decoration: none; border-radius: 4px; margin-top: 8px;">
             View Job
           </a>
@@ -106,14 +99,10 @@ async function sendCompletionEmail({ to, abstractorName, propertyAddress, jobId,
       </div>
     `,
   });
-
   return true;
 }
 
 async function sendBulkImportNotification({ to, results }) {
-  const tr = await getTransporter();
-  if (!tr) return false;
-
   const total = results.length;
   const succeeded = results.filter((r) => r.status === 'created').length;
   const failed = results.filter((r) => r.status === 'failed').length;
@@ -130,8 +119,7 @@ async function sendBulkImportNotification({ to, results }) {
     </tr>
   `).join('');
 
-  await tr.sendMail({
-    from: await getFromAddress(),
+  await sendViaResend({
     to,
     subject: `Bulk Import Complete: ${succeeded}/${total} files imported`,
     html: `
@@ -166,13 +154,9 @@ async function sendBulkImportNotification({ to, results }) {
 }
 
 async function sendBackupNotification({ to, success, error }) {
-  const tr = await getTransporter();
-  if (!tr) return false;
-
   if (success) return true;
 
-  await tr.sendMail({
-    from: await getFromAddress(),
+  await sendViaResend({
     to,
     subject: '[ALERT] Database Backup Failed',
     html: `
@@ -197,14 +181,7 @@ async function sendBackupNotification({ to, success, error }) {
 }
 
 async function sendOtpEmail({ to, otp }) {
-  const tr = await getTransporter();
-  if (!tr) {
-    console.warn('[Email] SMTP not configured — skipping OTP email');
-    return false;
-  }
-
-  await tr.sendMail({
-    from: await getFromAddress(),
+  await sendViaResend({
     to,
     subject: 'Your Abstract ETL verification code',
     html: `
@@ -228,14 +205,7 @@ async function sendOtpEmail({ to, otp }) {
 }
 
 async function sendPasswordResetEmail({ to, resetUrl }) {
-  const tr = await getTransporter();
-  if (!tr) {
-    console.warn('[Email] SMTP not configured — skipping password reset email');
-    return false;
-  }
-
-  await tr.sendMail({
-    from: await getFromAddress(),
+  await sendViaResend({
     to,
     subject: 'Reset your Abstract ETL password',
     html: `
@@ -265,9 +235,6 @@ async function sendPasswordResetEmail({ to, resetUrl }) {
 }
 
 async function sendDailyUsageReport({ to, tenantName, report }) {
-  const tr = await getTransporter();
-  if (!tr) return false;
-
   const statusRows = (report.statusBreakdown || [])
     .map((r) => `<tr><td style="padding: 8px; border-bottom: 1px solid #eee; text-transform: capitalize;">${r.status}</td><td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${r.count}</td></tr>`)
     .join('') || '<tr><td colspan="2" style="padding: 8px; border-bottom: 1px solid #eee;">No jobs</td></tr>';
@@ -276,8 +243,7 @@ async function sendDailyUsageReport({ to, tenantName, report }) {
     .map((r) => `<tr><td style="padding: 8px; border-bottom: 1px solid #eee;">${r.name}</td><td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${r.count}</td></tr>`)
     .join('') || '<tr><td colspan="2" style="padding: 8px; border-bottom: 1px solid #eee;">No activity</td></tr>';
 
-  await tr.sendMail({
-    from: await getFromAddress(),
+  await sendViaResend({
     to,
     subject: `Daily Usage Report — ${tenantName}`,
     html: `

@@ -442,7 +442,7 @@ router.patch('/settings', requireTenantAdmin, async (req, res) => {
 // ── Global System Settings (platform-only) ────────────────────────────────────
 
 const SETTING_KEYS = [
-  'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from',
+  'resend_api_key', 'mail_from',
   'admin_email',
   'backup_enabled', 'backup_interval_minutes', 'backup_retention_days',
 ];
@@ -477,9 +477,9 @@ router.patch('/system/settings', requirePlatformAdmin, async (req, res) => {
     changedKeys.push(key);
   }
 
-  // Reinitialize services if SMTP settings changed
-  const smtpKeys = ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from'];
-  if (smtpKeys.some((k) => changedKeys.includes(k))) {
+  // Reinitialize the email provider if Resend settings changed
+  const resendKeys = ['resend_api_key', 'mail_from'];
+  if (resendKeys.some((k) => changedKeys.includes(k))) {
     resetTransporter();
   }
 

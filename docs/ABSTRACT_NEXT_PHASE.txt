@@ -1,0 +1,28 @@
+platform admin improvements:
+
+1) ability to modify settings of each tenant
+2) ability to export all reports or based on date to .zip file (pdf, excel, and .md)
+3) daily usage report email
+
+
+user improvements:
+
+1) MFA
+2) Ability to reset password by sending one time reset to their current email address
+3) ability to change password once logged in.  
+4) do we need to implement something like better-auth?
+
+backend improvements:
+
+1) are their any other features of better-sqlite that we need to implement for higher volume, more users, more reports, etc?
+2) do we need to start looking at spawning more workers/backends for processing?
+
+website for app:
+
+1) develop a single page website/landing site with a login and signup link in the upper/right corner.  website should be a sudo marketing site for the app that we can send to potential customers.  new customers can get a 7 day free trial.
+
+subscription time:
+
+1) link to stripe or other payment solution for tenant based monthly billing (automatic)
+2) think about structure for tiers.  1 subscription per user?, 1 subscription per tenant?, usage based billing (tokens?)
+

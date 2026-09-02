@@ -108,7 +108,7 @@ V9 (REVISION 9 rules) is the current/default extraction and formatting contract.
 | `googleAiService.js` | Primary AI engine — native PDF extraction with structured JSON output; selects `v7` or `v9` prompt/schema by `templateVersion` |
 | `v7DocxGenerator.js` / `v7PdfGenerator.js` / `v7MarkdownGenerator.js` | Legacy V7 generators (side-by-side testing) |
 | `v9DocxGenerator.js` / `v9PdfGenerator.js` / `v9MarkdownGenerator.js` | Current V9-rule generators (ALL CAPS, packet-order chain, warning red, Segoe Script signature) |
-| `emailService.js` | SMTP email notifications |
+| `emailService.js` | Transactional email via Resend (mandatory provider) |
 | `backupService.js` | SQLite database backups |
 | `env.js` | Zod-validated environment config |
 
@@ -116,7 +116,7 @@ V9 (REVISION 9 rules) is the current/default extraction and formatting contract.
 - `tenants` — Tenant companies (platform-level). `users`/`jobs` are tenant-scoped via `tenant_id`.
 - `jobs` — Stores all abstract jobs with `templateVersion` (text) and `fieldsJson` (JSON)
 - `users` — Tenant-scoped users; `role` = tenant admin (`admin`) or `abstractor`; `is_platform_admin` = platform super-admin
-- `settings` — Key-value config (SMTP, backup settings)
+- `settings` — Key-value config (Resend email, backup settings)
 - `backups` — Backup metadata
 
 > **Multi-tenant (see `docs/multi-tenant-plan.md`):** `users` and `jobs` are tenant-scoped. All queries go through `backend/src/services/tenantRepo.js` with `tenantId` from the JWT. Global settings/backups and `/api/platform/tenants` are platform-admin only. Existing data was backfilled into the `default` tenant; the seeded admin (`ADMIN_EMAIL`) is its tenant admin and `is_platform_admin`. Per-tenant logos are stored on `tenants` (`logo_blob`/`logo_mime`) and rendered by the DOCX/PDF generators. `audit_log` records platform moves (`job.move`). `GET /api/admin/metrics` (+ `/metrics/export`) provides per-tenant reporting with date filters.

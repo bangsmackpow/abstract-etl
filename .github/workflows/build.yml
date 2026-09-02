@@ -206,15 +206,10 @@ jobs:
         with:
           node-version: 24
           cache: 'npm'
-      - name: Install dependencies (for nodemailer)
-        run: npm install --legacy-peer-deps
       - name: Send failure notification
         env:
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
           NOTIFY_TO: ${{ secrets.ADMIN_EMAIL }}
           WORKFLOW: ${{ github.workflow }}
           BRANCH: ${{ github.ref_name }}

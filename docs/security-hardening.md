@@ -71,8 +71,8 @@ Reference audit + remediation tracker for the Abstract ETL v3 codebase. Re-run t
 - **Remaining:** no at-rest encryption of the SQLite file (see Item 5).
 
 ### Item 5 — Sensitive data encryption at rest
-- **Findings:** Full abstracts (owner names, addresses, tax) in plaintext `fieldsJson`; `settings.smtp_pass` in plaintext; whole-DB backups are plaintext copies.
-- **Remediation:** Encrypt `smtp_pass` (AES-256-GCM, key from env); at-rest-encrypt DB/backups (SQLCipher) or document cloud-volume encryption (D1). Treat backups as a copy vector.
+- **Findings:** Full abstracts (owner names, addresses, tax) in plaintext `fieldsJson`; `settings.resend_api_key` in plaintext; whole-DB backups are plaintext copies.
+- **Remediation:** Encrypt `resend_api_key` (AES-256-GCM, key from env); at-rest-encrypt DB/backups (SQLCipher) or document cloud-volume encryption (D1). Treat backups as a copy vector.
 
 ### Item 7 — IDOR prevention
 - **Findings (resolved 2026-09-01):** Every id-scoped route (`/jobs/:id`, `/generate/:jobId/*`, `/admin/*`) now queries via `tenantRepo` with the JWT `tenantId` and returns **404** for a foreign tenant's ID. `requirePlatformAdmin` gates global settings/backups/platform routes.
@@ -184,7 +184,7 @@ Reference audit + remediation tracker for the Abstract ETL v3 codebase. Re-run t
 2. **P1 — Token storage:** HttpOnly+SameSite cookie or token versioning/short TTL; server-side revocation (Items 9, 23, 39).
 3. **P2 — Output-context XSS:** HTML-escape email interpolation; scrub uploaded filenames (Items 15, 26, 33).
 4. **P2 — Prompt-injection guardrails:** sanitize filename, harden system prompt, cap AI usage (Items 29, 30).
-5. **P3 — Encryption & file perms:** encrypt `smtp_pass`, tighten DB/backup modes, at-rest-encrypt DB+backups (Items 5, 40).
+5. **P3 — Encryption & file perms:** encrypt `resend_api_key`, tighten DB/backup modes, at-rest-encrypt DB+backups (Items 5, 40).
 6. **P3 — Platform hardening:** magic-byte validation, error trimming, CSP/headers at nginx, HTTPS/HSTS, gate `/api/docs/*`, admin audit trail (Items 17, 18, 19, 21, 26, 36, 38).
 
 ---

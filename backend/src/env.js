@@ -8,11 +8,8 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(8),
   GOOGLE_AI_API_KEY: z.string().min(1),
   APP_URL: z.string().url().default('http://localhost:5173'),
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.string().optional(),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
-  SMTP_FROM: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
+  MAIL_FROM: z.string().optional(),
   DOCS_DIR: z.string().optional(),
 });
 
