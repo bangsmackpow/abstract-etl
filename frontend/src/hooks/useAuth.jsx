@@ -15,10 +15,14 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const data = await apiLogin(email, password);
+    // MFA step 1 returns { needsMfa: true } with no token/user — do not
+    // persist a session yet; return the full response so the caller can
+    // branch to the OTP step.
+    if (data.needsMfa) return data;
     localStorage.setItem('auth_token', data.token);
     localStorage.setItem('auth_user', JSON.stringify(data.user));
     setUser(data.user);
-    return data.user;
+    return data;
   }, []);
 
   const logout = useCallback(() => {
