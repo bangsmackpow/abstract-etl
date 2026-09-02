@@ -29,9 +29,7 @@ AI-powered ETL system for property abstracts. **V9 rules** (REVISION 9 of the En
 
 ## Env (`backend/src/env.js`, Zod-validated — exits on invalid)
 
-Required at startup: `JWT_SECRET` (min 10 chars), `ADMIN_EMAIL`, `ADMIN_PASSWORD` (min 8), `GOOGLE_AI_API_KEY`. Optional: `PORT` (3001), `APP_URL`, `SMTP_*`, `DOCS_DIR`, `DB_PATH`. See `.env.example`.
-
-⚠️ `docker-compose.yml` still wires `GEMINI_API_KEY` / `OPENROUTER_API_KEY` / `AI_PROVIDER` / `AI_MODEL`, but no backend code reads them — only `GOOGLE_AI_API_KEY` is used. Do not add them to `env.js` to "fix" compose.
+Required at startup: `JWT_SECRET` (min 10 chars), `ADMIN_EMAIL`, `ADMIN_PASSWORD` (min 8), `GOOGLE_AI_API_KEY`. Optional: `PORT` (3001), `APP_URL`, `SMTP_*`, `DOCS_DIR`, `DB_PATH`, `LOG_LEVEL`. See `.env.example`. `stack.env` (tracked) must contain at least `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `GOOGLE_AI_API_KEY` (placeholders only — CI's `env-audit` warns on real secrets).
 
 ## Key rules
 
