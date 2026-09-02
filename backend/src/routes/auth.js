@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { env } = require('../env');
 const {
   login,
   signup,
@@ -12,6 +13,7 @@ const {
   getUserByEmail,
 } = require('../services/authService');
 const { requireAuth } = require('../middleware/requireAuth');
+const { loginLimiter, otpLimiter, signupLimiter, forgotLimiter, authLimiter } = require('../middleware/rateLimit');
 const { createError } = require('../middleware/errorHandler');
 const { sendOtpEmail, sendPasswordResetEmail } = require('../services/emailService');
 
@@ -19,7 +21,7 @@ const { sendOtpEmail, sendPasswordResetEmail } = require('../services/emailServi
  * POST /api/auth/login
  * Step 1: email + password. Returns a JWT, or { needsMfa } when MFA is enabled.
  */
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     throw createError('Email and password are required', 400);
@@ -56,7 +58,7 @@ router.post('/login', async (req, res) => {
  * POST /api/auth/signup
  * Public self-serve signup — creates a tenant on a 7-day trial + admin user.
  */
-router.post('/signup', async (req, res) => {
+router.post('/signup', signupLimiter, async (req, res) => {
   const { companyName, name, email, password } = req.body || {};
   try {
     const result = await signup({ companyName, name, email, password });
@@ -70,7 +72,7 @@ router.post('/signup', async (req, res) => {
  * POST /api/auth/verify-otp
  * Step 2 (MFA): verify the emailed code and issue the JWT.
  */
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', otpLimiter, async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) throw createError('Email and verification code are required', 400);
   try {
@@ -85,7 +87,7 @@ router.post('/verify-otp', async (req, res) => {
  * POST /api/auth/mfa/enable
  * Enables email-OTP MFA for the logged-in user (emails the initial code).
  */
-router.post('/mfa/enable', requireAuth, async (req, res) => {
+router.post('/mfa/enable', requireAuth, authLimiter, async (req, res) => {
   const result = await enableMfa(req.user.id);
   const user = await getUserByEmail(req.user.email);
   if (user) {
@@ -106,7 +108,7 @@ router.post('/mfa/enable', requireAuth, async (req, res) => {
  * POST /api/auth/mfa/disable
  * Disables MFA (requires current password).
  */
-router.post('/mfa/disable', requireAuth, async (req, res) => {
+router.post('/mfa/disable', requireAuth, authLimiter, async (req, res) => {
   const { password } = req.body;
   if (!password) throw createError('Current password is required', 400);
   try {
@@ -121,13 +123,12 @@ router.post('/mfa/disable', requireAuth, async (req, res) => {
  * POST /api/auth/forgot-password
  * Emails a one-time reset link. Always returns success (no enumeration).
  */
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', forgotLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) throw createError('Email is required', 400);
   const result = await sendPasswordReset(email);
   if (result.rawToken && result.user) {
-    const appUrl = process.env.APP_URL || 'http://localhost:5173';
-    const resetUrl = `${appUrl}/reset-password?token=${result.rawToken}`;
+    const resetUrl = `${env.APP_URL}/reset-password?token=${result.rawToken}`;
     await sendPasswordResetEmail({ to: result.user.email, resetUrl });
   }
   res.json({ sent: true });
@@ -137,7 +138,7 @@ router.post('/forgot-password', async (req, res) => {
  * POST /api/auth/reset-password
  * Completes a password reset with the one-time token.
  */
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', authLimiter, async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) throw createError('Token and new password are required', 400);
   try {
@@ -152,7 +153,7 @@ router.post('/reset-password', async (req, res) => {
  * PATCH /api/auth/password
  * Change the logged-in user's password (requires current password).
  */
-router.patch('/password', requireAuth, async (req, res) => {
+router.patch('/password', requireAuth, authLimiter, async (req, res) => {
   const { current_password, new_password } = req.body;
   if (!current_password || !new_password) {
     throw createError('Current and new password are required', 400);

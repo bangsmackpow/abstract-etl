@@ -21,6 +21,9 @@ const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 app.disable('etag'); // Dynamic API — no conditional GET caching
+// Cloudflare → nginx proxy manager → frontend nginx → backend. Trust the proxy
+// chain so req.ip is the real client IP (required for per-IP rate limiting).
+app.set('trust proxy', () => true);
 const PORT = env.PORT || 3001;
 
 // ── Uploads directory ────────────────────────────────────────────────────────
@@ -125,7 +128,9 @@ async function seedAdmin() {
   const bcrypt = require('bcryptjs');
 
   if (!existingAdmin) {
-    // console.log('🌱 Seeding initial admin user...');
+    // One-time seed: create the platform admin. After this, the password is
+    // owned by the account (self-serve change / reset), NOT by env — booting
+    // no longer overwrites it, so a changed password can't be silently reset.
     const hashedPassword = bcrypt.hashSync(adminPass, 10);
     await db.insert(users).values({
       name: 'System Admin',
@@ -135,17 +140,11 @@ async function seedAdmin() {
       tenantId: defaultTenantId,
       isPlatformAdmin: true,
     });
-    // console.log(`✅ Admin user created: ${adminEmail}`);
+    logger.info({ email: adminEmail }, 'admin user seeded (first boot only)');
   } else {
-    // Check if we need to update the password (e.g. if env changed)
-    const isSame = bcrypt.compareSync(adminPass, existingAdmin.password);
-
+    // Ensure platform-admin + tenant membership flags stay correct, but NEVER
+    // touch the password. Warn if env differs (possible break-glass intent).
     const updates = {};
-    if (!isSame) {
-      updates.password = bcrypt.hashSync(adminPass, 10);
-      // console.log('👤 Admin password changed in env. Updating...');
-    }
-    // Ensure the seeded admin is a platform admin and assigned to the default tenant
     if (!existingAdmin.isPlatformAdmin) updates.isPlatformAdmin = true;
     if (!existingAdmin.tenantId && defaultTenantId) updates.tenantId = defaultTenantId;
 
@@ -154,6 +153,13 @@ async function seedAdmin() {
         .update(users)
         .set({ ...updates, updatedAt: sql`(strftime('%s', 'now'))` })
         .where(eq(users.id, existingAdmin.id));
+    }
+
+    if (!bcrypt.compareSync(adminPass, existingAdmin.password)) {
+      logger.warn(
+        { email: adminEmail },
+        'ADMIN_PASSWORD env differs from the stored admin password — stored password kept (use "forgot password" to change)'
+      );
     }
   }
 }
