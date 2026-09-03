@@ -60,8 +60,10 @@ router.post('/portal', requireAuth, async (req, res) => {
 /**
  * POST /api/billing/webhook
  * Stripe webhook endpoint — raw body, signature-verified, no auth.
+ * The raw body parser is mounted globally in index.js BEFORE express.json()
+ * so the exact request bytes reach stripe.webhooks.constructEvent().
  */
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   const signature = req.headers['stripe-signature'];
   if (!signature) return res.status(400).json({ error: 'Missing stripe-signature header' });
   try {

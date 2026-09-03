@@ -77,6 +77,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Stripe webhook must receive the RAW request body (signature verification
+// uses the exact bytes). Mount this BEFORE express.json() so the global JSON
+// parser doesn't consume the body first.
+app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
