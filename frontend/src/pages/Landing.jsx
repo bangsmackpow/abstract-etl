@@ -10,8 +10,8 @@ const FEATURES = [
 ];
 
 const TIERS = [
-  { name: 'Solo', price: '$45', per: '/month', users: '1 user', jobs: 'Unlimited jobs', highlight: false },
-  { name: 'Team', price: '$99', per: '/month', users: '5 users', jobs: 'Unlimited jobs', highlight: true },
+  { name: 'Solo', price: '$159', per: '/month', users: '1 user', jobs: 'Unlimited jobs', highlight: false },
+  { name: 'Team', price: '$299', per: '/month', users: '5 users', jobs: 'Unlimited jobs', highlight: true },
   { name: 'Enterprise', price: '$499', per: '/month', users: 'Unlimited users', jobs: 'Dedicated instance', highlight: false },
 ];
 

@@ -29,7 +29,7 @@ AI-powered ETL system for property abstracts. **V9 rules** (REVISION 9 of the En
 - `logger.js` — pino, one JSON object per line with `requestId` for Loki/Grafana. Health checks and non-API 404 scanner noise are suppressed at the source. See `docs/monitoring/README.md`.
 - `extractionQueue.js` — in-process concurrency limiter (default 3 concurrent Gemini calls) for extraction; no external deps. `EXTRACTION_CONCURRENCY` env overrides.
 - `reportService.js` — daily usage report email scheduler (default 00:05 UTC; per-tenant `daily_report_time` + `daily_report_enabled` from tenant settings).
-- `stripeService.js` — Stripe billing (test mode to start): checkout, billing portal, webhook (`checkout.session.completed`, `customer.subscription.updated/deleted`, `invoice.payment_failed`). Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO/TEAM/ENTERPRISE`. Tiers: Solo $45 (1 user), Team $99 (5 users), Enterprise $499 (dedicated instance).
+- `stripeService.js` — Stripe billing (test mode to start): checkout, billing portal, webhook (`checkout.session.completed`, `customer.subscription.updated/deleted`, `invoice.payment_failed`). Env: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_SOLO/TEAM/ENTERPRISE`. Tiers: Solo $159 (1 user), Team $299 (5 users), Enterprise $499 (dedicated instance).
 
 ## Env (`backend/src/env.js`, Zod-validated — exits on invalid)
 

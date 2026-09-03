@@ -3,8 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { getBillingStatus, createCheckoutSession, openBillingPortal } from '../services/api';
 
 const PLAN_DETAILS = {
-  solo: { name: 'Solo', price: '$45/mo', desc: '1 user · Unlimited jobs' },
-  team: { name: 'Team', price: '$99/mo', desc: '5 users · Unlimited jobs' },
+  solo: { name: 'Solo', price: '$159/mo', desc: '1 user · Unlimited jobs' },
+  team: { name: 'Team', price: '$299/mo', desc: '5 users · Unlimited jobs' },
   enterprise: { name: 'Enterprise', price: '$499/mo', desc: 'Unlimited users · Dedicated instance' },
 };
 
